@@ -692,10 +692,19 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
         context.user_data['document_file_id'] = document_file_id
 
     elif update.message.text:
-        # Text (TXID for USDT)
-        transaction_ref = update.message.text.strip()
+        # Text is only allowed for USDT (TXID)
+        if method == 'USDT':
+            transaction_ref = update.message.text.strip()
+        else:
+            # For BML/MIB, reject text and require image
+            await update.message.reply_text(
+                "❌ Please upload an **image** of your payment slip/receipt.\n\n"
+                "📸 Send a photo or screenshot of your bank transfer slip.",
+                parse_mode='Markdown'
+            )
+            return DEPOSIT_PROOF
     else:
-        await update.message.reply_text("❌ Please send a valid payment proof (image or text).")
+        await update.message.reply_text("❌ Please send a valid payment proof (image).")
         return DEPOSIT_PROOF
 
     # Store transaction reference and extracted details in context

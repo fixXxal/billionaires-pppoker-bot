@@ -328,7 +328,11 @@ class SheetsManager:
             cell = self.payment_accounts_sheet.find(method)
             if cell:
                 row_data = self.payment_accounts_sheet.row_values(cell.row)
-                return row_data[1] if len(row_data) > 1 else None
+                account = row_data[1] if len(row_data) > 1 else None
+                # Remove leading apostrophe if present (used to force text format in sheets)
+                if account and account.startswith("'"):
+                    account = account[1:]
+                return account
         except Exception:
             pass
         return None
@@ -350,9 +354,13 @@ class SheetsManager:
             cell = self.payment_accounts_sheet.find(method)
             if cell:
                 row_data = self.payment_accounts_sheet.row_values(cell.row)
+                account_number = row_data[1] if len(row_data) > 1 else None
+                # Remove leading apostrophe if present (used to force text format in sheets)
+                if account_number and account_number.startswith("'"):
+                    account_number = account_number[1:]
                 return {
                     'method': row_data[0],
-                    'account_number': row_data[1] if len(row_data) > 1 else None,
+                    'account_number': account_number,
                     'account_holder': row_data[2] if len(row_data) > 2 else None,
                     'updated_at': row_data[3] if len(row_data) > 3 else None
                 }
@@ -362,20 +370,24 @@ class SheetsManager:
 
     def update_payment_account(self, method: str, account_number: str, account_holder: str = None):
         """Update payment account number and holder name"""
+        # Prefix account number with apostrophe to force text format in Google Sheets
+        # This prevents long numbers (like MIB's 17 digits) from being converted to scientific notation
+        account_number_text = f"'{account_number}"
+
         try:
             cell = self.payment_accounts_sheet.find(method)
             if cell:
                 row = cell.row
-                self.payment_accounts_sheet.update_cell(row, 2, account_number)
+                self.payment_accounts_sheet.update_cell(row, 2, account_number_text)
                 if account_holder:
                     self.payment_accounts_sheet.update_cell(row, 3, account_holder)
                 self.payment_accounts_sheet.update_cell(row, 4, self._get_timestamp())
             else:
                 # Add new payment method
-                self.payment_accounts_sheet.append_row([method, account_number, account_holder or '', self._get_timestamp()])
+                self.payment_accounts_sheet.append_row([method, account_number_text, account_holder or '', self._get_timestamp()])
         except Exception:
             # Add new payment method
-            self.payment_accounts_sheet.append_row([method, account_number, account_holder or '', self._get_timestamp()])
+            self.payment_accounts_sheet.append_row([method, account_number_text, account_holder or '', self._get_timestamp()])
 
     def get_all_payment_accounts(self) -> Dict[str, Dict]:
         """Get all payment accounts with details"""
@@ -383,8 +395,12 @@ class SheetsManager:
         rows = self.payment_accounts_sheet.get_all_values()[1:]  # Skip header
         for row in rows:
             if len(row) >= 2 and row[0] and row[1]:
+                account_number = row[1]
+                # Remove leading apostrophe if present (used to force text format in sheets)
+                if account_number and account_number.startswith("'"):
+                    account_number = account_number[1:]
                 accounts[row[0]] = {
-                    'account_number': row[1],
+                    'account_number': account_number,
                     'account_holder': row[2] if len(row) > 2 else None,
                     'updated_at': row[3] if len(row) > 3 else None
                 }
