@@ -857,9 +857,9 @@ async def admin_view_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE
         message_text += f"<b>{method}:</b> <code>{account}</code> (tap to copy)\n"
 
     message_text += "\nUse these commands to update:\n"
-    message_text += "<code>/update_bml [number]</code>\n"
-    message_text += "<code>/update_mib [number]</code>\n"
-    message_text += "<code>/update_usdt [address]</code>"
+    message_text += "<code>/update_bml</code>\n"
+    message_text += "<code>/update_mib</code>\n"
+    message_text += "<code>/update_usdt</code>"
 
     await edit_func(
         message_text,
@@ -898,62 +898,8 @@ async def admin_close(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("✅ Admin panel closed.")
 
 
-# Update payment accounts
-async def update_bml(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Update BML account number"""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ You don't have admin access.")
-        return
-
-    if not context.args:
-        await update.message.reply_text("Usage: /update_bml [account_number]")
-        return
-
-    account_number = ' '.join(context.args)
-    sheets.update_payment_account('BML', account_number)
-
-    await update.message.reply_text(
-        f"✅ BML account updated to: `{account_number}`",
-        parse_mode='HTML'
-    )
-
-
-async def update_mib(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Update MIB account number"""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ You don't have admin access.")
-        return
-
-    if not context.args:
-        await update.message.reply_text("Usage: /update_mib [account_number]")
-        return
-
-    account_number = ' '.join(context.args)
-    sheets.update_payment_account('MIB', account_number)
-
-    await update.message.reply_text(
-        f"✅ MIB account updated to: `{account_number}`",
-        parse_mode='HTML'
-    )
-
-
-async def update_usdt(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Update USDT wallet address"""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ You don't have admin access.")
-        return
-
-    if not context.args:
-        await update.message.reply_text("Usage: /update_usdt [wallet_address]")
-        return
-
-    wallet_address = ' '.join(context.args)
-    sheets.update_payment_account('USDT', wallet_address)
-
-    await update.message.reply_text(
-        f"✅ USDT wallet updated to: `{wallet_address}`",
-        parse_mode='HTML'
-    )
+# REMOVED - Old update payment account handlers (replaced by conversation handlers in bot.py)
+# These are now handled by update_payment_account_start() in bot.py with interactive flow
 
 
 def register_admin_handlers(application, notif_messages=None):
@@ -965,10 +911,8 @@ def register_admin_handlers(application, notif_messages=None):
     # Admin panel
     application.add_handler(CommandHandler("admin", admin_panel))
 
-    # Update account commands
-    application.add_handler(CommandHandler("update_bml", update_bml))
-    application.add_handler(CommandHandler("update_mib", update_mib))
-    application.add_handler(CommandHandler("update_usdt", update_usdt))
+    # NOTE: Update account commands (/update_bml, /update_mib, /update_usdt) are now
+    # handled by conversation handlers in bot.py, not here
 
     # Callback query handlers
     application.add_handler(CallbackQueryHandler(admin_view_deposits, pattern="^admin_view_deposits$"))
