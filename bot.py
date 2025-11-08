@@ -415,8 +415,10 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     if extracted_details:
         if extracted_details['amount'] and extracted_details['amount'] > 0:
             verified_amount = extracted_details['amount']
-        if extracted_details['bank']:
-            verified_bank = extracted_details['bank']
+        # NOTE: Don't overwrite verified_bank with OCR bank!
+        # User-selected method is the RECEIVER's bank (where money goes TO)
+        # OCR 'bank' field can show either sender's or receiver's bank depending on slip format
+        # We must validate against user-selected method to ensure correct account matching
         if extracted_details['sender_name']:
             sender_name = extracted_details['sender_name']
         if extracted_details['receiver_name']:

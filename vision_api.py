@@ -311,7 +311,7 @@ def parse_payment_details(text):
 
     # --- Extract Receiver Account Number ---
     # Look for account numbers near "To" label
-    # BML: 13 digits, MIB: 17 digits, so support 10-20 digits
+    # BML: 13 digits (e.g., 7730000646797), MIB: 17 digits (e.g., 90103101325241000)
     if not details['receiver_account_number']:
         to_index = -1
         for i, line in enumerate(lines):
@@ -322,10 +322,14 @@ def parse_payment_details(text):
         if to_index >= 0:
             # Check next few lines after "To" for account number
             for offset in range(1, min(10, len(lines) - to_index)):
-                potential_account = lines[to_index + offset].strip()
+                potential_line = lines[to_index + offset].strip()
 
-                # Look for pure numeric string 10-20 digits (BML 13, MIB 17)
-                if re.match(r'^\d{10,20}$', potential_account):
+                # Try to find account number in the line (may be standalone or mixed with name)
+                # Look for 10-20 digit sequences
+                account_match = re.search(r'\b(\d{10,20})\b', potential_line)
+                if account_match:
+                    potential_account = account_match.group(1)
+
                     # Make sure it's not the reference number we already extracted
                     if details['reference_number'] and potential_account == details['reference_number']:
                         continue
