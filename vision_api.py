@@ -79,6 +79,7 @@ def parse_payment_details(text):
         'reference_number': None,
         'sender_name': None,
         'receiver_name': None,
+        'receiver_account_number': None,
         'amount': None,
         'bank': None,
         'currency': None,
@@ -308,6 +309,31 @@ def parse_payment_details(text):
                             details['receiver_name'] = clean_name.title()
                             break
 
+    # --- Extract Receiver Account Number ---
+    # Look for account numbers near "To" label (typically 10-16 digits)
+    # Must be different from reference number
+    if not details['receiver_account_number']:
+        to_index = -1
+        for i, line in enumerate(lines):
+            if line.upper().strip() == 'TO':
+                to_index = i
+                break
+
+        if to_index >= 0:
+            # Check next few lines after "To" for account number
+            for offset in range(1, min(10, len(lines) - to_index)):
+                potential_account = lines[to_index + offset].strip()
+
+                # Look for pure numeric string 10-16 digits (common account number length)
+                if re.match(r'^\d{10,16}$', potential_account):
+                    # Make sure it's not the reference number we already extracted
+                    if details['reference_number'] and potential_account == details['reference_number']:
+                        continue
+
+                    # This is likely the receiver account number
+                    details['receiver_account_number'] = potential_account
+                    break
+
     return details
 
 
@@ -340,9 +366,12 @@ def format_extracted_details(details, show_raw=False):
     if details['receiver_name']:
         message += f"👤 *Receiver:* {details['receiver_name']}\n"
 
+    if details['receiver_account_number']:
+        message += f"💳 *Receiver Account:* `{details['receiver_account_number']}`\n"
+
     # Check if any details were extracted
     if not any([details['reference_number'], details['amount'], details['bank'],
-                details['sender_name'], details['receiver_name']]):
+                details['sender_name'], details['receiver_name'], details['receiver_account_number']]):
         message += "⚠️ _Could not extract details automatically._\n"
         message += "_Please verify the image quality._\n"
 

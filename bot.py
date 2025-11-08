@@ -439,6 +439,26 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
                                          f"Slip receiver: {extracted_details['receiver_name']}\n" \
                                          f"Expected: {stored_holder_name}"
 
+    # Validate receiver account number against stored account number
+    account_validation_warning = ""
+    if extracted_details and extracted_details.get('receiver_account_number'):
+        # Get stored account number for this payment method
+        stored_account_number = sheets.get_payment_account(verified_bank)
+
+        if stored_account_number:
+            # Normalize account numbers (remove spaces, dashes)
+            extracted_account = extracted_details['receiver_account_number'].replace(' ', '').replace('-', '').strip()
+            stored_account = stored_account_number.replace(' ', '').replace('-', '').strip()
+
+            # Check if account numbers match (exact match required)
+            if extracted_account != stored_account:
+                account_validation_warning = f"\n\n⚠️ <b>ACCOUNT NUMBER MISMATCH WARNING</b>\n" \
+                                            f"Slip receiver account: {extracted_details['receiver_account_number']}\n" \
+                                            f"Expected: {stored_account_number}"
+
+    # Combine warnings
+    validation_warnings = name_validation_warning + account_validation_warning
+
     # Currency
     currency = 'MVR' if method != 'USDT' else 'USD'
 
@@ -460,7 +480,7 @@ To: {receiver_name}
 🎮 <b>PPPOKER INFO</b>
 Player ID: <code>{pppoker_id}</code>
 
-📸 <i>Payment slip attached below</i>{name_validation_warning}"""
+📸 <i>Payment slip attached below</i>{validation_warnings}"""
 
     # Create approval buttons
     keyboard = [
@@ -575,7 +595,8 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
                 extracted_details['amount'],
                 extracted_details['bank'],
                 extracted_details['sender_name'],
-                extracted_details['receiver_name']
+                extracted_details['receiver_name'],
+                extracted_details.get('receiver_account_number')
             ])
 
             if has_details:
@@ -637,7 +658,8 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
                     extracted_details['amount'],
                     extracted_details['bank'],
                     extracted_details['sender_name'],
-                    extracted_details['receiver_name']
+                    extracted_details['receiver_name'],
+                    extracted_details.get('receiver_account_number')
                 ])
 
                 if has_details:
@@ -1250,13 +1272,22 @@ async def update_account_number_received(update: Update, context: ContextTypes.D
 
     if method == 'USDT':
         # USDT doesn't need holder name, save directly
-        sheets.update_payment_account(method, account_number, None)
+        try:
+            sheets.update_payment_account(method, account_number, None)
 
-        await update.message.reply_text(
-            f"✅ **{method} wallet updated successfully!**\n\n"
-            f"Wallet Address: `{account_number}`",
-            parse_mode='Markdown'
-        )
+            await update.message.reply_text(
+                f"✅ **{method} wallet updated successfully!**\n\n"
+                f"Wallet Address: `{account_number}`",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.error(f"Error updating USDT wallet: {e}")
+            await update.message.reply_text(
+                f"❌ **Error saving wallet details.**\n\n"
+                f"Please try again or contact support.\n"
+                f"Error: {str(e)}",
+                parse_mode='Markdown'
+            )
 
         # Clear user data
         context.user_data.clear()
@@ -1296,19 +1327,36 @@ async def update_account_cancel(update: Update, context: ContextTypes.DEFAULT_TY
 async def update_account_holder_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Receive account holder name and save"""
     account_holder = update.message.text.strip()
-    account_number = context.user_data['update_account_number']
-    method = context.user_data['update_method']
+    account_number = context.user_data.get('update_account_number')
+    method = context.user_data.get('update_method')
 
-    # Save to sheets
-    sheets.update_payment_account(method, account_number, account_holder)
+    if not account_number or not method:
+        await update.message.reply_text(
+            "❌ **Error:** Session data lost. Please start again with the update command.",
+            parse_mode='Markdown'
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
 
-    await update.message.reply_text(
-        f"✅ **{method} account updated successfully!**\n\n"
-        f"Account Number: `{account_number}`\n"
-        f"Account Holder: {account_holder}\n\n"
-        f"ℹ️ This holder name will be used to validate deposit slips.",
-        parse_mode='Markdown'
-    )
+    try:
+        # Save to sheets
+        sheets.update_payment_account(method, account_number, account_holder)
+
+        await update.message.reply_text(
+            f"✅ **{method} account updated successfully!**\n\n"
+            f"Account Number: `{account_number}`\n"
+            f"Account Holder: {account_holder}\n\n"
+            f"ℹ️ This holder name will be used to validate deposit slips.",
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        logger.error(f"Error updating payment account: {e}")
+        await update.message.reply_text(
+            f"❌ **Error saving account details.**\n\n"
+            f"Please try again or contact support.\n"
+            f"Error: {str(e)}",
+            parse_mode='Markdown'
+        )
 
     # Clear user data
     context.user_data.clear()
