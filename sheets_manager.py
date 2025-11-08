@@ -170,6 +170,27 @@ class SheetsManager:
         if cell:
             self.users_sheet.update_cell(cell.row, 8, account_name)
 
+    def get_all_user_ids(self) -> List[int]:
+        """Get all user IDs from the Users sheet"""
+        try:
+            # Get all values from the Users sheet
+            all_values = self.users_sheet.get_all_values()
+
+            # Skip header row (index 0) and extract user IDs from column A
+            user_ids = []
+            for row in all_values[1:]:  # Skip header
+                if row and row[0]:  # Check if user_id exists
+                    try:
+                        user_id = int(row[0])
+                        user_ids.append(user_id)
+                    except (ValueError, IndexError):
+                        continue
+
+            return user_ids
+        except Exception as e:
+            print(f"Error getting user IDs: {e}")
+            return []
+
     # Deposit Management
     def create_deposit_request(self, user_id: int, username: str, pppoker_id: str,
                               amount: float, payment_method: str, account_name: str,

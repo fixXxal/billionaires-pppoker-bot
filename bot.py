@@ -5,6 +5,7 @@ Main bot file with all handlers and logic
 
 import os
 import logging
+import asyncio
 from typing import Dict
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
@@ -50,7 +51,7 @@ sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
 (DEPOSIT_METHOD, DEPOSIT_AMOUNT, DEPOSIT_PPPOKER_ID, DEPOSIT_ACCOUNT_NAME,
  DEPOSIT_PROOF, WITHDRAWAL_METHOD, WITHDRAWAL_AMOUNT, WITHDRAWAL_PPPOKER_ID,
  WITHDRAWAL_ACCOUNT_NAME, WITHDRAWAL_ACCOUNT_NUMBER, JOIN_PPPOKER_ID,
- ADMIN_APPROVAL_NOTES, SUPPORT_CHAT, ADMIN_REPLY_MESSAGE, UPDATE_ACCOUNT_METHOD, UPDATE_ACCOUNT_NUMBER) = range(16)
+ ADMIN_APPROVAL_NOTES, SUPPORT_CHAT, ADMIN_REPLY_MESSAGE, UPDATE_ACCOUNT_METHOD, UPDATE_ACCOUNT_NUMBER, BROADCAST_MESSAGE) = range(17)
 
 # Store for live support sessions
 live_support_sessions: Dict[int, int] = {}  # user_id: admin_user_id
@@ -249,9 +250,10 @@ Need help? Contact our support team! 🙂
 🔐 **Admin Commands:**
 - `/admin` - Access admin panel
 - `/reply [user_id] [message]` - Reply to user in support
-- `/update_bml [number]` - Update BML account
-- `/update_mib [number]` - Update MIB account
-- `/update_usdt [address]` - Update USDT wallet
+- `/update_bml` - Update BML account
+- `/update_mib` - Update MIB account
+- `/update_usdt` - Update USDT wallet
+- `/broadcast` - Send message to all users
 """
 
     await update.message.reply_text(help_text, parse_mode='Markdown')
@@ -1284,6 +1286,102 @@ async def update_account_holder_received(update: Update, context: ContextTypes.D
     return ConversationHandler.END
 
 
+# Admin Broadcast System
+async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start broadcast - admin sends message to all users"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ This command is only for admins.")
+        return ConversationHandler.END
+
+    await update.message.reply_text(
+        "📢 **Broadcast System**\n\n"
+        "Please send the message or image you want to broadcast to all users.\n\n"
+        "You can send:\n"
+        "• Text message\n"
+        "• Image with caption\n"
+        "• Image only\n\n"
+        "Type /cancel to cancel broadcast.",
+        parse_mode='Markdown'
+    )
+
+    return BROADCAST_MESSAGE
+
+
+async def broadcast_message_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive broadcast message and send to all users"""
+    if not is_admin(update.effective_user.id):
+        return ConversationHandler.END
+
+    # Get the message to broadcast
+    broadcast_msg = update.message
+
+    # Get all user IDs from Google Sheets
+    user_ids = sheets.get_all_user_ids()
+
+    if not user_ids:
+        await update.message.reply_text("❌ No users found in database.")
+        return ConversationHandler.END
+
+    # Confirm before sending
+    await update.message.reply_text(
+        f"📊 Found {len(user_ids)} users in database.\n\n"
+        f"🚀 Starting broadcast...",
+        parse_mode='Markdown'
+    )
+
+    # Send to all users with delay
+    success_count = 0
+    failed_count = 0
+
+    for user_id in user_ids:
+        try:
+            # Send based on message type
+            if broadcast_msg.photo:
+                # Image with or without caption
+                photo = broadcast_msg.photo[-1]  # Get highest quality
+                await context.bot.send_photo(
+                    chat_id=user_id,
+                    photo=photo.file_id,
+                    caption=broadcast_msg.caption,
+                    parse_mode='Markdown' if broadcast_msg.caption else None
+                )
+            elif broadcast_msg.text:
+                # Text message
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=broadcast_msg.text,
+                    parse_mode='Markdown'
+                )
+            else:
+                # Unsupported message type for this user
+                failed_count += 1
+                continue
+
+            success_count += 1
+
+            # 1-second delay to avoid rate limits
+            await asyncio.sleep(1)
+
+        except Exception as e:
+            logger.error(f"Failed to send broadcast to user {user_id}: {e}")
+            failed_count += 1
+            # Continue with next user even if one fails
+            await asyncio.sleep(1)
+
+    # Report results to admin
+    result_msg = f"✅ **Broadcast completed!**\n\n"
+    result_msg += f"📤 Successfully sent: {success_count} users\n"
+
+    if failed_count > 0:
+        result_msg += f"❌ Failed: {failed_count} users\n"
+
+    result_msg += f"\n📊 Total users in database: {len(user_ids)}"
+
+    await update.message.reply_text(result_msg, parse_mode='Markdown')
+
+    return ConversationHandler.END
+
+
 # Quick Approval/Rejection Handlers
 async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Quick approve deposit from notification"""
@@ -1787,12 +1885,27 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
+    # Admin broadcast conversation handler
+    broadcast_conv = ConversationHandler(
+        entry_points=[
+            CommandHandler("broadcast", broadcast_start),
+        ],
+        states={
+            BROADCAST_MESSAGE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, broadcast_message_received),
+                MessageHandler(filters.PHOTO, broadcast_message_received),
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
     # Add conversation handlers
     application.add_handler(deposit_conv)
     application.add_handler(withdrawal_conv)
     application.add_handler(join_conv)
     application.add_handler(support_conv)
     application.add_handler(update_account_conv)
+    application.add_handler(broadcast_conv)
 
     # Register admin handlers and share notification_messages dict
     admin_panel.register_admin_handlers(application, notification_messages)
