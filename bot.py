@@ -898,11 +898,37 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
 
 # Join Club Flow
 async def join_club_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start join club process"""
+    """Start join club process - show club info with button"""
+    club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
+
+    # Create button to open club directly
+    keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    message = """🎰 <b>JOIN BILLIONAIRES CLUB</b> 🎰
+
+<b>Club ID:</b> <a href='#'>(tap to copy)</a>
+<code>370625</code>
+
+<b>Club Name:</b> βILLIONAIRES
+
+━━━━━━━━━━━━━━━━━━
+
+<b>📋 How to Join:</b>
+
+1️⃣ Tap the button below to open the club
+2️⃣ Or manually search club ID: <code>370625</code>
+3️⃣ Request to join the club
+4️⃣ Enter your PPPoker ID here
+
+━━━━━━━━━━━━━━━━━━
+
+Please enter your <b>PPPoker ID</b> to complete your join request:"""
+
     await update.message.reply_text(
-        "🎮 **Join Billionaires Club**\n\n"
-        "To join our exclusive PPPoker club, please enter your **PPPoker ID**:",
-        parse_mode='Markdown'
+        message,
+        reply_markup=reply_markup,
+        parse_mode='HTML'
     )
 
     return JOIN_PPPOKER_ID
