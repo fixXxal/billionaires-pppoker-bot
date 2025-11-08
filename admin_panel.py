@@ -493,11 +493,13 @@ async def show_withdrawal_details(query, context, withdrawal_row):
 <b>Request ID:</b> <code>{request_id}</code>
 <b>User ID:</b> <code>{user_id}</code>
 <b>Username:</b> @{username if username else 'No username'}
-<b>PPPoker ID:</b> <code>{pppoker_id}</code> (tap to copy)
+<b>PPPoker ID:</b> <a href='#'>(tap to copy)</a>
+<code>{pppoker_id}</code>
 <b>Amount:</b> {amount} {'MVR' if method != 'USDT' else 'USD'}
 <b>Method:</b> {method}
 <b>Account Name:</b> {account_name}
-<b>Account Number:</b> <code>{account_number}</code> (tap to copy)
+<b>Account Number:</b> <a href='#'>(tap to copy)</a>
+<code>{account_number}</code>
 """
 
     keyboard = [
@@ -699,7 +701,8 @@ async def show_join_details(query, context, join_row):
 <b>User ID:</b> <code>{user_id}</code>
 <b>Name:</b> {first_name} {last_name}
 <b>Username:</b> @{username if username else 'No username'}
-<b>PPPoker ID:</b> <code>{pppoker_id}</code> (tap to copy)
+<b>PPPoker ID:</b> <a href='#'>(tap to copy)</a>
+<code>{pppoker_id}</code>
 """
 
     keyboard = [

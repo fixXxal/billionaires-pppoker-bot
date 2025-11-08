@@ -306,15 +306,15 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
     if method == 'USDT':
         await query.edit_message_text(
             f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
-            f"<b>Wallet Address:</b>\n"
-            f"<code>{account}</code> (tap to copy)\n\n"
+            f"<b>Wallet Address:</b> <a href='#'>(tap to copy)</a>\n"
+            f"<code>{account}</code>\n\n"
             f"📝 Please send your <b>Transaction ID (TXID)</b> from the blockchain:",
             parse_mode='HTML'
         )
     else:
         # Build message with account holder name if available
         message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
-        message += f"<b>Account Number:</b>\n<code>{account}</code> (tap to copy)\n\n"
+        message += f"<b>Account Number:</b> <a href='#'>(tap to copy)</a>\n<code>{account}</code>\n\n"
 
         if account_holder and account_holder.strip():
             message += f"<b>Account Holder:</b>\n{account_holder}\n\n"
@@ -865,9 +865,11 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
 <b>User ID:</b> {user.id}
 <b>Amount:</b> {amount} {'MVR' if method != 'USDT' else 'USD'}
 <b>Method:</b> {method}
-<b>PPPoker ID:</b> <code>{pppoker_id}</code> (tap to copy)
+<b>PPPoker ID:</b> <a href='#'>(tap to copy)</a>
+<code>{pppoker_id}</code>
 <b>Account Name:</b> {account_name}
-<b>Account Number:</b> <code>{account_number}</code> (tap to copy)
+<b>Account Number:</b> <a href='#'>(tap to copy)</a>
+<code>{account_number}</code>
 """
 
     # Create approval buttons
@@ -941,7 +943,8 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
 <b>User:</b> {user.first_name} {user.last_name or ''}
 <b>Username:</b> {username_display}
 <b>User ID:</b> {user.id}
-<b>PPPoker ID:</b> <code>{pppoker_id}</code> (tap to copy)
+<b>PPPoker ID:</b> <a href='#'>(tap to copy)</a>
+<code>{pppoker_id}</code>
 """
 
     # Create approval buttons
