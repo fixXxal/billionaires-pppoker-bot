@@ -8,6 +8,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import pytz
 import os
+import json
 from typing import Dict, List, Optional
 
 
@@ -25,7 +26,21 @@ class SheetsManager:
             'https://www.googleapis.com/auth/drive'
         ]
 
-        creds = ServiceAccountCredentials.from_json_keyfile_name(credentials_file, scope)
+        # Check if credentials are provided as environment variable (for Railway deployment)
+        google_creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
+
+        if google_creds_json:
+            # Use credentials from environment variable
+            try:
+                creds_dict = json.loads(google_creds_json)
+                creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+            except json.JSONDecodeError as e:
+                print(f"Error parsing GOOGLE_CREDENTIALS_JSON: {e}")
+                raise
+        else:
+            # Use credentials from file (for local development)
+            creds = ServiceAccountCredentials.from_json_keyfile_name(credentials_file, scope)
+
         self.client = gspread.authorize(creds)
 
         # Open or create spreadsheet
