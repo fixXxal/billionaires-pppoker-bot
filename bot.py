@@ -1227,7 +1227,11 @@ async def update_payment_account_start(update: Update, context: ContextTypes.DEF
     else:
         prompt = current_text + f"Please enter the new {method_name} account number:"
 
-    await update.message.reply_text(prompt, parse_mode='Markdown')
+    # Add cancel button
+    keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="update_account_cancel")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(prompt, parse_mode='Markdown', reply_markup=reply_markup)
 
     return UPDATE_ACCOUNT_NUMBER
 
@@ -1254,13 +1258,34 @@ async def update_account_number_received(update: Update, context: ContextTypes.D
         return ConversationHandler.END
     else:
         # Ask for account holder name for BML/MIB
+        keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="update_account_cancel")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
         await update.message.reply_text(
             f"📝 Account number: `{account_number}`\n\n"
             f"Now, please enter the account holder name (as it appears on the bank account):",
-            parse_mode='Markdown'
+            parse_mode='Markdown',
+            reply_markup=reply_markup
         )
 
         return UPDATE_ACCOUNT_METHOD
+
+
+async def update_account_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel the update account conversation"""
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "❌ **Update cancelled.**\n\n"
+        "No changes were made to the payment accounts.",
+        parse_mode='Markdown'
+    )
+
+    # Clear user data
+    context.user_data.clear()
+
+    return ConversationHandler.END
 
 
 async def update_account_holder_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1293,6 +1318,10 @@ async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ This command is only for admins.")
         return ConversationHandler.END
 
+    # Add cancel button
+    keyboard = [[InlineKeyboardButton("❌ Cancel Broadcast", callback_data="broadcast_cancel")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     await update.message.reply_text(
         "📢 **Broadcast System**\n\n"
         "Please send the message or image you want to broadcast to all users.\n\n"
@@ -1300,11 +1329,26 @@ async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• Text message\n"
         "• Image with caption\n"
         "• Image only\n\n"
-        "Type /cancel to cancel broadcast.",
-        parse_mode='Markdown'
+        "Click the button below or type /cancel to cancel.",
+        parse_mode='Markdown',
+        reply_markup=reply_markup
     )
 
     return BROADCAST_MESSAGE
+
+
+async def broadcast_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel the broadcast"""
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "❌ **Broadcast cancelled.**\n\n"
+        "No messages were sent to users.",
+        parse_mode='Markdown'
+    )
+
+    return ConversationHandler.END
 
 
 async def broadcast_message_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1879,10 +1923,19 @@ def main():
             CommandHandler("update_usdt", update_payment_account_start),
         ],
         states={
-            UPDATE_ACCOUNT_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_account_number_received)],
-            UPDATE_ACCOUNT_METHOD: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_account_holder_received)],
+            UPDATE_ACCOUNT_NUMBER: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, update_account_number_received),
+                CallbackQueryHandler(update_account_cancel, pattern="^update_account_cancel$"),
+            ],
+            UPDATE_ACCOUNT_METHOD: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, update_account_holder_received),
+                CallbackQueryHandler(update_account_cancel, pattern="^update_account_cancel$"),
+            ],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CallbackQueryHandler(update_account_cancel, pattern="^update_account_cancel$"),
+        ],
     )
 
     # Admin broadcast conversation handler
@@ -1894,9 +1947,13 @@ def main():
             BROADCAST_MESSAGE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, broadcast_message_received),
                 MessageHandler(filters.PHOTO, broadcast_message_received),
+                CallbackQueryHandler(broadcast_cancel, pattern="^broadcast_cancel$"),
             ],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CallbackQueryHandler(broadcast_cancel, pattern="^broadcast_cancel$"),
+        ],
     )
 
     # Add conversation handlers

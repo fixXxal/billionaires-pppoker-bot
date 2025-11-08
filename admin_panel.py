@@ -853,13 +853,29 @@ async def admin_view_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE
     accounts = sheets.get_all_payment_accounts()
 
     message_text = "🏦 <b>Current Payment Accounts</b>\n\n"
-    for method, account in accounts.items():
-        message_text += f"<b>{method}:</b> <code>{account}</code> (tap to copy)\n"
 
-    message_text += "\nUse these commands to update:\n"
-    message_text += "<code>/update_bml</code>\n"
-    message_text += "<code>/update_mib</code>\n"
-    message_text += "<code>/update_usdt</code>"
+    for method, details in accounts.items():
+        if isinstance(details, dict):
+            # New format with account_number and account_holder
+            account_num = details.get('account_number', 'Not set')
+            holder = details.get('account_holder', 'Not set')
+
+            message_text += f"💳 <b>{method}</b>\n"
+            message_text += f"   Account: <code>{account_num}</code>\n"
+
+            if holder and holder != 'Not set' and holder.strip():
+                message_text += f"   Holder: {holder}\n"
+
+            message_text += "\n"
+        else:
+            # Fallback for old simple string format
+            message_text += f"💳 <b>{method}:</b> <code>{details}</code>\n\n"
+
+    message_text += "━━━━━━━━━━━━━━━━━━\n"
+    message_text += "📝 <b>Update Commands:</b>\n"
+    message_text += "<code>/update_bml</code> - Update BML account\n"
+    message_text += "<code>/update_mib</code> - Update MIB account\n"
+    message_text += "<code>/update_usdt</code> - Update USDT wallet"
 
     await edit_func(
         message_text,
