@@ -1,0 +1,372 @@
+"""
+OCR.space API integration for receipt/slip OCR
+Extracts payment details from uploaded images
+"""
+
+import os
+import re
+import requests
+import base64
+
+# Load OCR.space API key from environment
+OCR_API_KEY = os.getenv('OCR_API_KEY', 'K86220364088957')
+OCR_API_URL = 'https://api.ocr.space/parse/image'
+
+
+def extract_text_from_image(image_bytes):
+    """
+    Extract text from image using OCR.space API
+
+    Args:
+        image_bytes: Image content as bytes
+
+    Returns:
+        str: Extracted text from the image
+    """
+    try:
+        # Encode image to base64
+        base64_image = base64.b64encode(image_bytes).decode('utf-8')
+
+        # Prepare payload for OCR.space API
+        payload = {
+            'apikey': OCR_API_KEY,
+            'base64Image': f'data:image/jpeg;base64,{base64_image}',
+            'language': 'eng',
+            'isOverlayRequired': False,
+            'detectOrientation': True,
+            'scale': True,
+            'OCREngine': 2,  # Engine 2 is more accurate
+        }
+
+        # Make API request
+        response = requests.post(OCR_API_URL, data=payload, timeout=30)
+        result = response.json()
+
+        # Check for errors
+        if result.get('IsErroredOnProcessing'):
+            error_msg = result.get('ErrorMessage', ['Unknown error'])[0]
+            raise Exception(f'OCR API Error: {error_msg}')
+
+        # Extract text from response
+        if result.get('ParsedResults'):
+            parsed_text = result['ParsedResults'][0].get('ParsedText', '')
+            return parsed_text
+
+        return ""
+    except Exception as e:
+        print(f"Error extracting text from image: {e}")
+        return ""
+
+
+def parse_payment_details(text):
+    """
+    Parse extracted text to identify payment details (optimized for MIB/BML receipts)
+
+    Args:
+        text: Extracted text from receipt/slip
+
+    Returns:
+        dict: Parsed payment details with keys:
+            - reference_number: Transaction/reference number
+            - sender_name: Name of sender
+            - receiver_name: Name of receiver
+            - amount: Transaction amount
+            - bank: Bank name (BML, MIB, etc.)
+            - currency: Currency (MVR, USD, etc.)
+            - raw_text: Full extracted text for verification
+    """
+    details = {
+        'reference_number': None,
+        'sender_name': None,
+        'receiver_name': None,
+        'amount': None,
+        'bank': None,
+        'currency': None,
+        'raw_text': text
+    }
+
+    if not text:
+        return details
+
+    # Convert to uppercase for easier matching
+    text_upper = text.upper()
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+
+    # --- Extract Bank Name ---
+    if 'BANK OF MALDIVES' in text_upper:
+        details['bank'] = 'BML'
+    elif 'MALDIVES ISLAMIC BANK' in text_upper:
+        details['bank'] = 'MIB'
+    elif 'BML' in text_upper:
+        details['bank'] = 'BML'
+    elif 'MIB' in text_upper:
+        details['bank'] = 'MIB'
+    elif 'SBI' in text_upper or 'STATE BANK' in text_upper:
+        details['bank'] = 'SBI'
+
+    # --- Extract Amount and Currency ---
+    # Patterns for Maldivian bank receipts
+    amount_patterns = [
+        r'MVR\s*([0-9,]+\.?\d{0,2})',  # MVR 65.00 or MVR 1,000.00
+        r'([0-9,]+\.\d{2})\s*MVR',  # 100.00 MVR
+        r'AMOUNT[\s:]+([0-9,]+\.?\d{0,2})',  # Amount: 1000.00
+        r'(?:^|\n)([0-9]+\.\d{2})(?:\s*$|\n)',  # Standalone 100.00
+    ]
+
+    for pattern in amount_patterns:
+        match = re.search(pattern, text_upper)
+        if match:
+            amount_str = match.group(1).replace(',', '').strip()
+            try:
+                amount_value = float(amount_str)
+                # Only accept reasonable amounts (between 1 and 1 million)
+                if 1.0 <= amount_value <= 1000000.0:
+                    details['amount'] = amount_value
+                    # Determine currency
+                    if 'USD' in text_upper:
+                        details['currency'] = 'USD'
+                    else:
+                        details['currency'] = 'MVR'  # Default for Maldivian banks
+                    break
+            except ValueError:
+                continue
+
+    # --- Extract Reference/Transaction Number ---
+    # Enhanced patterns for MIB and BML receipts
+    # BML: Can be alphanumeric (e.g., BLAZ133378629134)
+    # MIB: Usually numeric (e.g., 759383063)
+    ref_patterns = [
+        r'REFERENCE[\s#:]+([A-Z0-9]+)',  # Reference BLAZ133378629134 or Reference 759383063
+        r'REFERENCE\s*#?\s*\n\s*([A-Z0-9]{6,})',  # Reference #\n759435556 or BLAZ133
+        r'REF[\s#:]+([A-Z0-9]+)',  # Ref: BLAZ133378629134
+        r'TRANSACTION\s+(?:ID|NUMBER|NO)[\s:]+([A-Z0-9]+)',  # Transaction ID: XXX
+        r'REFERENCE\s*#\s*\n\s*([A-Z0-9]{6,})',  # Reference #\n[any alphanumeric]
+        r'REFERENCE\s*#?\s*[\n\s]*([A-Z0-9]{6,})',  # Flexible reference pattern
+    ]
+
+    for pattern in ref_patterns:
+        match = re.search(pattern, text_upper, re.MULTILINE)
+        if match:
+            ref = match.group(1).strip()
+            # Accept references with 6+ characters (can be numeric or alphanumeric)
+            if len(ref) >= 6 and len(ref) <= 30:  # Max 30 chars to avoid capturing junk
+                details['reference_number'] = ref
+                break
+
+    # If no reference found with labeled patterns, look for standalone strings
+    if not details['reference_number']:
+        # Check if we see "Reference #" or "Reference" followed by a number on next lines
+        ref_index = -1
+        for i, line in enumerate(lines):
+            if re.search(r'REFERENCE\s*#?', line.upper()):
+                ref_index = i
+                break
+
+        # Look for reference number in the next few lines after "Reference #"
+        if ref_index >= 0:
+            for i in range(ref_index + 1, min(ref_index + 5, len(lines))):
+                line_upper = lines[i].upper().strip()
+                # Accept any alphanumeric string 6-30 chars (covers both MIB numeric and BML alphanumeric)
+                if re.match(r'^[A-Z0-9]{6,30}$', line_upper):
+                    # If we're right after "Reference" label, accept even long numeric strings
+                    # Otherwise skip if it looks like an account number (all digits and 16+ chars)
+                    if not (line_upper.isdigit() and len(line_upper) >= 16):
+                        details['reference_number'] = line_upper
+                        break
+
+        # If still not found, look for standalone alphanumeric strings anywhere
+        if not details['reference_number']:
+            for line in lines:
+                line_upper = line.upper().strip()
+                # Look for alphanumeric strings 8-30 chars
+                if re.match(r'^[A-Z0-9]{8,30}$', line_upper):
+                    # Skip if it looks like an account number (all digits and 16+ chars)
+                    # This allows 8-15 digit pure numeric references to be captured
+                    if not (line_upper.isdigit() and len(line_upper) >= 16):
+                        details['reference_number'] = line_upper
+                        break
+
+    # --- Extract Names ---
+    # Skip words that are not names (labels, bank names, etc.)
+    skip_name_words = ['BANK', 'BML', 'MIB', 'CREATED DATE', 'STATUS DATE', 'PURPOSE',
+                       'REFERENCE', 'AMOUNT', 'STATUS', 'MESSAGE', 'FROM', 'TO',
+                       'MALDIVES ISLAMIC BANK', 'BANK OF MALDIVES', 'TRANSACTION DATE']
+
+    # Pattern 1: "From" field
+    from_patterns = [
+        r'FROM[\s:]+([A-Z][A-Z\s\.]+?)(?:\n|\s{2,}|\d|$)',  # From Ahmed Fixal
+        r'FROM\s*\n\s*([A-Z][A-Z\s\.]+?)(?:\n|\s{2,})',  # From\n  AHMD.FIXAL
+    ]
+
+    for pattern in from_patterns:
+        match = re.search(pattern, text_upper, re.MULTILINE)
+        if match:
+            name = match.group(1).strip()
+            # Clean up the name
+            name = re.sub(r'\s+', ' ', name)
+            # Remove trailing account numbers if any
+            name = re.sub(r'\s*\d{10,}$', '', name)
+
+            # Skip if it's a label word, not a name
+            if len(name) >= 3 and name.upper() not in skip_name_words:
+                # Preserve format (keep dots, capitalize properly)
+                details['sender_name'] = name.title().replace('.', '.')
+                break
+
+    # Track where sender was found (for MIB receipts where values appear after labels)
+    sender_line_index = -1
+
+    # If no sender found with patterns, look for name after "From" label
+    if not details['sender_name']:
+        from_index = -1
+        for i, line in enumerate(lines):
+            if line.upper().strip() == 'FROM':
+                from_index = i
+                break
+
+        # Look for name in the next few lines after "From" (MIB has labels separate from values)
+        if from_index >= 0:
+            # Check next 10 lines for a name-like string
+            for offset in range(1, min(11, len(lines) - from_index)):
+                potential_name = lines[from_index + offset].strip()
+                # Check if it looks like a name (has letters, spaces/dots, not pure digits, not too long)
+                if (len(potential_name) >= 3 and
+                    re.search(r'[A-Za-z]', potential_name) and
+                    not potential_name.isdigit() and
+                    len(potential_name) < 50 and
+                    not re.match(r'^\d{10,}$', potential_name)):  # Not an account number
+
+                    # Skip common label words
+                    if potential_name.upper() not in skip_name_words:
+                        # Remove any trailing numbers (account numbers)
+                        potential_name = re.sub(r'\s*\d{10,}$', '', potential_name)
+                        if len(potential_name) >= 3:
+                            details['sender_name'] = potential_name.title()
+                            sender_line_index = from_index + offset  # Track where we found it
+                            break
+
+    # Pattern 2: "To" field (receiver)
+    to_patterns = [
+        r'TO[\s:]+([A-Z][A-Z\s\.]+?)(?:\n|\s{2,}|\d|$)',  # To MOHD.SUHAIL
+        r'TO\s*\n\s*([A-Z][A-Z\s\.]+?)(?:\n|\s{2,})',  # To\n  AHMD.FIXAL
+    ]
+
+    for pattern in to_patterns:
+        match = re.search(pattern, text_upper, re.MULTILINE)
+        if match:
+            name = match.group(1).strip()
+            # Clean up the name
+            name = re.sub(r'\s+', ' ', name)
+            # Remove trailing account numbers if any
+            name = re.sub(r'\s*\d{10,}$', '', name)
+
+            # Skip if it matches the sender name (avoid picking up sender as receiver)
+            if details['sender_name'] and name.upper() == details['sender_name'].upper():
+                continue
+
+            # Skip if it's a label word, not a name
+            if len(name) >= 3 and name.upper() not in skip_name_words:
+                # Preserve format (keep dots, capitalize properly)
+                details['receiver_name'] = name.title().replace('.', '.')
+                break
+
+    # If no receiver found with patterns, look for name after "To" label
+    if not details['receiver_name']:
+        to_index = -1
+        for i, line in enumerate(lines):
+            if line.upper().strip() == 'TO':
+                to_index = i
+                break
+
+        # Look for name in the next few lines after "To" (MIB has labels separate from values)
+        if to_index >= 0:
+            # Check next 15 lines for a name-like string (need to look further for MIB)
+            for offset in range(1, min(16, len(lines) - to_index)):
+                current_index = to_index + offset
+                potential_name = lines[current_index].strip()
+
+                # Skip if this is before or at the sender position (for MIB where sender/receiver are sequential)
+                if sender_line_index >= 0 and current_index <= sender_line_index:
+                    continue
+
+                # Skip if this matches the sender name exactly (avoid duplicate when sender name appears after "To")
+                if details['sender_name'] and potential_name.upper() == details['sender_name'].upper():
+                    continue
+
+                # Check if it looks like a name (has letters, spaces/dots, not pure digits, not too long)
+                if (len(potential_name) >= 3 and
+                    re.search(r'[A-Za-z]', potential_name) and
+                    not potential_name.isdigit() and
+                    len(potential_name) < 50 and
+                    not re.match(r'^\d{10,}$', potential_name)):  # Not an account number
+
+                    # Skip common label words but ALLOW same name as sender (for self-transfers)
+                    if potential_name.upper() not in skip_name_words:
+                        # Remove any trailing numbers (account numbers)
+                        clean_name = re.sub(r'\s*\d{10,}$', '', potential_name)
+                        if len(clean_name) >= 3:
+                            details['receiver_name'] = clean_name.title()
+                            break
+
+    return details
+
+
+def format_extracted_details(details, show_raw=False):
+    """
+    Format extracted details into a readable message
+
+    Args:
+        details: Dictionary of parsed payment details
+        show_raw: If True, include raw extracted text for debugging
+
+    Returns:
+        str: Formatted message for display
+    """
+    message = "📄 *Extracted Receipt Details:*\n\n"
+
+    if details['reference_number']:
+        message += f"🔢 *Reference:* `{details['reference_number']}`\n"
+
+    if details['amount']:
+        currency = details['currency'] or ''
+        message += f"💰 *Amount:* {currency} {details['amount']:,.2f}\n"
+
+    if details['bank']:
+        message += f"🏦 *Bank:* {details['bank']}\n"
+
+    if details['sender_name']:
+        message += f"👤 *Sender:* {details['sender_name']}\n"
+
+    if details['receiver_name']:
+        message += f"👤 *Receiver:* {details['receiver_name']}\n"
+
+    # Check if any details were extracted
+    if not any([details['reference_number'], details['amount'], details['bank'],
+                details['sender_name'], details['receiver_name']]):
+        message += "⚠️ _Could not extract details automatically._\n"
+        message += "_Please verify the image quality._\n"
+
+    # Show raw extracted text for debugging (admin only)
+    if show_raw and details['raw_text']:
+        message += f"\n\n🔍 *Raw Text (Debug):*\n```\n{details['raw_text'][:500]}...\n```"
+
+    return message
+
+
+async def process_receipt_image(file_bytes):
+    """
+    Complete pipeline: Extract text and parse payment details from receipt image
+
+    Args:
+        file_bytes: Image file content as bytes
+
+    Returns:
+        dict: Parsed payment details
+    """
+    # Extract text using Vision API
+    extracted_text = extract_text_from_image(file_bytes)
+
+    # Parse the text for payment details
+    details = parse_payment_details(extracted_text)
+
+    return details

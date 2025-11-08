@@ -1,0 +1,32 @@
+# Environment variables
+.env
+
+# Google credentials
+credentials.json
+token.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Uploaded slip images (sensitive)
+slipss/
+
+# OS
+.DS_Store
+Thumbs.db

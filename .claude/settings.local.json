@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk:*)",
+      "Bash(python setup_helper.py:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(cat:*)",
+      "Bash(git init:*)",
+      "Bash(sudo apt-get update:*)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(apt-get update:*)",
+      "Bash(apt-get install:*)",
+      "Bash(jobs)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
