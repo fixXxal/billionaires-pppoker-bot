@@ -292,6 +292,7 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
 
     # Get payment account details
     account = sheets.get_payment_account(method)
+    account_holder = sheets.get_payment_account_holder(method)
 
     if not account:
         await query.edit_message_text(
@@ -311,13 +312,17 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
             parse_mode='HTML'
         )
     else:
-        await query.edit_message_text(
-            f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
-            f"<b>Account Number:</b>\n"
-            f"<code>{account}</code> (tap to copy)\n\n"
-            f"📸 Please upload your <b>payment slip/receipt</b> (screenshot or photo):",
-            parse_mode='HTML'
-        )
+        # Build message with account holder name if available
+        message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
+        message += f"<b>Account Number:</b>\n<code>{account}</code> (tap to copy)\n\n"
+
+        if account_holder and account_holder.strip():
+            message += f"<b>Account Holder:</b>\n{account_holder}\n\n"
+
+        message += f"━━━━━━━━━━━━━━━━━━\n"
+        message += f"📸 Please upload your <b>payment slip/receipt</b> (screenshot or photo):"
+
+        await query.edit_message_text(message, parse_mode='HTML')
 
     return DEPOSIT_PROOF
 
