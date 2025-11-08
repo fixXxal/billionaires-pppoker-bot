@@ -134,7 +134,7 @@ class SheetsManager:
                     'status': row_data[6] if len(row_data) > 6 else 'active',
                     'account_name': row_data[7] if len(row_data) > 7 else None,
                 }
-        except gspread.CellNotFound:
+        except Exception:
             pass
         return None
 
@@ -222,7 +222,7 @@ class SheetsManager:
                     'status': row_data[8],
                     'row': cell.row
                 }
-        except gspread.CellNotFound:
+        except Exception:
             pass
         return None
 
@@ -267,7 +267,7 @@ class SheetsManager:
                     'status': row_data[8],
                     'row': cell.row
                 }
-        except gspread.CellNotFound:
+        except Exception:
             pass
         return None
 
@@ -308,7 +308,7 @@ class SheetsManager:
                     'status': row_data[6],
                     'row': cell.row
                 }
-        except gspread.CellNotFound:
+        except Exception:
             pass
         return None
 
@@ -329,7 +329,7 @@ class SheetsManager:
             if cell:
                 row_data = self.payment_accounts_sheet.row_values(cell.row)
                 return row_data[1] if len(row_data) > 1 else None
-        except gspread.CellNotFound:
+        except Exception:
             pass
         return None
 
@@ -340,7 +340,7 @@ class SheetsManager:
             if cell:
                 row_data = self.payment_accounts_sheet.row_values(cell.row)
                 return row_data[2] if len(row_data) > 2 else None
-        except gspread.CellNotFound:
+        except Exception:
             pass
         return None
 
@@ -356,7 +356,7 @@ class SheetsManager:
                     'account_holder': row_data[2] if len(row_data) > 2 else None,
                     'updated_at': row_data[3] if len(row_data) > 3 else None
                 }
-        except gspread.CellNotFound:
+        except Exception:
             pass
         return None
 
@@ -373,7 +373,7 @@ class SheetsManager:
             else:
                 # Add new payment method
                 self.payment_accounts_sheet.append_row([method, account_number, account_holder or '', self._get_timestamp()])
-        except gspread.CellNotFound:
+        except Exception:
             # Add new payment method
             self.payment_accounts_sheet.append_row([method, account_number, account_holder or '', self._get_timestamp()])
 
