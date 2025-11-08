@@ -439,7 +439,25 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
                                          f"Slip receiver: {extracted_details['receiver_name']}\n" \
                                          f"Expected: {stored_holder_name}"
 
-    validation_warnings = name_validation_warning
+    # Validate receiver account number against stored account number
+    account_validation_warning = ""
+    if extracted_details and extracted_details.get('receiver_account_number'):
+        # Get stored account number for this payment method
+        stored_account_number = sheets.get_payment_account(verified_bank)
+
+        if stored_account_number:
+            # Normalize account numbers (remove spaces, dashes)
+            extracted_account = extracted_details['receiver_account_number'].replace(' ', '').replace('-', '').strip()
+            stored_account = stored_account_number.replace(' ', '').replace('-', '').strip()
+
+            # Check if account numbers match (exact match required)
+            if extracted_account != stored_account:
+                account_validation_warning = f"\n\n⚠️ <b>ACCOUNT NUMBER MISMATCH WARNING</b>\n" \
+                                            f"Slip receiver account: {extracted_details['receiver_account_number']}\n" \
+                                            f"Expected: {stored_account_number}"
+
+    # Combine warnings
+    validation_warnings = name_validation_warning + account_validation_warning
 
     # Currency
     currency = 'MVR' if method != 'USDT' else 'USD'
