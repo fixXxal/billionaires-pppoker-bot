@@ -1509,7 +1509,11 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
         sheets.update_deposit_status(request_id, 'Approved', query.from_user.id, 'Quick approved')
         logger.info(f"Deposit {request_id} status updated to Approved")
 
-        # Notify user
+        # Notify user with club link button
+        club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
+        keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
         try:
             await context.bot.send_message(
                 chat_id=deposit['user_id'],
@@ -1518,7 +1522,8 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
                      f"**Amount:** {deposit['amount']} {'MVR' if deposit['payment_method'] != 'USDT' else 'USD'}\n"
                      f"**PPPoker ID:** {deposit['pppoker_id']}\n\n"
                      f"Your chips have been added to your account. Happy gaming! 🎮",
-                parse_mode='Markdown'
+                parse_mode='Markdown',
+                reply_markup=reply_markup
             )
             logger.info(f"User {deposit['user_id']} notified of approval")
         except Exception as e:
@@ -1584,7 +1589,11 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
     # Update status
     sheets.update_withdrawal_status(request_id, 'Completed', query.from_user.id, 'Quick approved')
 
-    # Notify user
+    # Notify user with club link button
+    club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
+    keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     try:
         await context.bot.send_message(
             chat_id=withdrawal['user_id'],
@@ -1594,7 +1603,8 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
                  f"**Method:** {withdrawal['payment_method']}\n"
                  f"**Account:** {withdrawal['account_number']}\n\n"
                  f"Your funds have been transferred. Please check your account. 💰",
-            parse_mode='Markdown'
+            parse_mode='Markdown',
+            reply_markup=reply_markup
         )
     except:
         pass

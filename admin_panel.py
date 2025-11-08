@@ -203,7 +203,7 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Update status
     sheets.update_deposit_status(request_id, 'Approved', admin_id, 'Approved via admin panel')
 
-    # Notify user
+    # Notify user with club link button
     user_id = deposit['user_id']
     user_message = f"""
 ✅ **Your Deposit Has Been Approved!**
@@ -215,8 +215,12 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Your chips have been added to your account. Happy gaming! 🎮
 """
 
+    club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
+    keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     try:
-        await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')
+        await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML', reply_markup=reply_markup)
     except Exception as e:
         pass
 
@@ -565,7 +569,7 @@ async def withdrawal_approve(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Update status
     sheets.update_withdrawal_status(request_id, 'Completed', admin_id, 'Approved via admin panel')
 
-    # Notify user
+    # Notify user with club link button
     user_id = withdrawal['user_id']
     user_message = f"""
 ✅ **Your Withdrawal Has Been Processed!**
@@ -578,8 +582,12 @@ async def withdrawal_approve(update: Update, context: ContextTypes.DEFAULT_TYPE)
 Your funds have been transferred. Please check your account. 💰
 """
 
+    club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
+    keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     try:
-        await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')
+        await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML', reply_markup=reply_markup)
     except Exception as e:
         pass
 
