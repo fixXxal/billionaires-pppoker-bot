@@ -101,12 +101,12 @@ class SheetsManager:
         try:
             self.payment_accounts_sheet = self.spreadsheet.worksheet('Payment Accounts')
         except gspread.WorksheetNotFound:
-            self.payment_accounts_sheet = self.spreadsheet.add_worksheet(title='Payment Accounts', rows=10, cols=3)
-            self.payment_accounts_sheet.append_row(['Payment Method', 'Account Number', 'Updated At'])
+            self.payment_accounts_sheet = self.spreadsheet.add_worksheet(title='Payment Accounts', rows=10, cols=4)
+            self.payment_accounts_sheet.append_row(['Payment Method', 'Account Number', 'Account Holder Name', 'Updated At'])
             # Initialize with default values
-            self.payment_accounts_sheet.append_row(['BML', os.getenv('BML_ACCOUNT', ''), self._get_timestamp()])
-            self.payment_accounts_sheet.append_row(['MIB', os.getenv('MIB_ACCOUNT', ''), self._get_timestamp()])
-            self.payment_accounts_sheet.append_row(['USDT', os.getenv('USDT_WALLET', ''), self._get_timestamp()])
+            self.payment_accounts_sheet.append_row(['BML', os.getenv('BML_ACCOUNT', ''), '', self._get_timestamp()])
+            self.payment_accounts_sheet.append_row(['MIB', os.getenv('MIB_ACCOUNT', ''), '', self._get_timestamp()])
+            self.payment_accounts_sheet.append_row(['USDT', os.getenv('USDT_WALLET', ''), '', self._get_timestamp()])
 
     def _get_timestamp(self) -> str:
         """Get current timestamp in the configured timezone"""
@@ -312,26 +312,59 @@ class SheetsManager:
             pass
         return None
 
-    def update_payment_account(self, method: str, account_number: str):
-        """Update payment account number"""
+    def get_payment_account_holder(self, method: str) -> Optional[str]:
+        """Get payment account holder name for a specific method"""
+        try:
+            cell = self.payment_accounts_sheet.find(method)
+            if cell:
+                row_data = self.payment_accounts_sheet.row_values(cell.row)
+                return row_data[2] if len(row_data) > 2 else None
+        except gspread.CellNotFound:
+            pass
+        return None
+
+    def get_payment_account_details(self, method: str) -> Optional[Dict]:
+        """Get complete payment account details for a specific method"""
+        try:
+            cell = self.payment_accounts_sheet.find(method)
+            if cell:
+                row_data = self.payment_accounts_sheet.row_values(cell.row)
+                return {
+                    'method': row_data[0],
+                    'account_number': row_data[1] if len(row_data) > 1 else None,
+                    'account_holder': row_data[2] if len(row_data) > 2 else None,
+                    'updated_at': row_data[3] if len(row_data) > 3 else None
+                }
+        except gspread.CellNotFound:
+            pass
+        return None
+
+    def update_payment_account(self, method: str, account_number: str, account_holder: str = None):
+        """Update payment account number and holder name"""
         try:
             cell = self.payment_accounts_sheet.find(method)
             if cell:
                 row = cell.row
                 self.payment_accounts_sheet.update_cell(row, 2, account_number)
-                self.payment_accounts_sheet.update_cell(row, 3, self._get_timestamp())
+                if account_holder:
+                    self.payment_accounts_sheet.update_cell(row, 3, account_holder)
+                self.payment_accounts_sheet.update_cell(row, 4, self._get_timestamp())
             else:
                 # Add new payment method
-                self.payment_accounts_sheet.append_row([method, account_number, self._get_timestamp()])
+                self.payment_accounts_sheet.append_row([method, account_number, account_holder or '', self._get_timestamp()])
         except gspread.CellNotFound:
             # Add new payment method
-            self.payment_accounts_sheet.append_row([method, account_number, self._get_timestamp()])
+            self.payment_accounts_sheet.append_row([method, account_number, account_holder or '', self._get_timestamp()])
 
-    def get_all_payment_accounts(self) -> Dict[str, str]:
-        """Get all payment accounts"""
+    def get_all_payment_accounts(self) -> Dict[str, Dict]:
+        """Get all payment accounts with details"""
         accounts = {}
         rows = self.payment_accounts_sheet.get_all_values()[1:]  # Skip header
         for row in rows:
             if len(row) >= 2 and row[0] and row[1]:
-                accounts[row[0]] = row[1]
+                accounts[row[0]] = {
+                    'account_number': row[1],
+                    'account_holder': row[2] if len(row) > 2 else None,
+                    'updated_at': row[3] if len(row) > 3 else None
+                }
         return accounts

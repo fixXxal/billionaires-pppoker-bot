@@ -415,6 +415,23 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         if extracted_details['receiver_name']:
             receiver_name = extracted_details['receiver_name']
 
+    # Validate receiver name against stored account holder name
+    name_validation_warning = ""
+    if extracted_details and extracted_details['receiver_name']:
+        # Get stored account holder name for this payment method
+        stored_holder_name = sheets.get_payment_account_holder(verified_bank)
+
+        if stored_holder_name:
+            # Normalize names for comparison (case-insensitive, remove extra spaces)
+            extracted_receiver = extracted_details['receiver_name'].upper().strip()
+            stored_holder = stored_holder_name.upper().strip()
+
+            # Check if names match (allow partial match for flexibility)
+            if stored_holder not in extracted_receiver and extracted_receiver not in stored_holder:
+                name_validation_warning = f"\n\n⚠️ <b>NAME MISMATCH WARNING</b>\n" \
+                                         f"Slip receiver: {extracted_details['receiver_name']}\n" \
+                                         f"Expected: {stored_holder_name}"
+
     # Currency
     currency = 'MVR' if method != 'USDT' else 'USD'
 
@@ -436,7 +453,7 @@ To: {receiver_name}
 🎮 <b>PPPOKER INFO</b>
 Player ID: <code>{pppoker_id}</code>
 
-📸 <i>Payment slip attached below</i>"""
+📸 <i>Payment slip attached below</i>{name_validation_warning}"""
 
     # Create approval buttons
     keyboard = [
@@ -1168,6 +1185,105 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
     return ConversationHandler.END
 
 
+# Admin Update Payment Account Handlers
+async def update_payment_account_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start updating payment account"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ This command is only for admins.")
+        return ConversationHandler.END
+
+    # Determine which account to update from command
+    command = update.message.text.split()[0].lower()
+
+    if 'bml' in command:
+        context.user_data['update_method'] = 'BML'
+        method_name = 'BML'
+    elif 'mib' in command:
+        context.user_data['update_method'] = 'MIB'
+        method_name = 'MIB'
+    elif 'usdt' in command:
+        context.user_data['update_method'] = 'USDT'
+        method_name = 'USDT'
+    else:
+        await update.message.reply_text("❌ Unknown payment method.")
+        return ConversationHandler.END
+
+    # Get current details
+    current_details = sheets.get_payment_account_details(context.user_data['update_method'])
+
+    if current_details and current_details.get('account_number'):
+        current_text = f"📋 **Current {method_name} Account:**\n"
+        current_text += f"Account Number: `{current_details['account_number']}`\n"
+        if current_details.get('account_holder'):
+            current_text += f"Account Holder: {current_details['account_holder']}\n"
+        current_text += f"\n"
+    else:
+        current_text = f"📋 **No {method_name} account configured yet.**\n\n"
+
+    if method_name == 'USDT':
+        prompt = current_text + f"Please enter the new {method_name} wallet address:"
+    else:
+        prompt = current_text + f"Please enter the new {method_name} account number:"
+
+    await update.message.reply_text(prompt, parse_mode='Markdown')
+
+    return UPDATE_ACCOUNT_NUMBER
+
+
+async def update_account_number_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive account number and ask for holder name"""
+    account_number = update.message.text.strip()
+    context.user_data['update_account_number'] = account_number
+
+    method = context.user_data['update_method']
+
+    if method == 'USDT':
+        # USDT doesn't need holder name, save directly
+        sheets.update_payment_account(method, account_number, None)
+
+        await update.message.reply_text(
+            f"✅ **{method} wallet updated successfully!**\n\n"
+            f"Wallet Address: `{account_number}`",
+            parse_mode='Markdown'
+        )
+
+        # Clear user data
+        context.user_data.clear()
+        return ConversationHandler.END
+    else:
+        # Ask for account holder name for BML/MIB
+        await update.message.reply_text(
+            f"📝 Account number: `{account_number}`\n\n"
+            f"Now, please enter the account holder name (as it appears on the bank account):",
+            parse_mode='Markdown'
+        )
+
+        return UPDATE_ACCOUNT_METHOD
+
+
+async def update_account_holder_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive account holder name and save"""
+    account_holder = update.message.text.strip()
+    account_number = context.user_data['update_account_number']
+    method = context.user_data['update_method']
+
+    # Save to sheets
+    sheets.update_payment_account(method, account_number, account_holder)
+
+    await update.message.reply_text(
+        f"✅ **{method} account updated successfully!**\n\n"
+        f"Account Number: `{account_number}`\n"
+        f"Account Holder: {account_holder}\n\n"
+        f"ℹ️ This holder name will be used to validate deposit slips.",
+        parse_mode='Markdown'
+    )
+
+    # Clear user data
+    context.user_data.clear()
+
+    return ConversationHandler.END
+
+
 # Quick Approval/Rejection Handlers
 async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Quick approve deposit from notification"""
@@ -1657,11 +1773,26 @@ def main():
         fallbacks=[CommandHandler("endsupport", end_support)],
     )
 
+    # Admin update payment account conversation handler
+    update_account_conv = ConversationHandler(
+        entry_points=[
+            CommandHandler("update_bml", update_payment_account_start),
+            CommandHandler("update_mib", update_payment_account_start),
+            CommandHandler("update_usdt", update_payment_account_start),
+        ],
+        states={
+            UPDATE_ACCOUNT_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_account_number_received)],
+            UPDATE_ACCOUNT_METHOD: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_account_holder_received)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
     # Add conversation handlers
     application.add_handler(deposit_conv)
     application.add_handler(withdrawal_conv)
     application.add_handler(join_conv)
     application.add_handler(support_conv)
+    application.add_handler(update_account_conv)
 
     # Register admin handlers and share notification_messages dict
     admin_panel.register_admin_handlers(application, notification_messages)
