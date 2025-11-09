@@ -7,12 +7,16 @@ import os
 import logging
 import asyncio
 from typing import Dict
+from datetime import datetime, timedelta
+import pytz
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ConversationHandler, ContextTypes, filters
 )
 from dotenv import load_dotenv
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from sheets_manager import SheetsManager
 import admin_panel
 import vision_api
@@ -1254,6 +1258,90 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
     return ConversationHandler.END
 
 
+# Statistics and Reports
+def generate_stats_report(timezone_str='Indian/Maldives'):
+    """Generate profit/loss statistics report"""
+    tz = pytz.timezone(timezone_str)
+    now = datetime.now(tz)
+
+    # Define date ranges
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = now
+
+    week_start = now - timedelta(days=now.weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    six_months_start = (now - timedelta(days=180)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # Get data from sheets
+    periods = {
+        'TODAY': (today_start, today_end),
+        'THIS WEEK': (week_start, today_end),
+        'THIS MONTH': (month_start, today_end),
+        '6 MONTHS': (six_months_start, today_end),
+        'THIS YEAR': (year_start, today_end)
+    }
+
+    report = "📊 <b>PROFIT/LOSS REPORT</b>\n\n"
+
+    for period_name, (start, end) in periods.items():
+        deposits = sheets.get_deposits_by_date_range(start, end)
+        withdrawals = sheets.get_withdrawals_by_date_range(start, end)
+
+        total_deposits = sum([d['amount'] for d in deposits])
+        total_withdrawals = sum([w['amount'] for w in withdrawals])
+        profit = total_deposits - total_withdrawals
+
+        # Emoji based on profit
+        profit_emoji = "📈" if profit > 0 else "📉" if profit < 0 else "➖"
+
+        report += f"<b>{period_name}</b>\n"
+        report += f"💰 Deposits: MVR {total_deposits:,.2f}\n"
+        report += f"💸 Withdrawals: MVR {total_withdrawals:,.2f}\n"
+        report += f"{profit_emoji} Profit: MVR {profit:,.2f}\n"
+        report += f"━━━━━━━━━━━━━━━━━━\n\n"
+
+    return report
+
+
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /stats command - show profit/loss report"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ This command is only for admins.")
+        return
+
+    await update.message.reply_text("📊 Generating statistics report...")
+
+    try:
+        report = generate_stats_report()
+        await update.message.reply_text(report, parse_mode='HTML')
+    except Exception as e:
+        logger.error(f"Error generating stats: {e}")
+        await update.message.reply_text(f"❌ Error generating report: {e}")
+
+
+async def send_daily_report(application):
+    """Send daily profit/loss report to admin"""
+    try:
+        report_header = "🌅 <b>DAILY PROFIT/LOSS REPORT</b>\n"
+        report_header += f"<i>{datetime.now(pytz.timezone('Indian/Maldives')).strftime('%B %d, %Y')}</i>\n\n"
+
+        report = report_header + generate_stats_report()
+
+        await application.bot.send_message(
+            chat_id=ADMIN_USER_ID,
+            text=report,
+            parse_mode='HTML'
+        )
+        logger.info("Daily report sent successfully")
+    except Exception as e:
+        logger.error(f"Error sending daily report: {e}")
+
+
 # Admin Update Payment Account Handlers
 async def update_payment_account_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start updating payment account"""
@@ -1941,6 +2029,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("test", test_admin_notification))
+    application.add_handler(CommandHandler("stats", stats_command))
 
     # Test button handlers
     application.add_handler(CallbackQueryHandler(test_button_handler, pattern="^test_"))
@@ -2073,9 +2162,25 @@ def main():
     # Add general text handler
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
 
+    # Set up scheduler for daily reports
+    scheduler = AsyncIOScheduler(timezone=pytz.timezone('Indian/Maldives'))
+
+    # Schedule daily report at midnight (00:00)
+    scheduler.add_job(
+        send_daily_report,
+        trigger=CronTrigger(hour=0, minute=0),
+        args=[application],
+        id='daily_report',
+        name='Daily Profit/Loss Report'
+    )
+
+    scheduler.start()
+    logger.info("Scheduler started - Daily reports will be sent at midnight")
+
     # Log startup
     logger.info("Bot started successfully!")
     print("🤖 Billionaires PPPoker Bot is running...")
+    print("📊 Daily reports scheduled for midnight")
 
     # Run the bot
     application.run_polling(allowed_updates=Update.ALL_TYPES)

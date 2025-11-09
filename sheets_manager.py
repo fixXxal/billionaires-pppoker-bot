@@ -396,3 +396,82 @@ class SheetsManager:
                     'updated_at': row[3] if len(row) > 3 else None
                 }
         return accounts
+
+    # Statistics and Reporting
+    def get_deposits_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict]:
+        """Get all approved deposits within date range"""
+        deposits = []
+        try:
+            all_rows = self.deposits_sheet.get_all_values()[1:]  # Skip header
+
+            for row in all_rows:
+                if len(row) < 11:
+                    continue
+
+                status = row[8] if len(row) > 8 else ''
+                if status != 'Approved':
+                    continue
+
+                # Parse date (column 10 - Processed At)
+                processed_at = row[10] if len(row) > 10 else ''
+                if not processed_at:
+                    continue
+
+                try:
+                    # Parse date format: YYYY-MM-DD HH:MM:SS
+                    row_date = datetime.strptime(processed_at, '%Y-%m-%d %H:%M:%S')
+                    row_date = self.timezone.localize(row_date)
+
+                    if start_date <= row_date <= end_date:
+                        deposits.append({
+                            'request_id': row[0],
+                            'amount': float(row[4]) if row[4] else 0,
+                            'method': row[5],
+                            'processed_at': processed_at
+                        })
+                except (ValueError, IndexError):
+                    continue
+
+        except Exception as e:
+            print(f"Error getting deposits by date: {e}")
+
+        return deposits
+
+    def get_withdrawals_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict]:
+        """Get all completed withdrawals within date range"""
+        withdrawals = []
+        try:
+            all_rows = self.withdrawals_sheet.get_all_values()[1:]  # Skip header
+
+            for row in all_rows:
+                if len(row) < 11:
+                    continue
+
+                status = row[8] if len(row) > 8 else ''
+                if status != 'Completed':
+                    continue
+
+                # Parse date (column 10 - Processed At)
+                processed_at = row[10] if len(row) > 10 else ''
+                if not processed_at:
+                    continue
+
+                try:
+                    # Parse date format: YYYY-MM-DD HH:MM:SS
+                    row_date = datetime.strptime(processed_at, '%Y-%m-%d %H:%M:%S')
+                    row_date = self.timezone.localize(row_date)
+
+                    if start_date <= row_date <= end_date:
+                        withdrawals.append({
+                            'request_id': row[0],
+                            'amount': float(row[4]) if row[4] else 0,
+                            'method': row[5],
+                            'processed_at': processed_at
+                        })
+                except (ValueError, IndexError):
+                    continue
+
+        except Exception as e:
+            print(f"Error getting withdrawals by date: {e}")
+
+        return withdrawals
