@@ -66,16 +66,28 @@ notification_messages: Dict[str, int] = {}  # request_id: message_id (for editin
 
 # Helper Functions
 def is_admin(user_id: int) -> bool:
-    """Check if user is admin"""
-    return user_id == ADMIN_USER_ID
+    """Check if user is admin (super admin or regular admin)"""
+    return sheets.is_admin(user_id, ADMIN_USER_ID)
 
 
 async def send_admin_notification(context: ContextTypes.DEFAULT_TYPE, message: str):
-    """Send notification to admin"""
+    """Send notification to all admins"""
+    # Send to super admin
     try:
-        await context.bot.send_message(chat_id=ADMIN_USER_ID, text=message)
+        await context.bot.send_message(chat_id=ADMIN_USER_ID, text=message, parse_mode='HTML')
     except Exception as e:
-        logger.error(f"Failed to send admin notification: {e}")
+        logger.error(f"Failed to send notification to super admin: {e}")
+
+    # Send to all regular admins
+    try:
+        admins = sheets.get_all_admins()
+        for admin in admins:
+            try:
+                await context.bot.send_message(chat_id=admin['admin_id'], text=message, parse_mode='HTML')
+            except Exception as e:
+                logger.error(f"Failed to send notification to admin {admin['admin_id']}: {e}")
+    except Exception as e:
+        logger.error(f"Failed to get admin list: {e}")
 
 
 # Start Command
@@ -249,7 +261,7 @@ Need help? Contact our support team! 🙂
 
     # Add admin commands only if user is admin
     if is_admin(update.effective_user.id):
-        help_text += """
+        admin_help = """
 
 🔐 **Admin Commands:**
 - `/admin` - Access admin panel
@@ -258,7 +270,17 @@ Need help? Contact our support team! 🙂
 - `/update_mib` - Update MIB account
 - `/update_usdt` - Update USDT wallet
 - `/broadcast` - Send message to all users
+- `/stats` - View profit/loss statistics
+- `/listadmins` - List all admins
 """
+        # Super admin only commands
+        if update.effective_user.id == ADMIN_USER_ID:
+            admin_help += """
+**Super Admin Only:**
+- `/addadmin [user_id]` - Add a new admin
+- `/removeadmin [user_id]` - Remove an admin
+"""
+        help_text += admin_help
 
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
@@ -1324,20 +1346,212 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Error generating report: {e}")
 
 
+async def addadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /addadmin command - Super admin only"""
+    user_id = update.effective_user.id
+
+    # Only super admin can add admins
+    if user_id != ADMIN_USER_ID:
+        await update.message.reply_text("❌ Only the super admin can add new admins.")
+        return
+
+    # Check if admin ID was provided
+    if len(context.args) == 0:
+        await update.message.reply_text(
+            "❌ Please provide the admin's Telegram user ID.\n\n"
+            "Usage: /addadmin <user_id>\n"
+            "Example: /addadmin 123456789"
+        )
+        return
+
+    try:
+        new_admin_id = int(context.args[0])
+
+        # Check if user is already super admin
+        if new_admin_id == ADMIN_USER_ID:
+            await update.message.reply_text("❌ This user is already the super admin.")
+            return
+
+        # Get user info from the new admin (if they've interacted with the bot)
+        new_admin_user = sheets.get_user(new_admin_id)
+        username = new_admin_user.get('username', '') if new_admin_user else ''
+        name = ''
+        if new_admin_user:
+            first_name = new_admin_user.get('first_name', '')
+            last_name = new_admin_user.get('last_name', '')
+            name = f"{first_name} {last_name}".strip()
+
+        # Add admin
+        success = sheets.add_admin(new_admin_id, username, name, user_id)
+
+        if success:
+            await update.message.reply_text(
+                f"✅ Admin added successfully!\n\n"
+                f"<b>Admin ID:</b> <code>{new_admin_id}</code>\n"
+                f"<b>Username:</b> @{username if username else 'N/A'}\n"
+                f"<b>Name:</b> {name if name else 'N/A'}\n\n"
+                f"They now have full access to the admin panel.",
+                parse_mode='HTML'
+            )
+
+            # Try to notify the new admin
+            try:
+                await context.bot.send_message(
+                    chat_id=new_admin_id,
+                    text=(
+                        "🎉 <b>Congratulations!</b>\n\n"
+                        "You have been granted admin access to the Billionaires PPPoker Bot.\n\n"
+                        "Use /start to access the admin panel."
+                    ),
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                logger.error(f"Could not notify new admin: {e}")
+                await update.message.reply_text(
+                    "⚠️ Note: Could not send notification to the new admin. "
+                    "They may need to start the bot first."
+                )
+        else:
+            await update.message.reply_text("❌ Admin already exists or could not be added.")
+
+    except ValueError:
+        await update.message.reply_text("❌ Invalid user ID. Please provide a numeric Telegram user ID.")
+    except Exception as e:
+        logger.error(f"Error adding admin: {e}")
+        await update.message.reply_text(f"❌ Error adding admin: {e}")
+
+
+async def removeadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /removeadmin command - Super admin only"""
+    user_id = update.effective_user.id
+
+    # Only super admin can remove admins
+    if user_id != ADMIN_USER_ID:
+        await update.message.reply_text("❌ Only the super admin can remove admins.")
+        return
+
+    # Check if admin ID was provided
+    if len(context.args) == 0:
+        await update.message.reply_text(
+            "❌ Please provide the admin's Telegram user ID.\n\n"
+            "Usage: /removeadmin <user_id>\n"
+            "Example: /removeadmin 123456789"
+        )
+        return
+
+    try:
+        admin_id_to_remove = int(context.args[0])
+
+        # Can't remove super admin
+        if admin_id_to_remove == ADMIN_USER_ID:
+            await update.message.reply_text("❌ Cannot remove the super admin.")
+            return
+
+        # Remove admin
+        success = sheets.remove_admin(admin_id_to_remove)
+
+        if success:
+            await update.message.reply_text(
+                f"✅ Admin removed successfully!\n\n"
+                f"<b>Admin ID:</b> <code>{admin_id_to_remove}</code>\n\n"
+                f"They no longer have access to the admin panel.",
+                parse_mode='HTML'
+            )
+
+            # Try to notify the removed admin
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_id_to_remove,
+                    text=(
+                        "⚠️ <b>Admin Access Revoked</b>\n\n"
+                        "Your admin access to the Billionaires PPPoker Bot has been removed.\n\n"
+                        "You now have regular user access."
+                    ),
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                logger.error(f"Could not notify removed admin: {e}")
+        else:
+            await update.message.reply_text("❌ Admin not found or could not be removed.")
+
+    except ValueError:
+        await update.message.reply_text("❌ Invalid user ID. Please provide a numeric Telegram user ID.")
+    except Exception as e:
+        logger.error(f"Error removing admin: {e}")
+        await update.message.reply_text(f"❌ Error removing admin: {e}")
+
+
+async def listadmins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /listadmins command - Show all admins"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ This command is only for admins.")
+        return
+
+    try:
+        # Get all admins
+        admins = sheets.get_all_admins()
+
+        message = "👥 <b>ADMIN LIST</b>\n\n"
+        message += f"🔱 <b>Super Admin:</b>\n"
+        message += f"ID: <code>{ADMIN_USER_ID}</code>\n\n"
+
+        if admins:
+            message += f"👤 <b>Regular Admins ({len(admins)}):</b>\n\n"
+            for admin in admins:
+                message += f"━━━━━━━━━━━━━━━━━━\n"
+                message += f"<b>ID:</b> <code>{admin['admin_id']}</code>\n"
+                if admin.get('username'):
+                    message += f"<b>Username:</b> @{admin['username']}\n"
+                if admin.get('name'):
+                    message += f"<b>Name:</b> {admin['name']}\n"
+                message += f"<b>Added:</b> {admin.get('added_at', 'N/A')}\n"
+        else:
+            message += "No regular admins added yet.\n"
+
+        message += "\n━━━━━━━━━━━━━━━━━━\n"
+        message += f"<b>Total Admins:</b> {len(admins) + 1}"
+
+        await update.message.reply_text(message, parse_mode='HTML')
+
+    except Exception as e:
+        logger.error(f"Error listing admins: {e}")
+        await update.message.reply_text(f"❌ Error listing admins: {e}")
+
+
 async def send_daily_report(application):
-    """Send daily profit/loss report to admin"""
+    """Send daily profit/loss report to all admins"""
     try:
         report_header = "🌅 <b>DAILY PROFIT/LOSS REPORT</b>\n"
         report_header += f"<i>{datetime.now(pytz.timezone('Indian/Maldives')).strftime('%B %d, %Y')}</i>\n\n"
 
         report = report_header + generate_stats_report()
 
-        await application.bot.send_message(
-            chat_id=ADMIN_USER_ID,
-            text=report,
-            parse_mode='HTML'
-        )
-        logger.info("Daily report sent successfully")
+        # Send to super admin
+        try:
+            await application.bot.send_message(
+                chat_id=ADMIN_USER_ID,
+                text=report,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Failed to send daily report to super admin: {e}")
+
+        # Send to all regular admins
+        try:
+            admins = sheets.get_all_admins()
+            for admin in admins:
+                try:
+                    await application.bot.send_message(
+                        chat_id=admin['admin_id'],
+                        text=report,
+                        parse_mode='HTML'
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send daily report to admin {admin['admin_id']}: {e}")
+        except Exception as e:
+            logger.error(f"Failed to get admin list for daily report: {e}")
+
+        logger.info("Daily report sent successfully to all admins")
     except Exception as e:
         logger.error(f"Error sending daily report: {e}")
 
@@ -2030,6 +2244,9 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("test", test_admin_notification))
     application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("addadmin", addadmin_command))
+    application.add_handler(CommandHandler("removeadmin", removeadmin_command))
+    application.add_handler(CommandHandler("listadmins", listadmins_command))
 
     # Test button handlers
     application.add_handler(CallbackQueryHandler(test_button_handler, pattern="^test_"))

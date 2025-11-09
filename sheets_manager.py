@@ -108,6 +108,13 @@ class SheetsManager:
             self.payment_accounts_sheet.append_row(['MIB', os.getenv('MIB_ACCOUNT', ''), '', self._get_timestamp()])
             self.payment_accounts_sheet.append_row(['USDT', os.getenv('USDT_WALLET', ''), '', self._get_timestamp()])
 
+        # Admins worksheet
+        try:
+            self.admins_sheet = self.spreadsheet.worksheet('Admins')
+        except gspread.WorksheetNotFound:
+            self.admins_sheet = self.spreadsheet.add_worksheet(title='Admins', rows=100, cols=5)
+            self.admins_sheet.append_row(['Admin ID', 'Username', 'Name', 'Added By', 'Added At'])
+
     def _get_timestamp(self) -> str:
         """Get current timestamp in the configured timezone"""
         return datetime.now(self.timezone).strftime('%Y-%m-%d %H:%M:%S')
@@ -396,6 +403,74 @@ class SheetsManager:
                     'updated_at': row[3] if len(row) > 3 else None
                 }
         return accounts
+
+    # Admin Management
+    def add_admin(self, admin_id: int, username: str, name: str, added_by: int) -> bool:
+        """Add a new admin to the system"""
+        try:
+            # Check if admin already exists
+            try:
+                cell = self.admins_sheet.find(str(admin_id))
+                if cell:
+                    return False  # Admin already exists
+            except Exception:
+                pass  # Admin doesn't exist, continue to add
+
+            # Add new admin
+            self.admins_sheet.append_row([
+                admin_id,
+                username or '',
+                name or '',
+                added_by,
+                self._get_timestamp()
+            ])
+            return True
+        except Exception as e:
+            print(f"Error adding admin: {e}")
+            return False
+
+    def remove_admin(self, admin_id: int) -> bool:
+        """Remove an admin from the system"""
+        try:
+            cell = self.admins_sheet.find(str(admin_id))
+            if cell:
+                self.admins_sheet.delete_rows(cell.row)
+                return True
+            return False
+        except Exception as e:
+            print(f"Error removing admin: {e}")
+            return False
+
+    def get_all_admins(self) -> List[Dict]:
+        """Get list of all admins"""
+        admins = []
+        try:
+            all_rows = self.admins_sheet.get_all_values()[1:]  # Skip header
+            for row in all_rows:
+                if len(row) >= 5 and row[0]:
+                    admins.append({
+                        'admin_id': int(row[0]),
+                        'username': row[1] if len(row) > 1 else '',
+                        'name': row[2] if len(row) > 2 else '',
+                        'added_by': row[3] if len(row) > 3 else '',
+                        'added_at': row[4] if len(row) > 4 else ''
+                    })
+        except Exception as e:
+            print(f"Error getting admins: {e}")
+        return admins
+
+    def is_admin(self, user_id: int, super_admin_id: int) -> bool:
+        """Check if user is super admin or regular admin"""
+        # Check if super admin
+        if user_id == super_admin_id:
+            return True
+
+        # Check if in admins list
+        try:
+            cell = self.admins_sheet.find(str(user_id))
+            return cell is not None
+        except Exception:
+            return False
 
     # Statistics and Reporting
     def get_deposits_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict]:

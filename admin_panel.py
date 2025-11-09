@@ -39,8 +39,8 @@ def escape_markdown(text: str) -> str:
 
 
 def is_admin(user_id: int) -> bool:
-    """Check if user is admin"""
-    return user_id == ADMIN_USER_ID
+    """Check if user is admin (super admin or regular admin)"""
+    return sheets.is_admin(user_id, ADMIN_USER_ID)
 
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
