@@ -61,7 +61,7 @@ sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
 live_support_sessions: Dict[int, int] = {}  # user_id: admin_user_id
 support_mode_users: set = set()  # Users currently in support mode
 admin_reply_context: Dict[int, int] = {}  # admin_id: user_id (for reply context)
-notification_messages: Dict[str, int] = {}  # request_id: message_id (for editing notification buttons)
+notification_messages: Dict[str, list] = {}  # request_id: [(admin_id, message_id), ...] (for editing notification buttons)
 
 
 # Helper Functions
@@ -536,6 +536,9 @@ Player ID: <code>{pppoker_id}</code>
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
 
+    # Initialize list to store all notification message IDs
+    notification_messages[request_id] = []
+
     # Send to each admin
     for admin_id in all_admin_ids:
         try:
@@ -546,9 +549,8 @@ Player ID: <code>{pppoker_id}</code>
                 reply_markup=reply_markup,
                 parse_mode='HTML'
             )
-            # Store notification message_id for super admin (for editing when admin approves/rejects)
-            if admin_id == ADMIN_USER_ID:
-                notification_messages[request_id] = notification_msg.message_id
+            # Store notification message_id for ALL admins (for editing when any admin approves/rejects)
+            notification_messages[request_id].append((admin_id, notification_msg.message_id))
             logger.info(f"Deposit notification sent to admin {admin_id} for {request_id}")
 
             # Forward proof to admin if it's a photo/document
@@ -928,6 +930,9 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
 
+    # Initialize list to store all notification message IDs
+    notification_messages[request_id] = []
+
     for admin_id in all_admin_ids:
         try:
             notification_msg = await context.bot.send_message(
@@ -936,9 +941,8 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
                 reply_markup=reply_markup,
                 parse_mode='HTML'
             )
-            # Store notification message_id for super admin
-            if admin_id == ADMIN_USER_ID:
-                notification_messages[request_id] = notification_msg.message_id
+            # Store notification message_id for ALL admins
+            notification_messages[request_id].append((admin_id, notification_msg.message_id))
             logger.info(f"Withdrawal notification sent to admin {admin_id} for {request_id}")
         except Exception as e:
             logger.error(f"Failed to send withdrawal notification to admin {admin_id}: {e}")
@@ -1043,6 +1047,9 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
 
+    # Initialize list to store all notification message IDs
+    notification_messages[request_id] = []
+
     for admin_id in all_admin_ids:
         try:
             notification_msg = await context.bot.send_message(
@@ -1051,9 +1058,8 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
                 reply_markup=reply_markup,
                 parse_mode='HTML'
             )
-            # Store notification message_id for super admin
-            if admin_id == ADMIN_USER_ID:
-                notification_messages[request_id] = notification_msg.message_id
+            # Store notification message_id for ALL admins
+            notification_messages[request_id].append((admin_id, notification_msg.message_id))
             logger.info(f"Join request notification sent to admin {admin_id} for {request_id}")
         except Exception as e:
             logger.error(f"Failed to send join notification to admin {admin_id}: {e}")
@@ -1915,22 +1921,20 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
         except Exception as e:
             logger.error(f"Failed to notify user: {e}")
 
-        # Edit message and remove buttons
-        try:
-            await query.message.edit_text(
-                f"{query.message.text}\n\n✅ **APPROVED** by admin\n\n_User has been notified._",
-                parse_mode='Markdown',
-                reply_markup=InlineKeyboardMarkup([])
-            )
-        except Exception as e:
-            # If edit fails, try without appending original text
-            try:
-                await query.message.edit_text(
-                    f"✅ Deposit {request_id} **APPROVED** by admin\n\n_User has been notified._",
-                    reply_markup=InlineKeyboardMarkup([])
-                )
-            except:
-                logger.error(f"Failed to edit message: {e}")
+        # Remove buttons for ALL admins
+        if request_id in notification_messages:
+            for admin_id, message_id in notification_messages[request_id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                    logger.info(f"Removed approval buttons for admin {admin_id} on deposit {request_id}")
+                except Exception as e:
+                    logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+            # Clean up stored message IDs
+            del notification_messages[request_id]
 
     except Exception as e:
         logger.error(f"Error in quick_approve_deposit: {e}")
@@ -1949,6 +1953,21 @@ async def quick_reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # Store request_id for rejection reason
     admin_reply_context[query.from_user.id] = f"reject_deposit_{request_id}"
+
+    # Remove buttons for ALL admins when rejection starts
+    if request_id in notification_messages:
+        for admin_id, message_id in notification_messages[request_id]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+                logger.info(f"Removed buttons for admin {admin_id} - deposit {request_id} being rejected")
+            except Exception as e:
+                logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+        # Clean up stored message IDs
+        del notification_messages[request_id]
 
     await query.edit_message_text(
         f"❌ Rejecting Deposit Request {request_id}\n\n"
@@ -1995,22 +2014,20 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
     except:
         pass
 
-    # Edit message and remove buttons
-    try:
-        await query.message.edit_text(
-            f"{query.message.text}\n\n✅ **APPROVED** by admin",
-            parse_mode='Markdown',
-            reply_markup=InlineKeyboardMarkup([])
-        )
-    except Exception as e:
-        # If edit fails, try without appending original text
-        try:
-            await query.message.edit_text(
-                f"✅ Withdrawal {request_id} **APPROVED** by admin",
-                reply_markup=InlineKeyboardMarkup([])
-            )
-        except:
-            pass
+    # Remove buttons for ALL admins
+    if request_id in notification_messages:
+        for admin_id, message_id in notification_messages[request_id]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+                logger.info(f"Removed approval buttons for admin {admin_id} on withdrawal {request_id}")
+            except Exception as e:
+                logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+        # Clean up stored message IDs
+        del notification_messages[request_id]
 
 
 async def quick_reject_withdrawal(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2025,6 +2042,21 @@ async def quick_reject_withdrawal(update: Update, context: ContextTypes.DEFAULT_
 
     # Store request_id for rejection reason
     admin_reply_context[query.from_user.id] = f"reject_withdrawal_{request_id}"
+
+    # Remove buttons for ALL admins when rejection starts
+    if request_id in notification_messages:
+        for admin_id, message_id in notification_messages[request_id]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+                logger.info(f"Removed buttons for admin {admin_id} - withdrawal {request_id} being rejected")
+            except Exception as e:
+                logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+        # Clean up stored message IDs
+        del notification_messages[request_id]
 
     await query.edit_message_text(
         f"❌ Rejecting Withdrawal Request {request_id}\n\n"
@@ -2064,22 +2096,20 @@ async def quick_approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except:
         pass
 
-    # Edit message and remove buttons
-    try:
-        await query.message.edit_text(
-            f"{query.message.text}\n\n✅ **APPROVED** by admin",
-            parse_mode='Markdown',
-            reply_markup=InlineKeyboardMarkup([])
-        )
-    except Exception as e:
-        # If edit fails, try without appending original text
-        try:
-            await query.message.edit_text(
-                f"✅ Join Request {request_id} **APPROVED** by admin",
-                reply_markup=InlineKeyboardMarkup([])
-            )
-        except:
-            pass
+    # Remove buttons for ALL admins
+    if request_id in notification_messages:
+        for admin_id, message_id in notification_messages[request_id]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+                logger.info(f"Removed approval buttons for admin {admin_id} on join request {request_id}")
+            except Exception as e:
+                logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+        # Clean up stored message IDs
+        del notification_messages[request_id]
 
 
 async def quick_reject_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2094,6 +2124,21 @@ async def quick_reject_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Store request_id for rejection reason
     admin_reply_context[query.from_user.id] = f"reject_join_{request_id}"
+
+    # Remove buttons for ALL admins when rejection starts
+    if request_id in notification_messages:
+        for admin_id, message_id in notification_messages[request_id]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+                logger.info(f"Removed buttons for admin {admin_id} - join request {request_id} being rejected")
+            except Exception as e:
+                logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+        # Clean up stored message IDs
+        del notification_messages[request_id]
 
     await query.edit_message_text(
         f"❌ Rejecting Join Request {request_id}\n\n"
