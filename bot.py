@@ -519,42 +519,50 @@ Player ID: <code>{pppoker_id}</code>
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Send notification to all admins
+    photo_file_id = context.user_data.get('photo_file_id')
+    document_file_id = context.user_data.get('document_file_id')
+
+    # Get all admin IDs
+    all_admin_ids = [ADMIN_USER_ID]
     try:
-        # Send notification message with HTML for better formatting
-        notification_msg = await context.bot.send_message(
-            chat_id=ADMIN_USER_ID,
-            text=admin_message,
-            reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
-        # Store notification message_id for later editing when admin approves/rejects
-        notification_messages[request_id] = notification_msg.message_id
-        logger.info(f"Deposit notification sent to admin for {request_id}")
-
-        # Forward proof to admin if it's a photo/document
-        photo_file_id = context.user_data.get('photo_file_id')
-        document_file_id = context.user_data.get('document_file_id')
-
-        if photo_file_id:
-            await context.bot.send_photo(
-                chat_id=ADMIN_USER_ID,
-                photo=photo_file_id,
-                caption=f"📸 Deposit Proof for {request_id}"
-            )
-            logger.info(f"Deposit photo sent to admin for {request_id}")
-        elif document_file_id:
-            await context.bot.send_document(
-                chat_id=ADMIN_USER_ID,
-                document=document_file_id,
-                caption=f"📎 Deposit Proof for {request_id}"
-            )
-            logger.info(f"Deposit document sent to admin for {request_id}")
+        regular_admins = sheets.get_all_admins()
+        all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
     except Exception as e:
-        logger.error(f"Failed to send deposit notification to admin: {e}")
-        logger.error(f"Admin ID: {ADMIN_USER_ID}")
-        await update.message.reply_text(
-            f"⚠️ Request saved but failed to notify admin. Error logged."
-        )
+        logger.error(f"Failed to get admin list: {e}")
+
+    # Send to each admin
+    for admin_id in all_admin_ids:
+        try:
+            # Send notification message with HTML for better formatting
+            notification_msg = await context.bot.send_message(
+                chat_id=admin_id,
+                text=admin_message,
+                reply_markup=reply_markup,
+                parse_mode='HTML'
+            )
+            # Store notification message_id for super admin (for editing when admin approves/rejects)
+            if admin_id == ADMIN_USER_ID:
+                notification_messages[request_id] = notification_msg.message_id
+            logger.info(f"Deposit notification sent to admin {admin_id} for {request_id}")
+
+            # Forward proof to admin if it's a photo/document
+            if photo_file_id:
+                await context.bot.send_photo(
+                    chat_id=admin_id,
+                    photo=photo_file_id,
+                    caption=f"📸 Deposit Proof for {request_id}"
+                )
+                logger.info(f"Deposit photo sent to admin {admin_id} for {request_id}")
+            elif document_file_id:
+                await context.bot.send_document(
+                    chat_id=admin_id,
+                    document=document_file_id,
+                    caption=f"📎 Deposit Proof for {request_id}"
+                )
+                logger.info(f"Deposit document sent to admin {admin_id} for {request_id}")
+        except Exception as e:
+            logger.error(f"Failed to send deposit notification to admin {admin_id}: {e}")
 
     # Clear user data
     context.user_data.clear()
@@ -907,14 +915,28 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    notification_msg = await context.bot.send_message(
-        chat_id=ADMIN_USER_ID,
-        text=admin_message,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
-    # Store notification message_id for later editing
-    notification_messages[request_id] = notification_msg.message_id
+    # Send notification to all admins
+    all_admin_ids = [ADMIN_USER_ID]
+    try:
+        regular_admins = sheets.get_all_admins()
+        all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+    except Exception as e:
+        logger.error(f"Failed to get admin list: {e}")
+
+    for admin_id in all_admin_ids:
+        try:
+            notification_msg = await context.bot.send_message(
+                chat_id=admin_id,
+                text=admin_message,
+                reply_markup=reply_markup,
+                parse_mode='HTML'
+            )
+            # Store notification message_id for super admin
+            if admin_id == ADMIN_USER_ID:
+                notification_messages[request_id] = notification_msg.message_id
+            logger.info(f"Withdrawal notification sent to admin {admin_id} for {request_id}")
+        except Exception as e:
+            logger.error(f"Failed to send withdrawal notification to admin {admin_id}: {e}")
 
     # Clear user data
     context.user_data.clear()
@@ -1008,14 +1030,28 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    notification_msg = await context.bot.send_message(
-        chat_id=ADMIN_USER_ID,
-        text=admin_message,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
-    # Store notification message_id for later editing
-    notification_messages[request_id] = notification_msg.message_id
+    # Send notification to all admins
+    all_admin_ids = [ADMIN_USER_ID]
+    try:
+        regular_admins = sheets.get_all_admins()
+        all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+    except Exception as e:
+        logger.error(f"Failed to get admin list: {e}")
+
+    for admin_id in all_admin_ids:
+        try:
+            notification_msg = await context.bot.send_message(
+                chat_id=admin_id,
+                text=admin_message,
+                reply_markup=reply_markup,
+                parse_mode='HTML'
+            )
+            # Store notification message_id for super admin
+            if admin_id == ADMIN_USER_ID:
+                notification_messages[request_id] = notification_msg.message_id
+            logger.info(f"Join request notification sent to admin {admin_id} for {request_id}")
+        except Exception as e:
+            logger.error(f"Failed to send join notification to admin {admin_id}: {e}")
 
     return ConversationHandler.END
 
