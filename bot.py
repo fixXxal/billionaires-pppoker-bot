@@ -265,20 +265,25 @@ Need help? Contact our support team! 🙂
 
 🔐 **Admin Commands:**
 - `/admin` - Access admin panel
-- `/reply [user_id] [message]` - Reply to user in support
 - `/update_bml` - Update BML account
 - `/update_mib` - Update MIB account
 - `/update_usdt` - Update USDT wallet
 - `/broadcast` - Send message to all users
 - `/stats` - View profit/loss statistics
-- `/listadmins` - List all admins
+
+📋 **Admin Panel Features:**
+- Approve/reject deposits and withdrawals
+- Manage join requests
+- Live support (reply via notification buttons)
+- Update payment account details
 """
         # Super admin only commands
         if update.effective_user.id == ADMIN_USER_ID:
             admin_help += """
-**Super Admin Only:**
+🔱 **Super Admin Only:**
 - `/addadmin [user_id]` - Add a new admin
 - `/removeadmin [user_id]` - Remove an admin
+- `/listadmins` - View all admins
 """
         help_text += admin_help
 
@@ -1518,9 +1523,12 @@ async def removeadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def listadmins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /listadmins command - Show all admins"""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ This command is only for admins.")
+    """Handle /listadmins command - Super admin only"""
+    user_id = update.effective_user.id
+
+    # Only super admin can view admin list
+    if user_id != ADMIN_USER_ID:
+        await update.message.reply_text("❌ Only the super admin can view the admin list.")
         return
 
     try:
