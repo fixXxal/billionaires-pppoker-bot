@@ -151,7 +151,17 @@ I'm here to help you with:
 
 Please select an option from the menu below:
 """
+        # Add channel link button
+        channel_keyboard = [[InlineKeyboardButton("📢 Join Our Channel", url="https://t.me/Billionairesmv")]]
+        channel_markup = InlineKeyboardMarkup(channel_keyboard)
+
         await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode='HTML')
+        await update.message.reply_text(
+            "📢 <b>Stay Updated!</b>\n\n"
+            "Join our official Telegram channel for latest news, promotions, and exclusive offers! 🎁",
+            reply_markup=channel_markup,
+            parse_mode='HTML'
+        )
 
 
 # User Mode - Switch admin to user view
