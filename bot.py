@@ -2750,6 +2750,7 @@ def main():
         entry_points=[
             CommandHandler("update_bml", update_payment_account_start),
             CommandHandler("update_mib", update_payment_account_start),
+            CommandHandler("update_usd", update_payment_account_start),
             CommandHandler("update_usdt", update_payment_account_start),
         ],
         states={
