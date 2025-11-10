@@ -886,6 +886,7 @@ async def admin_view_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE
     message_text += "📝 <b>Update Commands:</b>\n"
     message_text += "<code>/update_bml</code> - Update BML account\n"
     message_text += "<code>/update_mib</code> - Update MIB account\n"
+    message_text += "<code>/update_usd</code> - Update USD account\n"
     message_text += "<code>/update_usdt</code> - Update USDT wallet"
 
     await edit_func(
