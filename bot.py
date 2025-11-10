@@ -277,7 +277,14 @@ Need help? Contact our support team! 🙂
 - `/admin` - Access admin panel
 - `/update_bml` - Update BML account
 - `/update_mib` - Update MIB account
+- `/update_usd` - Update USD account
 - `/update_usdt` - Update USDT wallet
+- `/clear_bml` - Remove BML account
+- `/clear_mib` - Remove MIB account
+- `/clear_usd` - Remove USD account
+- `/clear_usdt` - Remove USDT wallet
+- `/set_usd_rate [rate]` - Set USD to MVR rate
+- `/set_usdt_rate [rate]` - Set USDT to MVR rate
 - `/broadcast` - Send message to all users
 - `/stats` - View profit/loss statistics
 
@@ -314,6 +321,8 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="deposit_bml")])
     if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
         keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="deposit_mib")])
+    if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
+        keyboard.append([InlineKeyboardButton("💵 USD", callback_data="deposit_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
         keyboard.append([InlineKeyboardButton("💎 USDT (TRC20)", callback_data="deposit_usdt")])
 
@@ -359,19 +368,42 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
         )
         return ConversationHandler.END
 
-    method_names = {'BML': 'Bank of Maldives', 'MIB': 'Maldives Islamic Bank', 'USDT': 'USDT (TRC20)'}
+    method_names = {'BML': 'Bank of Maldives', 'MIB': 'Maldives Islamic Bank', 'USD': 'USD Bank Transfer', 'USDT': 'USDT (TRC20)'}
 
     # Ask for receipt/slip directly after showing account details
     if method == 'USDT':
-        await query.edit_message_text(
-            f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
-            f"<b>Wallet Address:</b> <a href='#'>(tap to copy)</a>\n"
-            f"<code>{account}</code>\n\n"
-            f"📝 Please send your <b>Transaction ID (TXID)</b> from the blockchain:",
-            parse_mode='HTML'
-        )
+        message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
+
+        # Show exchange rate for USDT
+        usdt_rate = sheets.get_exchange_rate('USDT')
+        if usdt_rate:
+            message += f"💱 <b>Current Rate:</b> 1 USDT = {usdt_rate:.2f} MVR\n\n"
+
+        message += f"<b>Wallet Address:</b> <a href='#'>(tap to copy)</a>\n"
+        message += f"<code>{account}</code>\n\n"
+        message += f"📝 Please send your <b>Transaction ID (TXID)</b> from the blockchain:"
+
+        await query.edit_message_text(message, parse_mode='HTML')
+    elif method == 'USD':
+        # Build message with exchange rate and account details
+        message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
+
+        # Show exchange rate for USD
+        usd_rate = sheets.get_exchange_rate('USD')
+        if usd_rate:
+            message += f"💱 <b>Current Rate:</b> 1 USD = {usd_rate:.2f} MVR\n\n"
+
+        message += f"<b>Account Number:</b> <a href='#'>(tap to copy)</a>\n<code>{account}</code>\n\n"
+
+        if account_holder and account_holder.strip():
+            message += f"<b>Account Holder:</b>\n{account_holder}\n\n"
+
+        message += f"━━━━━━━━━━━━━━━━━━\n"
+        message += f"📸 Please upload your <b>payment slip/receipt</b> (screenshot or photo):"
+
+        await query.edit_message_text(message, parse_mode='HTML')
     else:
-        # Build message with account holder name if available
+        # Build message with account holder name if available (BML/MIB)
         message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
         message += f"<b>Account Number:</b> <a href='#'>(tap to copy)</a>\n<code>{account}</code>\n\n"
 
@@ -812,6 +844,8 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="withdrawal_bml")])
     if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
         keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="withdrawal_mib")])
+    if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
+        keyboard.append([InlineKeyboardButton("💵 USD", callback_data="withdrawal_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
         keyboard.append([InlineKeyboardButton("💎 USDT (TRC20)", callback_data="withdrawal_usdt")])
 
@@ -849,13 +883,23 @@ async def withdrawal_method_selected(update: Update, context: ContextTypes.DEFAU
     method = query.data.replace('withdrawal_', '').upper()
     context.user_data['withdrawal_method'] = method
 
-    method_names = {'BML': 'Bank of Maldives', 'MIB': 'Maldives Islamic Bank', 'USDT': 'USDT (TRC20)'}
+    method_names = {'BML': 'Bank of Maldives', 'MIB': 'Maldives Islamic Bank', 'USD': 'USD Bank Transfer', 'USDT': 'USDT (TRC20)'}
 
-    await query.edit_message_text(
-        f"💸 <b>Withdrawal via {method_names[method]}</b>\n\n"
-        f"Please enter the amount you want to withdraw (in MVR{' or USD' if method == 'USDT' else ''}):",
-        parse_mode='HTML'
-    )
+    message = f"💸 <b>Withdrawal via {method_names[method]}</b>\n\n"
+
+    # Show exchange rate for USD/USDT
+    if method == 'USD':
+        usd_rate = sheets.get_exchange_rate('USD')
+        if usd_rate:
+            message += f"💱 <b>Current Rate:</b> 1 USD = {usd_rate:.2f} MVR\n\n"
+    elif method == 'USDT':
+        usdt_rate = sheets.get_exchange_rate('USDT')
+        if usdt_rate:
+            message += f"💱 <b>Current Rate:</b> 1 USDT = {usdt_rate:.2f} MVR\n\n"
+
+    message += f"Please enter the amount you want to withdraw (in {'USD' if method in ['USD', 'USDT'] else 'MVR'}):"
+
+    await query.edit_message_text(message, parse_mode='HTML')
 
     return WITHDRAWAL_AMOUNT
 
@@ -1401,23 +1445,71 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
         'THIS YEAR': (year_start, today_end)
     }
 
+    # Get exchange rates
+    usd_rate = sheets.get_exchange_rate('USD') or 15.40
+    usdt_rate = sheets.get_exchange_rate('USDT') or 15.40
+
     report = "📊 <b>PROFIT/LOSS REPORT</b>\n\n"
+    report += f"💱 <b>Current Exchange Rates:</b>\n"
+    report += f"1 USD = {usd_rate:.2f} MVR\n"
+    report += f"1 USDT = {usdt_rate:.2f} MVR\n\n"
+    report += f"━━━━━━━━━━━━━━━━━━\n\n"
 
     for period_name, (start, end) in periods.items():
         deposits = sheets.get_deposits_by_date_range(start, end)
         withdrawals = sheets.get_withdrawals_by_date_range(start, end)
 
-        total_deposits = sum([d['amount'] for d in deposits])
-        total_withdrawals = sum([w['amount'] for w in withdrawals])
-        profit = total_deposits - total_withdrawals
+        # Separate by currency
+        mvr_deposits = sum([d['amount'] for d in deposits if d['method'] in ['BML', 'MIB']])
+        usd_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USD'])
+        usdt_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USDT'])
 
-        # Emoji based on profit
-        profit_emoji = "📈" if profit > 0 else "📉" if profit < 0 else "➖"
+        mvr_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] in ['BML', 'MIB']])
+        usd_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USD'])
+        usdt_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USDT'])
+
+        # Calculate profits per currency
+        mvr_profit = mvr_deposits - mvr_withdrawals
+        usd_profit = usd_deposits - usd_withdrawals
+        usdt_profit = usdt_deposits - usdt_withdrawals
+
+        # Calculate MVR equivalents
+        usd_mvr_equiv = usd_profit * usd_rate
+        usdt_mvr_equiv = usdt_profit * usdt_rate
+        total_mvr_profit = mvr_profit + usd_mvr_equiv + usdt_mvr_equiv
 
         report += f"<b>{period_name}</b>\n"
-        report += f"💰 Deposits: MVR {total_deposits:,.2f}\n"
-        report += f"💸 Withdrawals: MVR {total_withdrawals:,.2f}\n"
-        report += f"{profit_emoji} Profit: MVR {profit:,.2f}\n"
+
+        # MVR Section
+        if mvr_deposits > 0 or mvr_withdrawals > 0:
+            mvr_emoji = "📈" if mvr_profit > 0 else "📉" if mvr_profit < 0 else "➖"
+            report += f"💰 MVR Deposits: {mvr_deposits:,.2f}\n"
+            report += f"💸 MVR Withdrawals: {mvr_withdrawals:,.2f}\n"
+            report += f"{mvr_emoji} MVR Profit: {mvr_profit:,.2f}\n\n"
+
+        # USD Section
+        if usd_deposits > 0 or usd_withdrawals > 0:
+            usd_emoji = "📈" if usd_profit > 0 else "📉" if usd_profit < 0 else "➖"
+            report += f"💵 USD Deposits: {usd_deposits:,.2f}\n"
+            report += f"💵 USD Withdrawals: {usd_withdrawals:,.2f}\n"
+            report += f"{usd_emoji} USD Profit: {usd_profit:,.2f}\n"
+            report += f"   ≈ {usd_mvr_equiv:,.2f} MVR\n\n"
+
+        # USDT Section
+        if usdt_deposits > 0 or usdt_withdrawals > 0:
+            usdt_emoji = "📈" if usdt_profit > 0 else "📉" if usdt_profit < 0 else "➖"
+            report += f"💎 USDT Deposits: {usdt_deposits:,.2f}\n"
+            report += f"💎 USDT Withdrawals: {usdt_withdrawals:,.2f}\n"
+            report += f"{usdt_emoji} USDT Profit: {usdt_profit:,.2f}\n"
+            report += f"   ≈ {usdt_mvr_equiv:,.2f} MVR\n\n"
+
+        # Total in MVR
+        if (mvr_deposits > 0 or mvr_withdrawals > 0 or
+            usd_deposits > 0 or usd_withdrawals > 0 or
+            usdt_deposits > 0 or usdt_withdrawals > 0):
+            total_emoji = "📈" if total_mvr_profit > 0 else "📉" if total_mvr_profit < 0 else "➖"
+            report += f"<b>{total_emoji} Total Profit (MVR):</b> {total_mvr_profit:,.2f}\n\n"
+
         report += f"━━━━━━━━━━━━━━━━━━\n\n"
 
     return report
@@ -1437,6 +1529,174 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error generating stats: {e}")
         await update.message.reply_text(f"❌ Error generating report: {e}")
+
+
+async def clear_bml_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /clear_bml command - Remove BML account"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ This command is only for admins.")
+        return
+
+    success = sheets.clear_payment_account('BML')
+    if success:
+        await update.message.reply_text(
+            "✅ BML account has been removed.\n\n"
+            "Users will no longer see BML as a payment option.",
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text("❌ Failed to clear BML account.")
+
+
+async def clear_mib_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /clear_mib command - Remove MIB account"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ This command is only for admins.")
+        return
+
+    success = sheets.clear_payment_account('MIB')
+    if success:
+        await update.message.reply_text(
+            "✅ MIB account has been removed.\n\n"
+            "Users will no longer see MIB as a payment option.",
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text("❌ Failed to clear MIB account.")
+
+
+async def clear_usd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /clear_usd command - Remove USD account"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ This command is only for admins.")
+        return
+
+    success = sheets.clear_payment_account('USD')
+    if success:
+        await update.message.reply_text(
+            "✅ USD account has been removed.\n\n"
+            "Users will no longer see USD as a payment option.",
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text("❌ Failed to clear USD account.")
+
+
+async def clear_usdt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /clear_usdt command - Remove USDT wallet"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ This command is only for admins.")
+        return
+
+    success = sheets.clear_payment_account('USDT')
+    if success:
+        await update.message.reply_text(
+            "✅ USDT wallet has been removed.\n\n"
+            "Users will no longer see USDT as a payment option.",
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text("❌ Failed to clear USDT wallet.")
+
+
+async def set_usd_rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /set_usd_rate command - Set USD to MVR exchange rate"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ This command is only for admins.")
+        return
+
+    # Check if rate was provided
+    if len(context.args) == 0:
+        # Show current rate
+        current_rate = sheets.get_exchange_rate('USD')
+        if current_rate:
+            await update.message.reply_text(
+                f"💵 <b>Current USD Rate</b>\n\n"
+                f"1 USD = {current_rate:.2f} MVR\n\n"
+                f"To update: /set_usd_rate <rate>\n"
+                f"Example: /set_usd_rate 17.50",
+                parse_mode='HTML'
+            )
+        else:
+            await update.message.reply_text(
+                "❌ USD rate not found.\n\n"
+                "To set: /set_usd_rate <rate>\n"
+                "Example: /set_usd_rate 17.50"
+            )
+        return
+
+    try:
+        rate = float(context.args[0])
+        if rate <= 0:
+            await update.message.reply_text("❌ Rate must be a positive number.")
+            return
+
+        success = sheets.set_exchange_rate('USD', rate)
+        if success:
+            await update.message.reply_text(
+                f"✅ USD exchange rate updated!\n\n"
+                f"💵 1 USD = {rate:.2f} MVR\n\n"
+                f"This rate will be displayed to users during deposits and withdrawals.",
+                parse_mode='HTML'
+            )
+        else:
+            await update.message.reply_text("❌ Failed to update USD rate.")
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid rate format.\n\n"
+            "Usage: /set_usd_rate <rate>\n"
+            "Example: /set_usd_rate 17.50"
+        )
+
+
+async def set_usdt_rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /set_usdt_rate command - Set USDT to MVR exchange rate"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ This command is only for admins.")
+        return
+
+    # Check if rate was provided
+    if len(context.args) == 0:
+        # Show current rate
+        current_rate = sheets.get_exchange_rate('USDT')
+        if current_rate:
+            await update.message.reply_text(
+                f"💎 <b>Current USDT Rate</b>\n\n"
+                f"1 USDT = {current_rate:.2f} MVR\n\n"
+                f"To update: /set_usdt_rate <rate>\n"
+                f"Example: /set_usdt_rate 18.50",
+                parse_mode='HTML'
+            )
+        else:
+            await update.message.reply_text(
+                "❌ USDT rate not found.\n\n"
+                "To set: /set_usdt_rate <rate>\n"
+                "Example: /set_usdt_rate 18.50"
+            )
+        return
+
+    try:
+        rate = float(context.args[0])
+        if rate <= 0:
+            await update.message.reply_text("❌ Rate must be a positive number.")
+            return
+
+        success = sheets.set_exchange_rate('USDT', rate)
+        if success:
+            await update.message.reply_text(
+                f"✅ USDT exchange rate updated!\n\n"
+                f"💎 1 USDT = {rate:.2f} MVR\n\n"
+                f"This rate will be displayed to users during deposits and withdrawals.",
+                parse_mode='HTML'
+            )
+        else:
+            await update.message.reply_text("❌ Failed to update USDT rate.")
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid rate format.\n\n"
+            "Usage: /set_usdt_rate <rate>\n"
+            "Example: /set_usdt_rate 18.50"
+        )
 
 
 async def addadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1668,6 +1928,9 @@ async def update_payment_account_start(update: Update, context: ContextTypes.DEF
     elif 'mib' in command:
         context.user_data['update_method'] = 'MIB'
         method_name = 'MIB'
+    elif 'usd' in command and 'usdt' not in command:
+        context.user_data['update_method'] = 'USD'
+        method_name = 'USD'
     elif 'usdt' in command:
         context.user_data['update_method'] = 'USDT'
         method_name = 'USDT'
@@ -2379,6 +2642,12 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("test", test_admin_notification))
     application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("clear_bml", clear_bml_command))
+    application.add_handler(CommandHandler("clear_mib", clear_mib_command))
+    application.add_handler(CommandHandler("clear_usd", clear_usd_command))
+    application.add_handler(CommandHandler("clear_usdt", clear_usdt_command))
+    application.add_handler(CommandHandler("set_usd_rate", set_usd_rate_command))
+    application.add_handler(CommandHandler("set_usdt_rate", set_usdt_rate_command))
     application.add_handler(CommandHandler("addadmin", addadmin_command))
     application.add_handler(CommandHandler("removeadmin", removeadmin_command))
     application.add_handler(CommandHandler("listadmins", listadmins_command))

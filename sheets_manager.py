@@ -106,6 +106,7 @@ class SheetsManager:
             # Initialize with default values
             self.payment_accounts_sheet.append_row(['BML', os.getenv('BML_ACCOUNT', ''), '', self._get_timestamp()])
             self.payment_accounts_sheet.append_row(['MIB', os.getenv('MIB_ACCOUNT', ''), '', self._get_timestamp()])
+            self.payment_accounts_sheet.append_row(['USD', '', '', self._get_timestamp()])
             self.payment_accounts_sheet.append_row(['USDT', os.getenv('USDT_WALLET', ''), '', self._get_timestamp()])
 
         # Admins worksheet
@@ -114,6 +115,16 @@ class SheetsManager:
         except gspread.WorksheetNotFound:
             self.admins_sheet = self.spreadsheet.add_worksheet(title='Admins', rows=100, cols=5)
             self.admins_sheet.append_row(['Admin ID', 'Username', 'Name', 'Added By', 'Added At'])
+
+        # Exchange Rates worksheet
+        try:
+            self.exchange_rates_sheet = self.spreadsheet.worksheet('Exchange Rates')
+        except gspread.WorksheetNotFound:
+            self.exchange_rates_sheet = self.spreadsheet.add_worksheet(title='Exchange Rates', rows=10, cols=3)
+            self.exchange_rates_sheet.append_row(['Currency', 'Rate to MVR', 'Updated At'])
+            # Initialize with default rates
+            self.exchange_rates_sheet.append_row(['USD', '15.40', self._get_timestamp()])
+            self.exchange_rates_sheet.append_row(['USDT', '15.40', self._get_timestamp()])
 
     def _get_timestamp(self) -> str:
         """Get current timestamp in the configured timezone"""
@@ -391,6 +402,22 @@ class SheetsManager:
             # Add new payment method as fallback
             self.payment_accounts_sheet.append_row([method, account_number, account_holder or '', self._get_timestamp()])
 
+    def clear_payment_account(self, method: str) -> bool:
+        """Clear/remove a payment account"""
+        try:
+            cell = self.payment_accounts_sheet.find(method)
+            if cell:
+                row = cell.row
+                # Clear account number and holder name (keep method name)
+                self.payment_accounts_sheet.update_cell(row, 2, '')  # Clear account number
+                self.payment_accounts_sheet.update_cell(row, 3, '')  # Clear holder name
+                self.payment_accounts_sheet.update_cell(row, 4, self._get_timestamp())  # Update timestamp
+                return True
+            return False
+        except Exception as e:
+            print(f"Error clearing payment account: {e}")
+            return False
+
     def get_all_payment_accounts(self) -> Dict[str, Dict]:
         """Get all payment accounts with details"""
         accounts = {}
@@ -550,3 +577,49 @@ class SheetsManager:
             print(f"Error getting withdrawals by date: {e}")
 
         return withdrawals
+
+    # Exchange Rate Management
+    def set_exchange_rate(self, currency: str, rate: float) -> bool:
+        """Set or update exchange rate for a currency"""
+        try:
+            cell = self.exchange_rates_sheet.find(currency)
+            if cell:
+                # Update existing rate
+                row = cell.row
+                self.exchange_rates_sheet.update_cell(row, 2, str(rate))
+                self.exchange_rates_sheet.update_cell(row, 3, self._get_timestamp())
+                return True
+            else:
+                # Add new currency rate
+                self.exchange_rates_sheet.append_row([currency, str(rate), self._get_timestamp()])
+                return True
+        except Exception as e:
+            print(f"Error setting exchange rate: {e}")
+            return False
+
+    def get_exchange_rate(self, currency: str) -> Optional[float]:
+        """Get exchange rate for a currency"""
+        try:
+            cell = self.exchange_rates_sheet.find(currency)
+            if cell:
+                row_data = self.exchange_rates_sheet.row_values(cell.row)
+                if len(row_data) > 1 and row_data[1]:
+                    return float(row_data[1])
+        except Exception as e:
+            print(f"Error getting exchange rate: {e}")
+        return None
+
+    def get_all_exchange_rates(self) -> Dict[str, Dict]:
+        """Get all exchange rates"""
+        rates = {}
+        try:
+            all_rows = self.exchange_rates_sheet.get_all_values()[1:]  # Skip header
+            for row in all_rows:
+                if len(row) >= 2 and row[0] and row[1]:
+                    rates[row[0]] = {
+                        'rate': float(row[1]),
+                        'updated_at': row[2] if len(row) > 2 else None
+                    }
+        except Exception as e:
+            print(f"Error getting all exchange rates: {e}")
+        return rates
