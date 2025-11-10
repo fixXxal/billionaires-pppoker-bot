@@ -305,12 +305,30 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start deposit process"""
     user_data = sheets.get_user(update.effective_user.id)
 
-    keyboard = [
-        [InlineKeyboardButton("🏦 BML", callback_data="deposit_bml")],
-        [InlineKeyboardButton("🏦 MIB", callback_data="deposit_mib")],
-        [InlineKeyboardButton("💎 USDT (TRC20)", callback_data="deposit_usdt")],
-        [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
-    ]
+    # Get all configured payment accounts
+    payment_accounts = sheets.get_all_payment_accounts()
+
+    # Build keyboard with only configured payment methods
+    keyboard = []
+    if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
+        keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="deposit_bml")])
+    if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
+        keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="deposit_mib")])
+    if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
+        keyboard.append([InlineKeyboardButton("💎 USDT (TRC20)", callback_data="deposit_usdt")])
+
+    # Add cancel button
+    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
+
+    # Check if any payment methods are configured
+    if len(keyboard) == 1:  # Only cancel button
+        await update.message.reply_text(
+            "⚠️ No payment methods are currently available.\n\n"
+            "Please contact admin for assistance.",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
@@ -785,12 +803,30 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
-    keyboard = [
-        [InlineKeyboardButton("🏦 BML", callback_data="withdrawal_bml")],
-        [InlineKeyboardButton("🏦 MIB", callback_data="withdrawal_mib")],
-        [InlineKeyboardButton("💎 USDT (TRC20)", callback_data="withdrawal_usdt")],
-        [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
-    ]
+    # Get all configured payment accounts
+    payment_accounts = sheets.get_all_payment_accounts()
+
+    # Build keyboard with only configured payment methods
+    keyboard = []
+    if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
+        keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="withdrawal_bml")])
+    if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
+        keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="withdrawal_mib")])
+    if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
+        keyboard.append([InlineKeyboardButton("💎 USDT (TRC20)", callback_data="withdrawal_usdt")])
+
+    # Add cancel button
+    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
+
+    # Check if any payment methods are configured
+    if len(keyboard) == 1:  # Only cancel button
+        await update.message.reply_text(
+            "⚠️ No payment methods are currently available.\n\n"
+            "Please contact admin for assistance.",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
