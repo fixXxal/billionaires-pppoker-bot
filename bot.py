@@ -272,9 +272,14 @@ Need help? Contact our support team! 🙂
     # Add admin commands only if user is admin
     if is_admin(update.effective_user.id):
         admin_help = """
+━━━━━━━━━━━━━━━━━━
 
-🔐 **Admin Commands:**
-- `/admin` - Access admin panel
+🔐 **ADMIN COMMANDS**
+
+**💼 Admin Panel:**
+- `/admin` - Open admin panel
+
+**💳 Payment Account Management:**
 - `/update_bml` - Update BML account
 - `/update_mib` - Update MIB account
 - `/update_usd` - Update USD account
@@ -283,23 +288,35 @@ Need help? Contact our support team! 🙂
 - `/clear_mib` - Remove MIB account
 - `/clear_usd` - Remove USD account
 - `/clear_usdt` - Remove USDT wallet
-- `/set_usd_rate [rate]` - Set USD to MVR rate
-- `/set_usdt_rate [rate]` - Set USDT to MVR rate
-- `/broadcast` - Send message to all users
-- `/stats` - View profit/loss statistics
 
-📋 **Admin Panel Features:**
-- Approve/reject deposits and withdrawals
-- Manage join requests
-- Live support (reply via notification buttons)
-- Update payment account details
+**💱 Exchange Rate Management:**
+- `/set_usd_rate <rate>` - Set USD to MVR rate
+  Example: `/set_usd_rate 17.50`
+- `/set_usdt_rate <rate>` - Set USDT to MVR rate
+  Example: `/set_usdt_rate 18.50`
+
+**📊 Reports & Broadcasting:**
+- `/stats` - View profit/loss statistics
+- `/broadcast` - Send message to all users
+
+**📋 Admin Panel Features:**
+✓ Approve/reject deposits instantly
+✓ Approve/reject withdrawals
+✓ Manage join requests
+✓ Live support (reply via buttons)
 """
         # Super admin only commands
         if update.effective_user.id == ADMIN_USER_ID:
             admin_help += """
-🔱 **Super Admin Only:**
-- `/addadmin [user_id]` - Add a new admin
-- `/removeadmin [user_id]` - Remove an admin
+━━━━━━━━━━━━━━━━━━
+
+🔱 **SUPER ADMIN ONLY**
+
+**👥 Admin Management:**
+- `/addadmin <user_id>` - Add new admin
+  Example: `/addadmin 123456789`
+- `/removeadmin <user_id>` - Remove admin
+  Example: `/removeadmin 123456789`
 - `/listadmins` - View all admins
 """
         help_text += admin_help
