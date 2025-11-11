@@ -243,28 +243,38 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 **💰 Deposit:**
 1. Click "💰 Deposit"
-2. Choose payment method (BML/MIB/USDT)
-3. Enter amount and PPPoker ID
-4. Enter your account name (as registered with bank)
-5. Upload payment slip or transaction ID
-6. Wait for admin approval
+2. Choose payment method (BML/MIB/USD/USDT)
+   • Bot shows current exchange rates for USD/USDT
+3. Upload your payment slip screenshot
+   • Bot automatically detects amount, sender name, and reference number
+   • Supports image screenshots and photos
+4. Admin reviews and approves your request
+5. Get instant notification when approved
 
 **💸 Withdrawal:**
 1. Click "💸 Withdrawal"
-2. Choose payment method
-3. Enter amount and PPPoker ID
-4. Provide account details (must match deposit name)
-5. Wait for admin processing
+2. Choose payment method (BML/MIB/USD/USDT)
+   • Bot shows current exchange rates for USD/USDT
+3. Upload your withdrawal slip screenshot
+   • Bot automatically detects withdrawal details
+   • Supports image screenshots and photos
+4. Admin processes your withdrawal
+5. Get instant notification when completed
 
 **🎮 Join Club:**
 1. Click "🎮 Join Club"
 2. Enter your PPPoker ID
-3. Wait for admin approval
+3. Admin reviews and approves your request
+4. Get instant notification when approved
 
 **💬 Live Support:**
 - Click "💬 Live Support" to chat directly with admin
-- Your messages will be forwarded in real-time
+- Your messages are forwarded in real-time
+- Get quick responses from our team
 - Type /endsupport to end the chat
+
+**💱 Exchange Rates:**
+Current rates are displayed during deposits/withdrawals for USD and USDT transactions.
 
 Need help? Contact our support team! 🙂
 """
