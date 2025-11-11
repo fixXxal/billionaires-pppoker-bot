@@ -58,10 +58,12 @@ sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
  ADMIN_APPROVAL_NOTES, SUPPORT_CHAT, ADMIN_REPLY_MESSAGE, UPDATE_ACCOUNT_METHOD, UPDATE_ACCOUNT_NUMBER, BROADCAST_MESSAGE) = range(17)
 
 # Store for live support sessions
-live_support_sessions: Dict[int, int] = {}  # user_id: admin_user_id
+live_support_sessions: Dict[int, int] = {}  # user_id: admin_user_id (which admin is handling this user)
 support_mode_users: set = set()  # Users currently in support mode
 admin_reply_context: Dict[int, int] = {}  # admin_id: user_id (for reply context)
 notification_messages: Dict[str, list] = {}  # request_id: [(admin_id, message_id), ...] (for editing notification buttons)
+active_support_handlers: Dict[int, int] = {}  # user_id: admin_id (tracks which admin is handling which support session)
+processing_requests: Dict[str, int] = {}  # request_id: admin_id (tracks which admin is processing which request)
 
 
 # Helper Functions
@@ -1309,6 +1311,8 @@ async def end_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
         support_mode_users.remove(user.id)
         if user.id in live_support_sessions:
             del live_support_sessions[user.id]
+        if user.id in active_support_handlers:
+            del active_support_handlers[user.id]
 
         await update.message.reply_text("✅ Support session ended. Thank you!")
 
@@ -1336,13 +1340,22 @@ async def end_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle admin clicking Reply button"""
     query = update.callback_query
-    await query.answer()
 
     if not is_admin(query.from_user.id):
+        await query.answer("⛔ Access denied.", show_alert=True)
         return
 
     # Extract user_id from callback data
     user_id = int(query.data.split('_')[-1])
+
+    # Check if another admin is already handling this session
+    if user_id in active_support_handlers:
+        handling_admin = active_support_handlers[user_id]
+        if handling_admin != query.from_user.id:
+            await query.answer("⛔ Another admin is already handling this support session.", show_alert=True)
+            return
+
+    await query.answer()
 
     # Check if user still in support session
     if user_id not in support_mode_users:
@@ -1351,6 +1364,9 @@ async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAU
             parse_mode='Markdown'
         )
         return
+
+    # Lock this session to this admin
+    active_support_handlers[user_id] = query.from_user.id
 
     # Store user_id for next message from admin
     admin_reply_context[query.from_user.id] = user_id
@@ -1409,17 +1425,28 @@ async def admin_reply_message_received(update: Update, context: ContextTypes.DEF
 async def admin_end_support_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle admin clicking End Chat button"""
     query = update.callback_query
-    await query.answer()
 
     if not is_admin(query.from_user.id):
+        await query.answer("⛔ Access denied.", show_alert=True)
         return
 
     user_id = int(query.data.split('_')[-1])
+
+    # Check if another admin is already handling this session
+    if user_id in active_support_handlers:
+        handling_admin = active_support_handlers[user_id]
+        if handling_admin != query.from_user.id:
+            await query.answer("⛔ Another admin is already handling this support session.", show_alert=True)
+            return
+
+    await query.answer()
 
     if user_id in support_mode_users:
         support_mode_users.remove(user_id)
         if user_id in live_support_sessions:
             del live_support_sessions[user_id]
+        if user_id in active_support_handlers:
+            del active_support_handlers[user_id]
 
         # Notify user
         try:
@@ -2236,7 +2263,6 @@ async def broadcast_message_received(update: Update, context: ContextTypes.DEFAU
 async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Quick approve deposit from notification"""
     query = update.callback_query
-    await query.answer("Processing approval...")
 
     try:
         logger.info(f"Admin {query.from_user.id} clicked approve button")
@@ -2246,6 +2272,16 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
             return
 
         request_id = query.data.split('_')[-1]
+
+        # Check if another admin is already processing this request
+        if request_id in processing_requests:
+            await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
+            return
+
+        # Lock this request to this admin
+        processing_requests[request_id] = query.from_user.id
+        await query.answer("Processing approval...")
+
         logger.info(f"Approving deposit request: {request_id}")
 
         deposit = sheets.get_deposit_request(request_id)
@@ -2297,20 +2333,36 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
             # Clean up stored message IDs
             del notification_messages[request_id]
 
+        # Clean up processing lock
+        if request_id in processing_requests:
+            del processing_requests[request_id]
+
     except Exception as e:
         logger.error(f"Error in quick_approve_deposit: {e}")
         await query.answer(f"❌ Error: {str(e)}", show_alert=True)
+        # Clean up processing lock on error
+        if request_id in processing_requests:
+            del processing_requests[request_id]
 
 
 async def quick_reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Quick reject deposit - ask for reason"""
     query = update.callback_query
-    await query.answer()
 
     if not is_admin(query.from_user.id):
+        await query.answer("❌ Not authorized", show_alert=True)
         return
 
     request_id = query.data.split('_')[-1]
+
+    # Check if another admin is already processing this request
+    if request_id in processing_requests:
+        await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
+        return
+
+    # Lock this request to this admin
+    processing_requests[request_id] = query.from_user.id
+    await query.answer()
 
     # Store request_id for rejection reason
     admin_reply_context[query.from_user.id] = f"reject_deposit_{request_id}"
@@ -2340,16 +2392,28 @@ async def quick_reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYP
 async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Quick approve withdrawal from notification"""
     query = update.callback_query
-    await query.answer()
 
     if not is_admin(query.from_user.id):
+        await query.answer("❌ Not authorized", show_alert=True)
         return
 
     request_id = query.data.split('_')[-1]
+
+    # Check if another admin is already processing this request
+    if request_id in processing_requests:
+        await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
+        return
+
+    # Lock this request to this admin
+    processing_requests[request_id] = query.from_user.id
+    await query.answer()
+
     withdrawal = sheets.get_withdrawal_request(request_id)
 
     if not withdrawal:
         await query.edit_message_text(f"{query.message.text}\n\n❌ _Request not found._", parse_mode='Markdown')
+        if request_id in processing_requests:
+            del processing_requests[request_id]
         return
 
     # Update status
@@ -2390,16 +2454,29 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
         # Clean up stored message IDs
         del notification_messages[request_id]
 
+    # Clean up processing lock
+    if request_id in processing_requests:
+        del processing_requests[request_id]
+
 
 async def quick_reject_withdrawal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Quick reject withdrawal - ask for reason"""
     query = update.callback_query
-    await query.answer()
 
     if not is_admin(query.from_user.id):
+        await query.answer("❌ Not authorized", show_alert=True)
         return
 
     request_id = query.data.split('_')[-1]
+
+    # Check if another admin is already processing this request
+    if request_id in processing_requests:
+        await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
+        return
+
+    # Lock this request to this admin
+    processing_requests[request_id] = query.from_user.id
+    await query.answer()
 
     # Store request_id for rejection reason
     admin_reply_context[query.from_user.id] = f"reject_withdrawal_{request_id}"
@@ -2429,16 +2506,28 @@ async def quick_reject_withdrawal(update: Update, context: ContextTypes.DEFAULT_
 async def quick_approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Quick approve join request from notification"""
     query = update.callback_query
-    await query.answer()
 
     if not is_admin(query.from_user.id):
+        await query.answer("❌ Not authorized", show_alert=True)
         return
 
     request_id = query.data.split('_')[-1]
+
+    # Check if another admin is already processing this request
+    if request_id in processing_requests:
+        await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
+        return
+
+    # Lock this request to this admin
+    processing_requests[request_id] = query.from_user.id
+    await query.answer()
+
     join_req = sheets.get_join_request(request_id)
 
     if not join_req:
         await query.edit_message_text(f"{query.message.text}\n\n❌ _Request not found._", parse_mode='Markdown')
+        if request_id in processing_requests:
+            del processing_requests[request_id]
         return
 
     # Update status
@@ -2472,16 +2561,29 @@ async def quick_approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Clean up stored message IDs
         del notification_messages[request_id]
 
+    # Clean up processing lock
+    if request_id in processing_requests:
+        del processing_requests[request_id]
+
 
 async def quick_reject_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Quick reject join request - ask for reason"""
     query = update.callback_query
-    await query.answer()
 
     if not is_admin(query.from_user.id):
+        await query.answer("❌ Not authorized", show_alert=True)
         return
 
     request_id = query.data.split('_')[-1]
+
+    # Check if another admin is already processing this request
+    if request_id in processing_requests:
+        await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
+        return
+
+    # Lock this request to this admin
+    processing_requests[request_id] = query.from_user.id
+    await query.answer()
 
     # Store request_id for rejection reason
     admin_reply_context[query.from_user.id] = f"reject_join_{request_id}"
