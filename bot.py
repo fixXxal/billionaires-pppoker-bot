@@ -1236,15 +1236,25 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
         parse_mode='Markdown'
     )
 
-    # Notify admin
-    await context.bot.send_message(
-        chat_id=ADMIN_USER_ID,
-        text=f"💬 **New Support Session Started**\n\n"
-             f"User: {user.first_name} {user.last_name or ''} (@{user.username or 'No username'})\n"
-             f"User ID: `{user.id}`\n\n"
-             f"Waiting for user's message...",
-        parse_mode='Markdown'
-    )
+    # Notify ALL admins
+    all_admins = sheets.get_all_admins()
+    admin_ids = [ADMIN_USER_ID]  # Start with super admin
+    for admin in all_admins:
+        if admin['admin_id'] != ADMIN_USER_ID:
+            admin_ids.append(admin['admin_id'])
+
+    for admin_id in admin_ids:
+        try:
+            await context.bot.send_message(
+                chat_id=admin_id,
+                text=f"💬 **New Support Session Started**\n\n"
+                     f"User: {user.first_name} {user.last_name or ''} (@{user.username or 'No username'})\n"
+                     f"User ID: `{user.id}`\n\n"
+                     f"Waiting for user's message...",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify admin {admin_id}: {e}")
 
     return SUPPORT_CHAT
 
@@ -1256,7 +1266,7 @@ async def live_support_message(update: Update, context: ContextTypes.DEFAULT_TYP
     if user.id not in support_mode_users:
         return ConversationHandler.END
 
-    # Forward message to admin with easy reply buttons
+    # Forward message to ALL admins with reply buttons
     message_text = f"💬 **Message from {user.first_name}** (@{user.username or 'No username'})\n\n_{update.message.text}_"
 
     # Create buttons for admin
@@ -1268,14 +1278,25 @@ async def live_support_message(update: Update, context: ContextTypes.DEFAULT_TYP
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await context.bot.send_message(
-        chat_id=ADMIN_USER_ID,
-        text=message_text,
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
+    # Send to all admins
+    all_admins = sheets.get_all_admins()
+    admin_ids = [ADMIN_USER_ID]  # Start with super admin
+    for admin in all_admins:
+        if admin['admin_id'] != ADMIN_USER_ID:
+            admin_ids.append(admin['admin_id'])
 
-    await update.message.reply_text("✅ Message sent to admin.")
+    for admin_id in admin_ids:
+        try:
+            await context.bot.send_message(
+                chat_id=admin_id,
+                text=message_text,
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.error(f"Failed to send support message to admin {admin_id}: {e}")
+
+    await update.message.reply_text("✅ Message sent to admins.")
 
     return SUPPORT_CHAT
 
@@ -1291,11 +1312,21 @@ async def end_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text("✅ Support session ended. Thank you!")
 
-        # Notify admin
-        await context.bot.send_message(
-            chat_id=ADMIN_USER_ID,
-            text=f"💬 Support session ended with {user.first_name} (@{user.username or 'No username'})"
-        )
+        # Notify ALL admins
+        all_admins = sheets.get_all_admins()
+        admin_ids = [ADMIN_USER_ID]  # Start with super admin
+        for admin in all_admins:
+            if admin['admin_id'] != ADMIN_USER_ID:
+                admin_ids.append(admin['admin_id'])
+
+        for admin_id in admin_ids:
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=f"💬 Support session ended with {user.first_name} (@{user.username or 'No username'})"
+                )
+            except Exception as e:
+                logger.error(f"Failed to notify admin {admin_id}: {e}")
     else:
         await update.message.reply_text("You're not in a support session.")
 

@@ -224,18 +224,19 @@ Your chips have been added to your account. Happy gaming! 🎮
     except Exception as e:
         pass
 
-    # Edit original notification message to remove buttons
+    # Edit original notification message to remove buttons for ALL admins
     if request_id in notification_messages:
-        try:
-            await context.bot.edit_message_reply_markup(
-                chat_id=ADMIN_USER_ID,
-                message_id=notification_messages[request_id],
-                reply_markup=InlineKeyboardMarkup([])
-            )
-            # Clean up the stored message_id
-            del notification_messages[request_id]
-        except Exception as e:
-            pass  # Message might be too old or already deleted
+        for admin_id, message_id in notification_messages[request_id]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+            except Exception as e:
+                pass  # Message might be too old or already deleted
+        # Clean up the stored message_ids
+        del notification_messages[request_id]
 
     # Check remaining pending deposits
     all_deposits = sheets.deposits_sheet.get_all_values()[1:]
@@ -316,17 +317,18 @@ Please contact support if you have any questions.
         except Exception as e:
             await update.message.reply_text(f"⚠️ Could not notify user: {e}")
 
-        # Edit original notification message to remove buttons
+        # Edit original notification message to remove buttons for ALL admins
         if request_id in notification_messages:
-            try:
-                await context.bot.edit_message_reply_markup(
-                    chat_id=ADMIN_USER_ID,
-                    message_id=notification_messages[request_id],
-                    reply_markup=InlineKeyboardMarkup([])
-                )
-                del notification_messages[request_id]
-            except Exception as e:
-                pass
+            for admin_id, message_id in notification_messages[request_id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    pass
+            del notification_messages[request_id]
 
         # Check remaining pending deposits
         all_deposits = sheets.deposits_sheet.get_all_values()[1:]
@@ -365,17 +367,18 @@ Please contact support if you have any questions.
         except Exception as e:
             await update.message.reply_text(f"⚠️ Could not notify user: {e}")
 
-        # Edit original notification message to remove buttons
+        # Edit original notification message to remove buttons for ALL admins
         if request_id in notification_messages:
-            try:
-                await context.bot.edit_message_reply_markup(
-                    chat_id=ADMIN_USER_ID,
-                    message_id=notification_messages[request_id],
-                    reply_markup=InlineKeyboardMarkup([])
-                )
-                del notification_messages[request_id]
-            except Exception as e:
-                pass
+            for admin_id, message_id in notification_messages[request_id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    pass
+            del notification_messages[request_id]
 
         # Check remaining pending withdrawals
         all_withdrawals = sheets.withdrawals_sheet.get_all_values()[1:]
@@ -414,17 +417,18 @@ Please contact support if you have any questions.
         except Exception as e:
             await update.message.reply_text(f"⚠️ Could not notify user: {e}")
 
-        # Edit original notification message to remove buttons
+        # Edit original notification message to remove buttons for ALL admins
         if request_id in notification_messages:
-            try:
-                await context.bot.edit_message_reply_markup(
-                    chat_id=ADMIN_USER_ID,
-                    message_id=notification_messages[request_id],
-                    reply_markup=InlineKeyboardMarkup([])
-                )
-                del notification_messages[request_id]
-            except Exception as e:
-                pass
+            for admin_id, message_id in notification_messages[request_id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    pass
+            del notification_messages[request_id]
 
         # Check remaining pending join requests
         all_join_requests = sheets.join_requests_sheet.get_all_values()[1:]
@@ -593,17 +597,18 @@ Your funds have been transferred. Please check your account. 💰
     except Exception as e:
         pass
 
-    # Edit original notification message to remove buttons
+    # Edit original notification message to remove buttons for ALL admins
     if request_id in notification_messages:
-        try:
-            await context.bot.edit_message_reply_markup(
-                chat_id=ADMIN_USER_ID,
-                message_id=notification_messages[request_id],
-                reply_markup=InlineKeyboardMarkup([])
-            )
-            del notification_messages[request_id]
-        except Exception as e:
-            pass
+        for admin_id, message_id in notification_messages[request_id]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+            except Exception as e:
+                pass
+        del notification_messages[request_id]
 
     # Check remaining pending withdrawals
     all_withdrawals = sheets.withdrawals_sheet.get_all_values()[1:]
@@ -790,17 +795,18 @@ You've been approved to join the club. See you at the tables! 🎰
     except Exception as e:
         pass
 
-    # Edit original notification message to remove buttons
+    # Edit original notification message to remove buttons for ALL admins
     if request_id in notification_messages:
-        try:
-            await context.bot.edit_message_reply_markup(
-                chat_id=ADMIN_USER_ID,
-                message_id=notification_messages[request_id],
-                reply_markup=InlineKeyboardMarkup([])
-            )
-            del notification_messages[request_id]
-        except Exception as e:
-            pass
+        for admin_id, message_id in notification_messages[request_id]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+            except Exception as e:
+                pass
+        del notification_messages[request_id]
 
     # Check remaining pending join requests
     all_join_requests = sheets.join_requests_sheet.get_all_values()[1:]
