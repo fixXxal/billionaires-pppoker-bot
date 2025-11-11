@@ -241,42 +241,36 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = """
 📖 **How to Use Billionaires Bot**
 
-**💰 Deposit:**
-1. Click "💰 Deposit"
-2. Choose payment method (BML/MIB/USD/USDT)
-   • Bot shows current exchange rates for USD/USDT
-3. Upload your payment slip screenshot
-   • Bot automatically detects amount, sender name, and reference number
-   • Supports image screenshots and photos
-4. Admin reviews and approves your request
-5. Get instant notification when approved
+**💰 Deposit**
 
-**💸 Withdrawal:**
-1. Click "💸 Withdrawal"
-2. Choose payment method (BML/MIB/USD/USDT)
-   • Bot shows current exchange rates for USD/USDT
-3. Upload your withdrawal slip screenshot
-   • Bot automatically detects withdrawal details
-   • Supports image screenshots and photos
-4. Admin processes your withdrawal
-5. Get instant notification when completed
+• Tap 💰 Deposit
+• Choose your payment method — BML, MIB, USD, or USDT
+• Upload your payment slip
+• Enter your PPPoker ID
+• Wait for approval
+• Receive an instant confirmation once approved
 
-**🎮 Join Club:**
-1. Click "🎮 Join Club"
-2. Enter your PPPoker ID
-3. Admin reviews and approves your request
-4. Get instant notification when approved
+**💸 Withdrawal**
 
-**💬 Live Support:**
-- Click "💬 Live Support" to chat directly with admin
-- Your messages are forwarded in real-time
-- Get quick responses from our team
-- Type /endsupport to end the chat
+• Tap 💸 Withdrawal
+• Select your preferred payment method — BML, MIB, USD, or USDT
+• Enter the amount you wish to withdraw
+• Provide your PPPoker ID
+• Enter your bank account number
+• Wait while your request is processed
+• Get an instant notification when completed
 
-**💱 Exchange Rates:**
-Current rates are displayed during deposits/withdrawals for USD and USDT transactions.
+**🎮 Join Club**
 
-Need help? Contact our support team! 🙂
+• Tap 🎮 Join Club
+• Enter your PPPoker ID
+• Wait for approval
+• You'll receive an instant notification once you're in!
+
+**💬 Live Support**
+
+• Tap 💬 Live Support to chat directly with an admin
+• Type /endsupport anytime to end the conversation
 """
 
     # Add admin commands only if user is admin
@@ -287,33 +281,33 @@ Need help? Contact our support team! 🙂
 🔐 **ADMIN COMMANDS**
 
 **💼 Admin Panel:**
-- `/admin` - Open admin panel
+• `/admin` - Open admin panel
 
 **💳 Payment Account Management:**
-- `/update_bml` - Update BML account
-- `/update_mib` - Update MIB account
-- `/update_usd` - Update USD account
-- `/update_usdt` - Update USDT wallet
-- `/clear_bml` - Remove BML account
-- `/clear_mib` - Remove MIB account
-- `/clear_usd` - Remove USD account
-- `/clear_usdt` - Remove USDT wallet
+• `/update_bml` - Update BML account
+• `/update_mib` - Update MIB account
+• `/update_usd` - Update USD account
+• `/update_usdt` - Update USDT wallet
+• `/clear_bml` - Remove BML account
+• `/clear_mib` - Remove MIB account
+• `/clear_usd` - Remove USD account
+• `/clear_usdt` - Remove USDT wallet
 
 **💱 Exchange Rate Management:**
-- `/set_usd_rate <rate>` - Set USD to MVR rate
+• `/set_usd_rate <rate>` - Set USD to MVR rate
   Example: `/set_usd_rate 17.50`
-- `/set_usdt_rate <rate>` - Set USDT to MVR rate
+• `/set_usdt_rate <rate>` - Set USDT to MVR rate
   Example: `/set_usdt_rate 18.50`
 
 **📊 Reports & Broadcasting:**
-- `/stats` - View profit/loss statistics
-- `/broadcast` - Send message to all users
+• `/stats` - View profit/loss statistics
+• `/broadcast` - Send message to all users
 
 **📋 Admin Panel Features:**
-✓ Approve/reject deposits instantly
-✓ Approve/reject withdrawals
-✓ Manage join requests
-✓ Live support (reply via buttons)
+• Approve/reject deposits instantly
+• Approve/reject withdrawals
+• Manage join requests
+• Live support (reply via buttons)
 """
         # Super admin only commands
         if update.effective_user.id == ADMIN_USER_ID:
@@ -323,11 +317,11 @@ Need help? Contact our support team! 🙂
 🔱 **SUPER ADMIN ONLY**
 
 **👥 Admin Management:**
-- `/addadmin <user_id>` - Add new admin
+• `/addadmin <user_id>` - Add new admin
   Example: `/addadmin 123456789`
-- `/removeadmin <user_id>` - Remove admin
+• `/removeadmin <user_id>` - Remove admin
   Example: `/removeadmin 123456789`
-- `/listadmins` - View all admins
+• `/listadmins` - View all admins
 """
         help_text += admin_help
 
