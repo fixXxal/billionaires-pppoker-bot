@@ -872,26 +872,33 @@ class SheetsManager:
         """Get seat request by ID"""
         try:
             all_rows = self.seat_requests_sheet.get_all_values()[1:]
+            print(f"Searching for seat request {request_id} in {len(all_rows)} rows")
             for row in all_rows:
-                if row[0] == request_id:
-                    return {
-                        'request_id': row[0],
-                        'user_id': int(row[1]) if row[1] else 0,
-                        'username': row[2],
-                        'pppoker_id': row[3],
-                        'amount': float(row[4]) if row[4] else 0,
-                        'payment_method': row[5],
-                        'transaction_id': row[6],
-                        'status': row[7],
-                        'requested_at': row[8],
-                        'approved_at': row[9] if len(row) > 9 else '',
-                        'settled_at': row[10] if len(row) > 10 else '',
-                        'processed_by': row[11] if len(row) > 11 else '',
-                        'has_credit': row[12] if len(row) > 12 else 'No',
-                        'notes': row[13] if len(row) > 13 else ''
-                    }
+                if len(row) > 0:
+                    print(f"Checking row: {row[0]}")
+                    if row[0] == request_id:
+                        print(f"Found seat request {request_id}")
+                        return {
+                            'request_id': row[0],
+                            'user_id': int(row[1]) if len(row) > 1 and row[1] else 0,
+                            'username': row[2] if len(row) > 2 else '',
+                            'pppoker_id': row[3] if len(row) > 3 else '',
+                            'amount': float(row[4]) if len(row) > 4 and row[4] else 0,
+                            'payment_method': row[5] if len(row) > 5 else '',
+                            'transaction_id': row[6] if len(row) > 6 else '',
+                            'status': row[7] if len(row) > 7 else 'Pending',
+                            'requested_at': row[8] if len(row) > 8 else '',
+                            'approved_at': row[9] if len(row) > 9 else '',
+                            'settled_at': row[10] if len(row) > 10 else '',
+                            'processed_by': row[11] if len(row) > 11 else '',
+                            'has_credit': row[12] if len(row) > 12 else 'No',
+                            'notes': row[13] if len(row) > 13 else ''
+                        }
+            print(f"Seat request {request_id} not found")
         except Exception as e:
             print(f"Error getting seat request: {e}")
+            import traceback
+            traceback.print_exc()
         return None
 
     def approve_seat_request(self, request_id: str, admin_id: int) -> bool:

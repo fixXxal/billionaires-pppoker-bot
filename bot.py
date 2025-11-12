@@ -3580,10 +3580,16 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
 
     # Get seat request details
-    seat_req = sheets.get_seat_request(request_id)
+    try:
+        seat_req = sheets.get_seat_request(request_id)
+        logger.info(f"Seat request retrieved: {seat_req}")
+    except Exception as e:
+        logger.error(f"Error getting seat request {request_id}: {e}")
+        seat_req = None
+
     if not seat_req:
         await query.edit_message_text(
-            f"{query.message.text}\n\n❌ _Seat request not found._",
+            f"{query.message.text}\n\n❌ _Seat request not found._\nRequest ID: {request_id}",
             parse_mode='HTML'
         )
         return
