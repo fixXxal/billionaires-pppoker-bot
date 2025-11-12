@@ -67,6 +67,7 @@ active_support_handlers: Dict[int, int] = {}  # user_id: admin_id (tracks which 
 processing_requests: Dict[str, int] = {}  # request_id: admin_id (tracks which admin is processing which request)
 support_message_ids: Dict[int, list] = {}  # user_id: [(chat_id, message_id), ...] (tracks support messages with buttons to remove later)
 user_support_message_ids: Dict[int, list] = {}  # user_id: [message_id, ...] (tracks user messages with End Support button)
+support_timeout_jobs: Dict[int, object] = {}  # user_id: job (tracks scheduled auto-close jobs)
 
 
 # Helper Functions
@@ -1315,6 +1316,11 @@ async def live_support_message(update: Update, context: ContextTypes.DEFAULT_TYP
     if user.id not in support_mode_users:
         return ConversationHandler.END
 
+    # Cancel timeout job if user responds
+    if user.id in support_timeout_jobs:
+        support_timeout_jobs[user.id].schedule_removal()
+        del support_timeout_jobs[user.id]
+
     # Check if there's a handling admin (admin who clicked Reply)
     if user.id in active_support_handlers:
         # Only send to the handling admin
@@ -1531,7 +1537,21 @@ async def admin_reply_message_received(update: Update, context: ContextTypes.DEF
             user_support_message_ids[user_id] = []
         user_support_message_ids[user_id].append(msg.message_id)
 
-        await update.message.reply_text("✅ Message sent!")
+        # Cancel existing timeout job if any
+        if user_id in support_timeout_jobs:
+            support_timeout_jobs[user_id].schedule_removal()
+            del support_timeout_jobs[user_id]
+
+        # Schedule auto-close after 2 minutes of user inactivity
+        job = context.job_queue.run_once(
+            auto_close_support,
+            when=120,  # 2 minutes in seconds
+            data=user_id,
+            name=f"support_timeout_{user_id}"
+        )
+        support_timeout_jobs[user_id] = job
+
+        await update.message.reply_text("✅ Message sent! Session will auto-close in 2 minutes if user doesn't respond.")
 
         # Clear context
         del admin_reply_context[admin_id]
@@ -1579,6 +1599,11 @@ async def admin_end_support_button(update: Update, context: ContextTypes.DEFAULT
             del live_support_sessions[user_id]
         if user_id in active_support_handlers:
             del active_support_handlers[user_id]
+
+        # Cancel timeout job if exists
+        if user_id in support_timeout_jobs:
+            support_timeout_jobs[user_id].schedule_removal()
+            del support_timeout_jobs[user_id]
 
         # Remove all End Chat buttons from admin messages
         if user_id in support_message_ids:
@@ -1644,6 +1669,11 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
         if user.id in active_support_handlers:
             del active_support_handlers[user.id]
 
+        # Cancel timeout job if exists
+        if user.id in support_timeout_jobs:
+            support_timeout_jobs[user.id].schedule_removal()
+            del support_timeout_jobs[user.id]
+
         # Remove all End Chat buttons from admin messages
         if user.id in support_message_ids:
             for admin_id, message_id in support_message_ids[user.id]:
@@ -1699,6 +1729,74 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
         await query.edit_message_text("You're not in a support session.")
 
     return ConversationHandler.END
+
+
+async def auto_close_support(context: ContextTypes.DEFAULT_TYPE):
+    """Auto-close support session after 2 minutes of user inactivity"""
+    user_id = context.job.data
+
+    if user_id not in support_mode_users:
+        # Already closed
+        return
+
+    # Get handling admin
+    handling_admin_id = active_support_handlers.get(user_id)
+
+    # Close the session
+    support_mode_users.remove(user_id)
+    if user_id in live_support_sessions:
+        del live_support_sessions[user_id]
+    if user_id in active_support_handlers:
+        del active_support_handlers[user_id]
+    if user_id in support_timeout_jobs:
+        del support_timeout_jobs[user_id]
+
+    # Remove all buttons from admin messages
+    if user_id in support_message_ids:
+        for admin_id, message_id in support_message_ids[user_id]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+            except Exception as e:
+                logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+        del support_message_ids[user_id]
+
+    # Remove all End Support buttons from user messages
+    if user_id in user_support_message_ids:
+        for message_id in user_support_message_ids[user_id]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=user_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+            except Exception as e:
+                logger.error(f"Failed to remove End Support button from user message {message_id}: {e}")
+        del user_support_message_ids[user_id]
+
+    # Notify user
+    try:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text="💬 **Support session closed due to inactivity.**\n\nFeel free to start a new session anytime!",
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        logger.error(f"Failed to notify user {user_id}: {e}")
+
+    # Notify handling admin
+    if handling_admin_id:
+        try:
+            await context.bot.send_message(
+                chat_id=handling_admin_id,
+                text=f"💬 **Support session auto-closed**\n\nUser {user_id} did not respond within 2 minutes.",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify admin {handling_admin_id}: {e}")
 
 
 async def admin_end_inactive_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
