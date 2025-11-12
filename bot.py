@@ -3566,10 +3566,6 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
     # Clear context
     del admin_reply_context[admin_id]
 
-    # Clean up processing lock
-    if request_id in processing_requests:
-        del processing_requests[request_id]
-
 
 # Seat Request Admin Handlers
 async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3581,14 +3577,6 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     request_id = query.data.split('_')[-1]
-
-    # Check if another admin is already processing
-    if request_id in processing_requests:
-        await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
-        return
-
-    # Lock this request
-    processing_requests[request_id] = query.from_user.id
     await query.answer()
 
     # Get seat request details
@@ -3687,10 +3675,6 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
             parse_mode='HTML'
         )
 
-    # Clean up processing lock
-    if request_id in processing_requests:
-        del processing_requests[request_id]
-
 
 async def reject_seat_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin rejects seat request - ask for reason"""
@@ -3701,14 +3685,6 @@ async def reject_seat_request(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     request_id = query.data.split('_')[-1]
-
-    # Check if another admin is already processing
-    if request_id in processing_requests:
-        await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
-        return
-
-    # Lock this request
-    processing_requests[request_id] = query.from_user.id
     await query.answer()
 
     # Store request_id for rejection reason
