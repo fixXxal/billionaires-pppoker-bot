@@ -1374,7 +1374,7 @@ async def end_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle admin clicking Reply button"""
+    """Handle admin clicking Reply button - ANY admin can reply, first one locks the session"""
     query = update.callback_query
 
     if not is_admin(query.from_user.id):
@@ -1388,7 +1388,18 @@ async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAU
     if user_id in active_support_handlers:
         handling_admin = active_support_handlers[user_id]
         if handling_admin != query.from_user.id:
-            await query.answer("⛔ Another admin is already handling this support session.", show_alert=True)
+            # Get admin info for better messaging
+            handling_admin_info = sheets.get_all_admins()
+            handler_name = "Another admin"
+            for admin in handling_admin_info:
+                if admin['admin_id'] == handling_admin:
+                    handler_name = admin.get('name', 'Another admin')
+                    break
+
+            await query.answer(
+                f"⛔ {handler_name} is currently handling this chat. They must end it first.",
+                show_alert=True
+            )
             return
 
     await query.answer()
@@ -1401,14 +1412,34 @@ async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAU
         )
         return
 
-    # Lock this session to this admin
+    # Lock this session to this admin (first admin to reply gets the lock)
     active_support_handlers[user_id] = query.from_user.id
+    logger.info(f"Admin {query.from_user.id} ({query.from_user.first_name}) locked support session with user {user_id}")
+
+    # Notify other admins that this session is now locked
+    all_admins = sheets.get_all_admins()
+    admin_ids = [ADMIN_USER_ID]  # Start with super admin
+    for admin in all_admins:
+        if admin['admin_id'] != ADMIN_USER_ID:
+            admin_ids.append(admin['admin_id'])
+
+    admin_name = query.from_user.first_name
+    for admin_id in admin_ids:
+        if admin_id != query.from_user.id:  # Don't notify the admin who took it
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=f"🔒 {admin_name} is now handling support chat with user {user_id}",
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                logger.error(f"Failed to notify admin {admin_id}: {e}")
 
     # Store user_id for next message from admin
     admin_reply_context[query.from_user.id] = user_id
 
     await query.edit_message_text(
-        f"{query.message.text}\n\n✏️ **Type your reply below:**",
+        f"{query.message.text}\n\n✏️ **Type your reply below:**\n_You are now handling this chat._",
         parse_mode='Markdown'
     )
 
@@ -1459,7 +1490,7 @@ async def admin_reply_message_received(update: Update, context: ContextTypes.DEF
 
 
 async def admin_end_support_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle admin clicking End Chat button"""
+    """Handle admin clicking End Chat button - ANY admin can end if not locked, or handling admin can end"""
     query = update.callback_query
 
     if not is_admin(query.from_user.id):
@@ -1468,14 +1499,26 @@ async def admin_end_support_button(update: Update, context: ContextTypes.DEFAULT
 
     user_id = int(query.data.split('_')[-1])
 
-    # Check if another admin is already handling this session
+    # Check if another admin is actively handling this session
     if user_id in active_support_handlers:
         handling_admin = active_support_handlers[user_id]
         if handling_admin != query.from_user.id:
-            await query.answer("⛔ Another admin is already handling this support session.", show_alert=True)
+            # Get admin info for better messaging
+            handling_admin_info = sheets.get_all_admins()
+            handler_name = "Another admin"
+            for admin in handling_admin_info:
+                if admin['admin_id'] == handling_admin:
+                    handler_name = admin.get('name', 'Another admin')
+                    break
+
+            await query.answer(
+                f"⛔ {handler_name} is actively chatting with this user. They must end it first.",
+                show_alert=True
+            )
             return
 
     await query.answer()
+    logger.info(f"Admin {query.from_user.id} ({query.from_user.first_name}) ending support session with user {user_id}")
 
     if user_id in support_mode_users:
         support_mode_users.remove(user_id)
