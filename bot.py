@@ -56,7 +56,7 @@ sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
  DEPOSIT_PROOF, WITHDRAWAL_METHOD, WITHDRAWAL_AMOUNT, WITHDRAWAL_PPPOKER_ID,
  WITHDRAWAL_ACCOUNT_NAME, WITHDRAWAL_ACCOUNT_NUMBER, JOIN_PPPOKER_ID,
  ADMIN_APPROVAL_NOTES, SUPPORT_CHAT, ADMIN_REPLY_MESSAGE, UPDATE_ACCOUNT_METHOD, UPDATE_ACCOUNT_NUMBER, BROADCAST_MESSAGE,
- PROMO_PERCENTAGE, PROMO_START_DATE, PROMO_END_DATE) = range(20)
+ PROMO_PERCENTAGE, PROMO_START_DATE, PROMO_END_DATE, SEAT_AMOUNT, SEAT_SLIP_UPLOAD) = range(22)
 
 # Store for live support sessions
 live_support_sessions: Dict[int, int] = {}  # user_id: admin_user_id (which admin is handling this user)
@@ -68,6 +68,8 @@ processing_requests: Dict[str, int] = {}  # request_id: admin_id (tracks which a
 support_message_ids: Dict[int, list] = {}  # user_id: [(chat_id, message_id), ...] (tracks support messages with buttons to remove later)
 user_support_message_ids: Dict[int, list] = {}  # user_id: [message_id, ...] (tracks user messages with End Support button)
 support_timeout_jobs: Dict[int, object] = {}  # user_id: job (tracks scheduled auto-close jobs)
+seat_request_data: Dict[int, dict] = {}  # user_id: {amount, pppoker_id, request_id} (tracks seat request data)
+seat_reminder_jobs: Dict[int, object] = {}  # user_id: job (tracks seat reminder jobs)
 
 
 # Helper Functions
@@ -139,8 +141,9 @@ Select an option to get started:
         # Regular user menu
         keyboard = [
             [KeyboardButton("💰 Deposit"), KeyboardButton("💸 Withdrawal")],
-            [KeyboardButton("🎮 Join Club"), KeyboardButton("📊 My Info")],
-            [KeyboardButton("💬 Live Support"), KeyboardButton("❓ Help")]
+            [KeyboardButton("🪑 Seat"), KeyboardButton("🎮 Join Club")],
+            [KeyboardButton("📊 My Info"), KeyboardButton("💬 Live Support")],
+            [KeyboardButton("❓ Help")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -181,9 +184,9 @@ async def user_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [KeyboardButton("💰 Deposit"), KeyboardButton("💸 Withdrawal")],
-        [KeyboardButton("🎮 Join Club"), KeyboardButton("📊 My Info")],
-        [KeyboardButton("💬 Live Support"), KeyboardButton("❓ Help")],
-        [KeyboardButton("🔙 Back to Admin")]
+        [KeyboardButton("🪑 Seat"), KeyboardButton("🎮 Join Club")],
+        [KeyboardButton("📊 My Info"), KeyboardButton("💬 Live Support")],
+        [KeyboardButton("❓ Help"), KeyboardButton("🔙 Back to Admin")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -1242,6 +1245,140 @@ async def my_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """
 
     await update.message.reply_text(info_text, parse_mode='Markdown')
+
+
+# Seat Request Flow
+async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start seat request process"""
+    user = update.effective_user
+
+    # Check if user has active credit
+    existing_credit = sheets.get_user_credit(user.id)
+    if existing_credit:
+        await update.message.reply_text(
+            f"⚠️ **You already have an active credit!**\n\n"
+            f"💰 Credit Amount: {existing_credit['amount']} chips/MVR\n"
+            f"📅 Created: {existing_credit['created_at']}\n\n"
+            f"Please settle your existing credit before requesting a new seat.\n"
+            f"Upload your payment slip or contact Live Support.",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+
+    # Get user's last PPPoker ID from deposits
+    user_data = sheets.get_user(user.id)
+    if not user_data or not user_data.get('pppoker_id'):
+        await update.message.reply_text(
+            "❌ **No PPPoker ID found!**\n\n"
+            "Please make a deposit first to register your PPPoker ID.\n"
+            "Use /start and select 💰 Deposit.",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+
+    await update.message.reply_text(
+        "🪑 **Seat Request**\n\n"
+        "Please enter the amount of chips you want:",
+        parse_mode='Markdown'
+    )
+
+    return SEAT_AMOUNT
+
+
+async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle seat amount input"""
+    user = update.effective_user
+
+    try:
+        amount = float(update.message.text.strip())
+
+        if amount <= 0:
+            await update.message.reply_text(
+                "❌ Please enter a valid amount greater than 0.",
+                parse_mode='Markdown'
+            )
+            return SEAT_AMOUNT
+
+        # Get user's PPPoker ID
+        user_data = sheets.get_user(user.id)
+        pppoker_id = user_data.get('pppoker_id')
+
+        # Create seat request
+        request_id = sheets.create_seat_request(
+            user.id,
+            user.username,
+            pppoker_id,
+            amount
+        )
+
+        # Store in context for later use
+        context.user_data['seat_request_id'] = request_id
+        context.user_data['seat_amount'] = amount
+        context.user_data['seat_pppoker_id'] = pppoker_id
+
+        # Send confirmation to user
+        await update.message.reply_text(
+            f"✅ **Seat Request Submitted!**\n\n"
+            f"**Request ID:** `{request_id}`\n"
+            f"**Amount:** {amount} chips\n"
+            f"**PPPoker ID:** {pppoker_id}\n\n"
+            f"Your request is being reviewed by the admin. Please wait... ⏳",
+            parse_mode='Markdown'
+        )
+
+        # Send notification to all admins
+        username_display = f"@{user.username}" if user.username else "No username"
+
+        admin_message = f"""🪑 <b>NEW SEAT REQUEST</b>
+
+<b>Request ID:</b> {request_id}
+<b>User:</b> {user.first_name} {user.last_name or ''}
+<b>Username:</b> {username_display}
+<b>User ID:</b> <code>{user.id}</code>
+<b>PPPoker ID:</b> <code>{pppoker_id}</code>
+<b>Amount:</b> <b>{amount} chips/MVR</b>
+"""
+
+        # Create approval buttons
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Approve", callback_data=f"approve_seat_{request_id}"),
+                InlineKeyboardButton("❌ Reject", callback_data=f"reject_seat_{request_id}")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Send to all admins
+        all_admin_ids = [ADMIN_USER_ID]
+        try:
+            regular_admins = sheets.get_all_admins()
+            all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+        except Exception as e:
+            logger.error(f"Failed to get admin list: {e}")
+
+        # Store notification messages for button removal
+        notification_messages[request_id] = []
+
+        for admin_id in all_admin_ids:
+            try:
+                msg = await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=admin_message,
+                    reply_markup=reply_markup,
+                    parse_mode='HTML'
+                )
+                notification_messages[request_id].append((admin_id, msg.message_id))
+            except Exception as e:
+                logger.error(f"Failed to send seat request to admin {admin_id}: {e}")
+
+        return ConversationHandler.END
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid amount. Please enter a number.",
+            parse_mode='Markdown'
+        )
+        return SEAT_AMOUNT
 
 
 # Live Support
@@ -2353,6 +2490,129 @@ async def listadmins_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(f"❌ Error listing admins: {e}")
 
 
+async def user_credit_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /user_credit command - Show all users with active credits"""
+    user_id = update.effective_user.id
+
+    # Only admins can view credits
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Admin access required.")
+        return
+
+    try:
+        # Get all active credits
+        credits = sheets.get_all_active_credits()
+
+        if not credits:
+            await update.message.reply_text(
+                "✅ **No Active Credits**\n\n"
+                "All users have settled their seat requests.",
+                parse_mode='Markdown'
+            )
+            return
+
+        message = "💳 <b>USERS WITH ACTIVE CREDITS</b>\n\n"
+        message += f"<i>Total: {len(credits)} user(s)</i>\n\n"
+
+        # Create inline buttons for each user
+        keyboard = []
+
+        for credit in credits:
+            user_display = f"User {credit['user_id']}"
+            if credit.get('username'):
+                user_display = f"@{credit['username']}"
+
+            message += "━━━━━━━━━━━━━━━━━━\n"
+            message += f"<b>User:</b> {user_display}\n"
+            message += f"<b>User ID:</b> <code>{credit['user_id']}</code>\n"
+            message += f"<b>PPPoker ID:</b> <code>{credit['pppoker_id']}</code>\n"
+            message += f"<b>Credit Amount:</b> <b>{credit['amount']} chips/MVR</b>\n"
+            message += f"<b>Request ID:</b> {credit['seat_request_id']}\n"
+            message += f"<b>Created:</b> {credit['created_at']}\n"
+            message += f"<b>Reminders Sent:</b> {credit['reminder_count']}\n\n"
+
+            # Add button for this user
+            button_text = f"✅ Clear Credit - {user_display} ({credit['amount']} MVR)"
+            keyboard.append([InlineKeyboardButton(
+                button_text,
+                callback_data=f"clear_credit_{credit['user_id']}"
+            )])
+
+        message += "━━━━━━━━━━━━━━━━━━\n\n"
+        message += "📝 <i>Click a button below to clear a user's credit after they've settled payment.</i>"
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(message, parse_mode='HTML', reply_markup=reply_markup)
+
+    except Exception as e:
+        logger.error(f"Error listing credits: {e}")
+        await update.message.reply_text(f"❌ Error listing credits: {e}")
+
+
+async def clear_user_credit_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle clear credit button click"""
+    query = update.callback_query
+
+    if not is_admin(query.from_user.id):
+        await query.answer("❌ Not authorized", show_alert=True)
+        return
+
+    user_id = int(query.data.split('_')[-1])
+    await query.answer()
+
+    # Get credit info before clearing
+    credit = sheets.get_user_credit(user_id)
+    if not credit:
+        await query.edit_message_text(
+            "❌ **Credit not found**\n\n"
+            "This credit may have already been cleared.",
+            parse_mode='Markdown'
+        )
+        return
+
+    # Clear the credit
+    success = sheets.clear_user_credit(user_id)
+
+    if success:
+        # Clean up tracking
+        if user_id in seat_request_data:
+            del seat_request_data[user_id]
+        if user_id in seat_reminder_jobs:
+            try:
+                seat_reminder_jobs[user_id].schedule_removal()
+                del seat_reminder_jobs[user_id]
+            except:
+                pass
+
+        # Notify user
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"✅ **Credit Cleared**\n\n"
+                     f"Your credit of **{credit['amount']} chips/MVR** has been cleared.\n\n"
+                     f"Thank you for settling your payment!",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify user: {e}")
+
+        await query.edit_message_text(
+            f"✅ **Credit Cleared Successfully**\n\n"
+            f"**User ID:** `{user_id}`\n"
+            f"**Username:** {credit.get('username', 'N/A')}\n"
+            f"**Amount:** {credit['amount']} chips/MVR\n\n"
+            f"User has been notified.\n\n"
+            f"_Use /user_credit to view remaining credits._",
+            parse_mode='Markdown'
+        )
+    else:
+        await query.edit_message_text(
+            "❌ **Failed to clear credit**\n\n"
+            "Please try again or contact support.",
+            parse_mode='Markdown'
+        )
+
+
 async def send_daily_report(application):
     """Send daily profit/loss report to all admins"""
     try:
@@ -3284,8 +3544,483 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
 
             await update.message.reply_text(f"✅ Join request {request_id} rejected. User notified.")
 
+    elif request_type == 'seat':
+        seat_req = sheets.get_seat_request(request_id)
+        if seat_req:
+            sheets.reject_seat_request(request_id, admin_id, reason)
+
+            try:
+                await context.bot.send_message(
+                    chat_id=seat_req['user_id'],
+                    text=f"❌ **Your Seat Request Has Been Rejected**\n\n"
+                         f"**Request ID:** `{request_id}`\n"
+                         f"**Reason:** {escape_markdown(reason)}\n\n"
+                         f"Please contact support if you have any questions.",
+                    parse_mode='Markdown'
+                )
+            except:
+                pass
+
+            await update.message.reply_text(f"✅ Seat request {request_id} rejected. User notified.")
+
     # Clear context
     del admin_reply_context[admin_id]
+
+    # Clean up processing lock
+    if request_id in processing_requests:
+        del processing_requests[request_id]
+
+
+# Seat Request Admin Handlers
+async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin approves seat request"""
+    query = update.callback_query
+
+    if not is_admin(query.from_user.id):
+        await query.answer("❌ Not authorized", show_alert=True)
+        return
+
+    request_id = query.data.split('_')[-1]
+
+    # Check if another admin is already processing
+    if request_id in processing_requests:
+        await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
+        return
+
+    # Lock this request
+    processing_requests[request_id] = query.from_user.id
+    await query.answer()
+
+    # Get seat request details
+    seat_req = sheets.get_seat_request(request_id)
+    if not seat_req:
+        await query.edit_message_text(
+            f"{query.message.text}\n\n❌ _Seat request not found._",
+            parse_mode='HTML'
+        )
+        return
+
+    # Approve in database
+    success = sheets.approve_seat_request(request_id, query.from_user.id)
+
+    if success:
+        # Remove buttons for ALL admins
+        if request_id in notification_messages:
+            for admin_id, message_id in notification_messages[request_id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+            del notification_messages[request_id]
+
+        # Get payment account details
+        payment_accounts = sheets.get_all_payment_accounts()
+
+        # Build payment info message
+        payment_info = "💳 **Payment Account Details:**\n\n"
+
+        if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
+            payment_info += f"**BML:**\n`{payment_accounts['BML']['account_number']}`\n"
+            if payment_accounts['BML']['account_holder']:
+                payment_info += f"Name: {payment_accounts['BML']['account_holder']}\n"
+            payment_info += "\n"
+
+        if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
+            payment_info += f"**MIB:**\n`{payment_accounts['MIB']['account_number']}`\n"
+            if payment_accounts['MIB']['account_holder']:
+                payment_info += f"Name: {payment_accounts['MIB']['account_holder']}\n"
+            payment_info += "\n"
+
+        # Notify user with payment details
+        try:
+            await context.bot.send_message(
+                chat_id=seat_req['user_id'],
+                text=f"✅ **Seat Request Approved!**\n\n"
+                     f"**Request ID:** `{request_id}`\n"
+                     f"**Amount:** {seat_req['amount']} chips/MVR\n\n"
+                     f"{payment_info}\n"
+                     f"📸 **Please upload your payment slip/receipt now.**\n\n"
+                     f"_You will receive a reminder in 1 minute if slip is not uploaded._",
+                parse_mode='Markdown'
+            )
+
+            # Store data and add user to credit list
+            seat_request_data[seat_req['user_id']] = {
+                'request_id': request_id,
+                'amount': seat_req['amount'],
+                'pppoker_id': seat_req['pppoker_id']
+            }
+
+            # Add user to credit list
+            sheets.add_user_credit(
+                seat_req['user_id'],
+                seat_req['username'],
+                seat_req['pppoker_id'],
+                seat_req['amount'],
+                request_id
+            )
+
+            # Schedule first reminder (1 minute)
+            job = context.job_queue.run_once(
+                first_slip_reminder,
+                when=60,  # 1 minute
+                data=seat_req['user_id'],
+                name=f"seat_reminder1_{seat_req['user_id']}"
+            )
+            seat_reminder_jobs[seat_req['user_id']] = job
+
+        except Exception as e:
+            logger.error(f"Failed to notify user: {e}")
+
+        await query.edit_message_text(
+            f"{query.message.text}\n\n✅ <b>APPROVED by {query.from_user.first_name}</b>\n"
+            f"User notified with payment details.",
+            parse_mode='HTML'
+        )
+    else:
+        await query.edit_message_text(
+            f"{query.message.text}\n\n❌ _Failed to approve._",
+            parse_mode='HTML'
+        )
+
+    # Clean up processing lock
+    if request_id in processing_requests:
+        del processing_requests[request_id]
+
+
+async def reject_seat_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin rejects seat request - ask for reason"""
+    query = update.callback_query
+
+    if not is_admin(query.from_user.id):
+        await query.answer("❌ Not authorized", show_alert=True)
+        return
+
+    request_id = query.data.split('_')[-1]
+
+    # Check if another admin is already processing
+    if request_id in processing_requests:
+        await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
+        return
+
+    # Lock this request
+    processing_requests[request_id] = query.from_user.id
+    await query.answer()
+
+    # Store request_id for rejection reason
+    admin_reply_context[query.from_user.id] = f"reject_seat_{request_id}"
+
+    # Remove buttons for ALL admins when rejection starts
+    if request_id in notification_messages:
+        for admin_id, message_id in notification_messages[request_id]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+            except Exception as e:
+                logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+        del notification_messages[request_id]
+
+    await query.edit_message_text(
+        f"{query.message.text}\n\n❌ **REJECTING**\n\n"
+        f"Please type the reason for rejection:",
+        parse_mode='HTML'
+    )
+
+
+# Seat Slip Upload and Reminder Handlers
+async def first_slip_reminder(context: ContextTypes.DEFAULT_TYPE):
+    """Send first reminder after 1 minute if slip not uploaded"""
+    user_id = context.job.data
+
+    # Check if user still has active credit
+    credit = sheets.get_user_credit(user_id)
+    if not credit:
+        # Already settled, cancel
+        if user_id in seat_reminder_jobs:
+            del seat_reminder_jobs[user_id]
+        return
+
+    # Check reminder count
+    if credit['reminder_count'] >= 2:
+        # Already sent final reminder, don't send again
+        return
+
+    # Increment reminder count
+    sheets.increment_credit_reminder(user_id)
+
+    # Send reminder
+    try:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=f"⏰ **Payment Slip Reminder**\n\n"
+                 f"You have a credit of **{credit['amount']} chips/MVR**.\n\n"
+                 f"📸 Please upload your payment slip or contact Live Support.\n\n"
+                 f"_You have 1 more minute before you must contact Live Support._",
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        logger.error(f"Failed to send first reminder to user {user_id}: {e}")
+
+    # Schedule final reminder (1 minute later)
+    job = context.job_queue.run_once(
+        final_slip_reminder,
+        when=60,  # 1 minute
+        data=user_id,
+        name=f"seat_reminder2_{user_id}"
+    )
+    seat_reminder_jobs[user_id] = job
+
+
+async def final_slip_reminder(context: ContextTypes.DEFAULT_TYPE):
+    """Send final reminder after 2 minutes total"""
+    user_id = context.job.data
+
+    # Check if user still has active credit
+    credit = sheets.get_user_credit(user_id)
+    if not credit:
+        # Already settled
+        if user_id in seat_reminder_jobs:
+            del seat_reminder_jobs[user_id]
+        return
+
+    # Increment reminder count
+    sheets.increment_credit_reminder(user_id)
+
+    # Send final reminder
+    try:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=f"🚨 **Final Reminder**\n\n"
+                 f"You have a credit of **{credit['amount']} chips/MVR**.\n\n"
+                 f"❗ Please upload your payment slip NOW or contact Live Support immediately.\n\n"
+                 f"_Your credit must be settled to continue using the service._",
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        logger.error(f"Failed to send final reminder to user {user_id}: {e}")
+
+    # Clean up job tracking
+    if user_id in seat_reminder_jobs:
+        del seat_reminder_jobs[user_id]
+
+
+async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle payment slip upload for seat request"""
+    user = update.effective_user
+
+    # Check if user has pending seat request
+    if user.id not in seat_request_data:
+        # Not a seat slip, ignore
+        return
+
+    # Cancel reminder jobs if any
+    if user.id in seat_reminder_jobs:
+        try:
+            seat_reminder_jobs[user.id].schedule_removal()
+            del seat_reminder_jobs[user.id]
+        except Exception as e:
+            logger.error(f"Error canceling reminder job: {e}")
+
+    # Download the photo
+    photo = update.message.photo[-1]  # Get highest resolution
+    file = await context.bot.get_file(photo.file_id)
+    photo_path = f"temp_slip_{user.id}.jpg"
+    await file.download_to_drive(photo_path)
+
+    await update.message.reply_text(
+        "📸 **Processing your payment slip...**\n\nPlease wait while we verify the details.",
+        parse_mode='Markdown'
+    )
+
+    # Use OCR to extract slip details
+    try:
+        ocr_result = vision_api.extract_payment_slip_info(photo_path)
+
+        # Clean up temp file
+        import os
+        if os.path.exists(photo_path):
+            os.remove(photo_path)
+
+        seat_data = seat_request_data[user.id]
+        request_id = seat_data['request_id']
+
+        # Send slip details to admin for verification
+        username_display = f"@{user.username}" if user.username else "No username"
+
+        admin_message = f"""💳 <b>SEAT PAYMENT SLIP RECEIVED</b>
+
+<b>Request ID:</b> {request_id}
+<b>User:</b> {user.first_name} {user.last_name or ''}
+<b>Username:</b> {username_display}
+<b>User ID:</b> <code>{user.id}</code>
+<b>PPPoker ID:</b> <code>{seat_data['pppoker_id']}</code>
+<b>Amount:</b> <b>{seat_data['amount']} chips/MVR</b>
+
+<b>📄 Slip Details:</b>
+{ocr_result.get('slip_details', 'Could not extract details')}
+"""
+
+        # Create verification buttons
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Verify & Settle", callback_data=f"settle_seat_{request_id}"),
+                InlineKeyboardButton("❌ Reject Slip", callback_data=f"reject_slip_{request_id}")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Send to all admins
+        all_admin_ids = [ADMIN_USER_ID]
+        try:
+            regular_admins = sheets.get_all_admins()
+            all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+        except Exception as e:
+            logger.error(f"Failed to get admin list: {e}")
+
+        # Store for button removal
+        notification_messages[f"slip_{request_id}"] = []
+
+        for admin_id in all_admin_ids:
+            try:
+                # Send slip image
+                with open(photo_path if os.path.exists(photo_path) else photo.file_id, 'rb') as slip_file:
+                    await context.bot.send_photo(
+                        chat_id=admin_id,
+                        photo=photo.file_id,
+                        caption=admin_message,
+                        reply_markup=reply_markup,
+                        parse_mode='HTML'
+                    )
+            except Exception as e:
+                logger.error(f"Failed to send slip to admin {admin_id}: {e}")
+
+        await update.message.reply_text(
+            "✅ **Slip uploaded successfully!**\n\n"
+            "Your payment is being verified by the admin. You'll be notified soon.",
+            parse_mode='Markdown'
+        )
+
+    except Exception as e:
+        logger.error(f"Error processing slip: {e}")
+        await update.message.reply_text(
+            "❌ **Error processing slip.**\n\n"
+            "Please try again or contact Live Support.",
+            parse_mode='Markdown'
+        )
+
+
+async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin verifies and settles seat slip"""
+    query = update.callback_query
+
+    if not is_admin(query.from_user.id):
+        await query.answer("❌ Not authorized", show_alert=True)
+        return
+
+    request_id = query.data.split('_')[-1]
+    await query.answer()
+
+    # Get seat request
+    seat_req = sheets.get_seat_request(request_id)
+    if not seat_req:
+        await query.edit_message_caption(
+            caption=f"{query.message.caption}\n\n❌ _Request not found._",
+            parse_mode='HTML'
+        )
+        return
+
+    # Settle in database
+    success = sheets.settle_seat_request(
+        request_id,
+        "Slip Upload",  # Payment method
+        "OCR Verified",  # Transaction ID
+        query.from_user.id
+    )
+
+    if success:
+        # Clear user credit
+        sheets.clear_user_credit(seat_req['user_id'])
+
+        # Clean up tracking
+        if seat_req['user_id'] in seat_request_data:
+            del seat_request_data[seat_req['user_id']]
+        if seat_req['user_id'] in seat_reminder_jobs:
+            try:
+                seat_reminder_jobs[seat_req['user_id']].schedule_removal()
+                del seat_reminder_jobs[seat_req['user_id']]
+            except:
+                pass
+
+        # Notify user
+        try:
+            await context.bot.send_message(
+                chat_id=seat_req['user_id'],
+                text=f"✅ **Payment Verified!**\n\n"
+                     f"**Request ID:** `{request_id}`\n"
+                     f"**Amount:** {seat_req['amount']} chips/MVR\n\n"
+                     f"Your seat request has been settled. Thank you!",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify user: {e}")
+
+        await query.edit_message_caption(
+            caption=f"{query.message.caption}\n\n✅ <b>SETTLED by {query.from_user.first_name}</b>",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([])
+        )
+    else:
+        await query.edit_message_caption(
+            caption=f"{query.message.caption}\n\n❌ _Failed to settle._",
+            parse_mode='HTML'
+        )
+
+
+async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin rejects seat slip"""
+    query = update.callback_query
+
+    if not is_admin(query.from_user.id):
+        await query.answer("❌ Not authorized", show_alert=True)
+        return
+
+    request_id = query.data.split('_')[-1]
+    await query.answer()
+
+    # Get seat request
+    seat_req = sheets.get_seat_request(request_id)
+    if not seat_req:
+        await query.edit_message_caption(
+            caption=f"{query.message.caption}\n\n❌ _Request not found._",
+            parse_mode='HTML'
+        )
+        return
+
+    # Notify user to reupload or contact support
+    try:
+        await context.bot.send_message(
+            chat_id=seat_req['user_id'],
+            text=f"❌ **Payment Slip Rejected**\n\n"
+                 f"**Request ID:** `{request_id}`\n\n"
+                 f"Your payment slip could not be verified.\n\n"
+                 f"Please upload a clearer image or contact Live Support.",
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        logger.error(f"Failed to notify user: {e}")
+
+    await query.edit_message_caption(
+        caption=f"{query.message.caption}\n\n❌ <b>REJECTED by {query.from_user.first_name}</b>\nUser notified to reupload.",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([])
+    )
 
 
 # Message router
@@ -3327,6 +4062,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return await withdrawal_start(update, context)
     elif text == "🎮 Join Club":
         return await join_club_start(update, context)
+    elif text == "🪑 Seat":
+        return await seat_request_start(update, context)
     elif text == "📊 My Info":
         return await my_info(update, context)
     elif text == "💬 Live Support":
@@ -3362,6 +4099,7 @@ def main():
     application.add_handler(CommandHandler("addadmin", addadmin_command))
     application.add_handler(CommandHandler("removeadmin", removeadmin_command))
     application.add_handler(CommandHandler("listadmins", listadmins_command))
+    application.add_handler(CommandHandler("user_credit", user_credit_command))
 
     # Test button handlers
     application.add_handler(CallbackQueryHandler(test_button_handler, pattern="^test_"))
@@ -3378,6 +4116,13 @@ def main():
     application.add_handler(CallbackQueryHandler(quick_reject_withdrawal, pattern="^quick_reject_withdrawal_"))
     application.add_handler(CallbackQueryHandler(quick_approve_join, pattern="^quick_approve_join_"))
     application.add_handler(CallbackQueryHandler(quick_reject_join, pattern="^quick_reject_join_"))
+
+    # Seat request handlers
+    application.add_handler(CallbackQueryHandler(approve_seat_request, pattern="^approve_seat_"))
+    application.add_handler(CallbackQueryHandler(reject_seat_request, pattern="^reject_seat_"))
+    application.add_handler(CallbackQueryHandler(settle_seat_slip, pattern="^settle_seat_"))
+    application.add_handler(CallbackQueryHandler(reject_seat_slip, pattern="^reject_slip_"))
+    application.add_handler(CallbackQueryHandler(clear_user_credit_callback, pattern="^clear_credit_"))
 
     # Deposit conversation handler
     deposit_conv = ConversationHandler(
@@ -3422,6 +4167,17 @@ def main():
         ],
         states={
             JOIN_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, join_pppoker_id_received)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    # Seat request conversation handler
+    seat_conv = ConversationHandler(
+        entry_points=[
+            MessageHandler(filters.Regex("^🪑 Seat$"), seat_request_start)
+        ],
+        states={
+            SEAT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, seat_amount_received)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
@@ -3506,10 +4262,14 @@ def main():
     application.add_handler(deposit_conv)
     application.add_handler(withdrawal_conv)
     application.add_handler(join_conv)
+    application.add_handler(seat_conv)
     application.add_handler(support_conv)
     application.add_handler(update_account_conv)
     application.add_handler(broadcast_conv)
     application.add_handler(promo_conv)
+
+    # Photo handler for seat slip uploads
+    application.add_handler(MessageHandler(filters.PHOTO, handle_seat_slip_upload))
 
     # Register admin handlers and share notification_messages dict
     admin_panel.register_admin_handlers(application, notification_messages)

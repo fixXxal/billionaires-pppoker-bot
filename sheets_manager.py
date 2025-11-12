@@ -146,6 +146,28 @@ class SheetsManager:
                 'Deposit Amount', 'Bonus Amount', 'Bonus Received At', 'Notes'
             ])
 
+        # Seat Requests worksheet
+        try:
+            self.seat_requests_sheet = self.spreadsheet.worksheet('Seat Requests')
+        except gspread.WorksheetNotFound:
+            self.seat_requests_sheet = self.spreadsheet.add_worksheet(title='Seat Requests', rows=1000, cols=15)
+            self.seat_requests_sheet.append_row([
+                'Request ID', 'User ID', 'Username', 'PPPoker ID',
+                'Amount', 'Payment Method', 'Transaction ID/Slip',
+                'Status', 'Requested At', 'Approved At', 'Settled At',
+                'Processed By', 'Has Credit', 'Notes'
+            ])
+
+        # User Credits worksheet (tracks users with pending credits)
+        try:
+            self.user_credits_sheet = self.spreadsheet.worksheet('User Credits')
+        except gspread.WorksheetNotFound:
+            self.user_credits_sheet = self.spreadsheet.add_worksheet(title='User Credits', rows=1000, cols=8)
+            self.user_credits_sheet.append_row([
+                'User ID', 'Username', 'PPPoker ID', 'Credit Amount',
+                'Seat Request ID', 'Created At', 'Reminder Count', 'Status'
+            ])
+
     def _get_timestamp(self) -> str:
         """Get current timestamp in the configured timezone"""
         return datetime.now(self.timezone).strftime('%Y-%m-%d %H:%M:%S')
@@ -817,3 +839,195 @@ class SheetsManager:
         except Exception as e:
             print(f"Error getting user promotion bonuses: {e}")
         return bonuses
+
+    # Seat Request Functions
+    def create_seat_request(self, user_id: int, username: str, pppoker_id: str, amount: float) -> str:
+        """Create a new seat request"""
+        try:
+            import uuid
+            request_id = f"SEAT_{uuid.uuid4().hex[:8].upper()}"
+
+            self.seat_requests_sheet.append_row([
+                request_id,
+                str(user_id),
+                username or '',
+                pppoker_id,
+                amount,
+                '',  # Payment Method (filled after admin approval)
+                '',  # Transaction ID/Slip
+                'Pending',
+                self._get_timestamp(),
+                '',  # Approved At
+                '',  # Settled At
+                '',  # Processed By
+                'No',  # Has Credit
+                ''  # Notes
+            ])
+            return request_id
+        except Exception as e:
+            print(f"Error creating seat request: {e}")
+            return None
+
+    def get_seat_request(self, request_id: str) -> Optional[Dict]:
+        """Get seat request by ID"""
+        try:
+            all_rows = self.seat_requests_sheet.get_all_values()[1:]
+            for row in all_rows:
+                if row[0] == request_id:
+                    return {
+                        'request_id': row[0],
+                        'user_id': int(row[1]) if row[1] else 0,
+                        'username': row[2],
+                        'pppoker_id': row[3],
+                        'amount': float(row[4]) if row[4] else 0,
+                        'payment_method': row[5],
+                        'transaction_id': row[6],
+                        'status': row[7],
+                        'requested_at': row[8],
+                        'approved_at': row[9] if len(row) > 9 else '',
+                        'settled_at': row[10] if len(row) > 10 else '',
+                        'processed_by': row[11] if len(row) > 11 else '',
+                        'has_credit': row[12] if len(row) > 12 else 'No',
+                        'notes': row[13] if len(row) > 13 else ''
+                    }
+        except Exception as e:
+            print(f"Error getting seat request: {e}")
+        return None
+
+    def approve_seat_request(self, request_id: str, admin_id: int) -> bool:
+        """Approve seat request"""
+        try:
+            cell = self.seat_requests_sheet.find(request_id)
+            if cell:
+                row_number = cell.row
+                # Update status and approved_at
+                self.seat_requests_sheet.update_cell(row_number, 8, 'Approved')
+                self.seat_requests_sheet.update_cell(row_number, 10, self._get_timestamp())
+                self.seat_requests_sheet.update_cell(row_number, 12, str(admin_id))
+                return True
+        except Exception as e:
+            print(f"Error approving seat request: {e}")
+        return False
+
+    def reject_seat_request(self, request_id: str, admin_id: int, reason: str = '') -> bool:
+        """Reject seat request"""
+        try:
+            cell = self.seat_requests_sheet.find(request_id)
+            if cell:
+                row_number = cell.row
+                self.seat_requests_sheet.update_cell(row_number, 8, 'Rejected')
+                self.seat_requests_sheet.update_cell(row_number, 12, str(admin_id))
+                if reason:
+                    self.seat_requests_sheet.update_cell(row_number, 14, reason)
+                return True
+        except Exception as e:
+            print(f"Error rejecting seat request: {e}")
+        return False
+
+    def settle_seat_request(self, request_id: str, payment_method: str, transaction_id: str, admin_id: int) -> bool:
+        """Mark seat request as settled after slip verification"""
+        try:
+            cell = self.seat_requests_sheet.find(request_id)
+            if cell:
+                row_number = cell.row
+                self.seat_requests_sheet.update_cell(row_number, 6, payment_method)
+                self.seat_requests_sheet.update_cell(row_number, 7, transaction_id)
+                self.seat_requests_sheet.update_cell(row_number, 8, 'Settled')
+                self.seat_requests_sheet.update_cell(row_number, 11, self._get_timestamp())
+                self.seat_requests_sheet.update_cell(row_number, 12, str(admin_id))
+                return True
+        except Exception as e:
+            print(f"Error settling seat request: {e}")
+        return False
+
+    # User Credit Functions
+    def add_user_credit(self, user_id: int, username: str, pppoker_id: str, amount: float, seat_request_id: str) -> bool:
+        """Add user to credits list"""
+        try:
+            self.user_credits_sheet.append_row([
+                str(user_id),
+                username or '',
+                pppoker_id,
+                amount,
+                seat_request_id,
+                self._get_timestamp(),
+                '0',  # Reminder Count
+                'Active'
+            ])
+
+            # Update seat request to mark has_credit
+            cell = self.seat_requests_sheet.find(seat_request_id)
+            if cell:
+                self.seat_requests_sheet.update_cell(cell.row, 13, 'Yes')
+
+            return True
+        except Exception as e:
+            print(f"Error adding user credit: {e}")
+        return False
+
+    def get_user_credit(self, user_id: int) -> Optional[Dict]:
+        """Get active credit for user"""
+        try:
+            all_rows = self.user_credits_sheet.get_all_values()[1:]
+            for row in all_rows:
+                if len(row) >= 8 and row[0] == str(user_id) and row[7] == 'Active':
+                    return {
+                        'user_id': int(row[0]),
+                        'username': row[1],
+                        'pppoker_id': row[2],
+                        'amount': float(row[3]) if row[3] else 0,
+                        'seat_request_id': row[4],
+                        'created_at': row[5],
+                        'reminder_count': int(row[6]) if row[6] else 0,
+                        'status': row[7]
+                    }
+        except Exception as e:
+            print(f"Error getting user credit: {e}")
+        return None
+
+    def get_all_active_credits(self) -> List[Dict]:
+        """Get all users with active credits"""
+        try:
+            credits = []
+            all_rows = self.user_credits_sheet.get_all_values()[1:]
+            for row in all_rows:
+                if len(row) >= 8 and row[7] == 'Active':
+                    credits.append({
+                        'user_id': int(row[0]) if row[0] else 0,
+                        'username': row[1],
+                        'pppoker_id': row[2],
+                        'amount': float(row[3]) if row[3] else 0,
+                        'seat_request_id': row[4],
+                        'created_at': row[5],
+                        'reminder_count': int(row[6]) if row[6] else 0,
+                        'status': row[7]
+                    })
+            return credits
+        except Exception as e:
+            print(f"Error getting active credits: {e}")
+        return []
+
+    def increment_credit_reminder(self, user_id: int) -> bool:
+        """Increment reminder count for user credit"""
+        try:
+            all_rows = self.user_credits_sheet.get_all_values()
+            for idx, row in enumerate(all_rows[1:], start=2):
+                if len(row) >= 8 and row[0] == str(user_id) and row[7] == 'Active':
+                    current_count = int(row[6]) if row[6] else 0
+                    self.user_credits_sheet.update_cell(idx, 7, str(current_count + 1))
+                    return True
+        except Exception as e:
+            print(f"Error incrementing credit reminder: {e}")
+        return False
+
+    def clear_user_credit(self, user_id: int) -> bool:
+        """Clear user credit (mark as settled)"""
+        try:
+            all_rows = self.user_credits_sheet.get_all_values()
+            for idx, row in enumerate(all_rows[1:], start=2):
+                if len(row) >= 8 and row[0] == str(user_id) and row[7] == 'Active':
+                    self.user_credits_sheet.update_cell(idx, 8, 'Settled')
+                    return True
+        except Exception as e:
+            print(f"Error clearing user credit: {e}")
+        return False
