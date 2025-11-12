@@ -1627,11 +1627,21 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
             # Clean up tracked messages
             del support_message_ids[user.id]
 
-        # Clean up user support message tracking
+        # Remove all End Support buttons from ALL user messages
         if user.id in user_support_message_ids:
+            for message_id in user_support_message_ids[user.id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=user.id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to remove End Support button from user message {message_id}: {e}")
+            # Clean up tracked messages
             del user_support_message_ids[user.id]
 
-        # Remove the button by editing message without reply_markup
+        # Edit the clicked message to show session ended
         await query.edit_message_text(
             "✅ **Support session ended.**\n\nThank you! Feel free to start a new session anytime.",
             parse_mode='Markdown'
