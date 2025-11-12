@@ -126,6 +126,26 @@ class SheetsManager:
             self.exchange_rates_sheet.append_row(['USD', '15.40', self._get_timestamp()])
             self.exchange_rates_sheet.append_row(['USDT', '15.40', self._get_timestamp()])
 
+        # Promotions worksheet
+        try:
+            self.promotions_sheet = self.spreadsheet.worksheet('Promotions')
+        except gspread.WorksheetNotFound:
+            self.promotions_sheet = self.spreadsheet.add_worksheet(title='Promotions', rows=100, cols=7)
+            self.promotions_sheet.append_row([
+                'Promotion ID', 'Bonus Percentage', 'Start Date', 'End Date',
+                'Status', 'Created By', 'Created At'
+            ])
+
+        # Promotion Eligibility worksheet (tracks who has received bonus)
+        try:
+            self.promotion_eligibility_sheet = self.spreadsheet.worksheet('Promotion Eligibility')
+        except gspread.WorksheetNotFound:
+            self.promotion_eligibility_sheet = self.spreadsheet.add_worksheet(title='Promotion Eligibility', rows=1000, cols=8)
+            self.promotion_eligibility_sheet.append_row([
+                'User ID', 'PPPoker ID', 'Promotion ID', 'Deposit Request ID',
+                'Deposit Amount', 'Bonus Amount', 'Bonus Received At', 'Notes'
+            ])
+
     def _get_timestamp(self) -> str:
         """Get current timestamp in the configured timezone"""
         return datetime.now(self.timezone).strftime('%Y-%m-%d %H:%M:%S')
@@ -623,3 +643,177 @@ class SheetsManager:
         except Exception as e:
             print(f"Error getting all exchange rates: {e}")
         return rates
+
+    # Promotion Management
+    def create_promotion(self, bonus_percentage: float, start_date: str, end_date: str, admin_id: int) -> Optional[str]:
+        """Create a new promotion"""
+        try:
+            # Generate promotion ID
+            promotion_id = f"PROMO{datetime.now(self.timezone).strftime('%Y%m%d%H%M%S')}"
+
+            # Deactivate any existing active promotions
+            self._deactivate_all_promotions()
+
+            # Add new promotion
+            self.promotions_sheet.append_row([
+                promotion_id,
+                str(bonus_percentage),
+                start_date,
+                end_date,
+                'Active',
+                str(admin_id),
+                self._get_timestamp()
+            ])
+
+            return promotion_id
+        except Exception as e:
+            print(f"Error creating promotion: {e}")
+            return None
+
+    def _deactivate_all_promotions(self):
+        """Deactivate all existing promotions"""
+        try:
+            all_rows = self.promotions_sheet.get_all_values()[1:]  # Skip header
+            for idx, row in enumerate(all_rows, start=2):
+                if len(row) > 4 and row[4] == 'Active':
+                    self.promotions_sheet.update_cell(idx, 5, 'Inactive')
+        except Exception as e:
+            print(f"Error deactivating promotions: {e}")
+
+    def get_active_promotion(self) -> Optional[Dict]:
+        """Get the currently active promotion"""
+        try:
+            now = datetime.now(self.timezone)
+            all_rows = self.promotions_sheet.get_all_values()[1:]  # Skip header
+
+            for row in all_rows:
+                if len(row) >= 5 and row[4] == 'Active':
+                    # Parse dates
+                    try:
+                        start_date = datetime.strptime(row[2], '%Y-%m-%d')
+                        end_date = datetime.strptime(row[3], '%Y-%m-%d')
+
+                        # Make them timezone-aware
+                        start_date = self.timezone.localize(start_date)
+                        end_date = self.timezone.localize(end_date.replace(hour=23, minute=59, second=59))
+
+                        # Check if promotion is currently valid
+                        if start_date <= now <= end_date:
+                            return {
+                                'promotion_id': row[0],
+                                'bonus_percentage': float(row[1]),
+                                'start_date': row[2],
+                                'end_date': row[3],
+                                'status': row[4],
+                                'created_by': row[5] if len(row) > 5 else '',
+                                'created_at': row[6] if len(row) > 6 else ''
+                            }
+                    except ValueError as e:
+                        print(f"Error parsing promotion dates: {e}")
+                        continue
+
+        except Exception as e:
+            print(f"Error getting active promotion: {e}")
+        return None
+
+    def get_all_promotions(self) -> List[Dict]:
+        """Get all promotions"""
+        promotions = []
+        try:
+            all_rows = self.promotions_sheet.get_all_values()[1:]  # Skip header
+            for row in all_rows:
+                if len(row) >= 5 and row[0]:
+                    promotions.append({
+                        'promotion_id': row[0],
+                        'bonus_percentage': float(row[1]) if row[1] else 0,
+                        'start_date': row[2],
+                        'end_date': row[3],
+                        'status': row[4],
+                        'created_by': row[5] if len(row) > 5 else '',
+                        'created_at': row[6] if len(row) > 6 else ''
+                    })
+        except Exception as e:
+            print(f"Error getting all promotions: {e}")
+        return promotions
+
+    def update_promotion(self, promotion_id: str, bonus_percentage: Optional[float] = None,
+                        start_date: Optional[str] = None, end_date: Optional[str] = None) -> bool:
+        """Update an existing promotion"""
+        try:
+            cell = self.promotions_sheet.find(promotion_id)
+            if cell:
+                row = cell.row
+                if bonus_percentage is not None:
+                    self.promotions_sheet.update_cell(row, 2, str(bonus_percentage))
+                if start_date is not None:
+                    self.promotions_sheet.update_cell(row, 3, start_date)
+                if end_date is not None:
+                    self.promotions_sheet.update_cell(row, 4, end_date)
+                return True
+        except Exception as e:
+            print(f"Error updating promotion: {e}")
+        return False
+
+    def deactivate_promotion(self, promotion_id: str) -> bool:
+        """Deactivate a specific promotion"""
+        try:
+            cell = self.promotions_sheet.find(promotion_id)
+            if cell:
+                self.promotions_sheet.update_cell(cell.row, 5, 'Inactive')
+                return True
+        except Exception as e:
+            print(f"Error deactivating promotion: {e}")
+        return False
+
+    def check_user_promotion_eligibility(self, user_id: int, pppoker_id: str, promotion_id: str) -> bool:
+        """Check if user is eligible for promotion (hasn't received bonus for this promotion yet)"""
+        try:
+            all_rows = self.promotion_eligibility_sheet.get_all_values()[1:]  # Skip header
+            for row in all_rows:
+                if len(row) >= 3:
+                    # Check if user already received bonus for this promotion
+                    if row[0] == str(user_id) and row[2] == promotion_id:
+                        return False
+            return True
+        except Exception as e:
+            print(f"Error checking promotion eligibility: {e}")
+            return False
+
+    def record_promotion_bonus(self, user_id: int, pppoker_id: str, promotion_id: str,
+                              deposit_request_id: str, deposit_amount: float, bonus_amount: float) -> bool:
+        """Record that a user has received a promotion bonus"""
+        try:
+            self.promotion_eligibility_sheet.append_row([
+                str(user_id),
+                pppoker_id,
+                promotion_id,
+                deposit_request_id,
+                str(deposit_amount),
+                str(bonus_amount),
+                self._get_timestamp(),
+                'Bonus applied on first deposit during promotion period'
+            ])
+            return True
+        except Exception as e:
+            print(f"Error recording promotion bonus: {e}")
+            return False
+
+    def get_user_promotion_bonuses(self, user_id: int) -> List[Dict]:
+        """Get all promotion bonuses received by a user"""
+        bonuses = []
+        try:
+            all_rows = self.promotion_eligibility_sheet.get_all_values()[1:]  # Skip header
+            for row in all_rows:
+                if len(row) >= 6 and row[0] == str(user_id):
+                    bonuses.append({
+                        'pppoker_id': row[1],
+                        'promotion_id': row[2],
+                        'deposit_request_id': row[3],
+                        'deposit_amount': float(row[4]) if row[4] else 0,
+                        'bonus_amount': float(row[5]) if row[5] else 0,
+                        'received_at': row[6] if len(row) > 6 else '',
+                        'notes': row[7] if len(row) > 7 else ''
+                    })
+        except Exception as e:
+            print(f"Error getting user promotion bonuses: {e}")
+        return bonuses

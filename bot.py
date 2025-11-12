@@ -55,7 +55,8 @@ sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
 (DEPOSIT_METHOD, DEPOSIT_AMOUNT, DEPOSIT_PPPOKER_ID, DEPOSIT_ACCOUNT_NAME,
  DEPOSIT_PROOF, WITHDRAWAL_METHOD, WITHDRAWAL_AMOUNT, WITHDRAWAL_PPPOKER_ID,
  WITHDRAWAL_ACCOUNT_NAME, WITHDRAWAL_ACCOUNT_NUMBER, JOIN_PPPOKER_ID,
- ADMIN_APPROVAL_NOTES, SUPPORT_CHAT, ADMIN_REPLY_MESSAGE, UPDATE_ACCOUNT_METHOD, UPDATE_ACCOUNT_NUMBER, BROADCAST_MESSAGE) = range(17)
+ ADMIN_APPROVAL_NOTES, SUPPORT_CHAT, ADMIN_REPLY_MESSAGE, UPDATE_ACCOUNT_METHOD, UPDATE_ACCOUNT_NUMBER, BROADCAST_MESSAGE,
+ PROMO_PERCENTAGE, PROMO_START_DATE, PROMO_END_DATE) = range(20)
 
 # Store for live support sessions
 live_support_sessions: Dict[int, int] = {}  # user_id: admin_user_id (which admin is handling this user)
@@ -309,6 +310,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Approve/reject deposits instantly
 • Approve/reject withdrawals
 • Manage join requests
+• Manage promotions (create, view, deactivate)
+• View payment accounts
 • Live support (reply via buttons)
 """
         # Super admin only commands
@@ -578,6 +581,39 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     # Currency
     currency = 'MVR' if method != 'USDT' else 'USD'
 
+    # Check for active promotion and user eligibility
+    promotion_info = ""
+    promotion_bonus = 0
+    active_promotion = sheets.get_active_promotion()
+
+    if active_promotion and verified_amount > 0:
+        # Check if user is eligible (first deposit during promotion period)
+        is_eligible = sheets.check_user_promotion_eligibility(
+            user.id,
+            pppoker_id,
+            active_promotion['promotion_id']
+        )
+
+        if is_eligible:
+            # Calculate bonus
+            promotion_bonus = verified_amount * (active_promotion['bonus_percentage'] / 100)
+            total_with_bonus = verified_amount + promotion_bonus
+
+            promotion_info = f"\n\n🎁 <b>PROMOTION BONUS</b>\n" \
+                           f"Bonus: {active_promotion['bonus_percentage']}% = <b>{currency} {promotion_bonus:,.2f}</b>\n" \
+                           f"Total with bonus: <b>{currency} {total_with_bonus:,.2f}</b>\n" \
+                           f"<i>User's first deposit during promotion period</i>"
+
+            # Store promotion info in context for approval handler
+            context.bot_data[f'promo_{request_id}'] = {
+                'promotion_id': active_promotion['promotion_id'],
+                'bonus_amount': promotion_bonus,
+                'deposit_amount': verified_amount,
+                'pppoker_id': pppoker_id,
+                'user_id': user.id,
+                'currency': currency
+            }
+
     # Build clean, organized notification
     admin_message = f"""💰 <b>NEW {method} DEPOSIT</b> — {request_id}
 
@@ -596,7 +632,7 @@ To: {receiver_name}
 🎮 <b>PPPOKER INFO</b>
 Player ID: <code>{pppoker_id}</code>
 
-📸 <i>Payment slip attached below</i>{validation_warnings}"""
+📸 <i>Payment slip attached below</i>{validation_warnings}{promotion_info}"""
 
     # Create approval buttons
     keyboard = [
@@ -2259,6 +2295,134 @@ async def broadcast_message_received(update: Update, context: ContextTypes.DEFAU
     return ConversationHandler.END
 
 
+# Promotion Management Handlers
+async def promo_create_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start promotion creation"""
+    query = update.callback_query
+    await query.answer()
+
+    if not is_admin(query.from_user.id):
+        await query.edit_message_text("❌ Admin access required.")
+        return ConversationHandler.END
+
+    await query.edit_message_text(
+        "🎁 **Create New Promotion**\n\n"
+        "Please enter the bonus percentage (e.g., 10 for 10%):",
+        parse_mode='Markdown'
+    )
+
+    return PROMO_PERCENTAGE
+
+
+async def promo_percentage_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive promotion percentage"""
+    try:
+        percentage = float(update.message.text)
+        if percentage <= 0 or percentage > 100:
+            await update.message.reply_text(
+                "❌ Invalid percentage. Please enter a number between 0 and 100:"
+            )
+            return PROMO_PERCENTAGE
+
+        context.user_data['promo_percentage'] = percentage
+
+        await update.message.reply_text(
+            f"✅ Bonus: {percentage}%\n\n"
+            f"📅 Enter start date (format: YYYY-MM-DD):",
+            parse_mode='Markdown'
+        )
+
+        return PROMO_START_DATE
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid input. Please enter a valid number (e.g., 10 for 10%):"
+        )
+        return PROMO_PERCENTAGE
+
+
+async def promo_start_date_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive promotion start date"""
+    from datetime import datetime as dt
+
+    try:
+        start_date_str = update.message.text.strip()
+        # Validate date format
+        start_date = dt.strptime(start_date_str, '%Y-%m-%d')
+
+        context.user_data['promo_start_date'] = start_date_str
+
+        await update.message.reply_text(
+            f"✅ Start Date: {start_date_str}\n\n"
+            f"📅 Enter end date (format: YYYY-MM-DD):",
+            parse_mode='Markdown'
+        )
+
+        return PROMO_END_DATE
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid date format. Please use YYYY-MM-DD (e.g., 2025-12-31):"
+        )
+        return PROMO_START_DATE
+
+
+async def promo_end_date_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive promotion end date and create promotion"""
+    from datetime import datetime as dt
+
+    try:
+        end_date_str = update.message.text.strip()
+        # Validate date format
+        end_date = dt.strptime(end_date_str, '%Y-%m-%d')
+        start_date = dt.strptime(context.user_data['promo_start_date'], '%Y-%m-%d')
+
+        # Validate end date is after start date
+        if end_date < start_date:
+            await update.message.reply_text(
+                "❌ End date must be after start date. Please enter a valid end date:"
+            )
+            return PROMO_END_DATE
+
+        # Create promotion
+        promotion_id = sheets.create_promotion(
+            bonus_percentage=context.user_data['promo_percentage'],
+            start_date=context.user_data['promo_start_date'],
+            end_date=end_date_str,
+            admin_id=update.effective_user.id
+        )
+
+        if promotion_id:
+            await update.message.reply_text(
+                f"✅ **Promotion Created!**\n\n"
+                f"🆔 ID: `{promotion_id}`\n"
+                f"💰 Bonus: {context.user_data['promo_percentage']}%\n"
+                f"📅 Period: {context.user_data['promo_start_date']} to {end_date_str}\n\n"
+                f"The promotion is now active!",
+                parse_mode='Markdown'
+            )
+        else:
+            await update.message.reply_text("❌ Failed to create promotion. Please try again.")
+
+        # Clear user data
+        context.user_data.clear()
+
+        return ConversationHandler.END
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid date format. Please use YYYY-MM-DD (e.g., 2025-12-31):"
+        )
+        return PROMO_END_DATE
+
+
+async def promo_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel promotion creation"""
+    await update.message.reply_text("❌ Promotion creation cancelled.")
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
 # Quick Approval/Rejection Handlers
 async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Quick approve deposit from notification"""
@@ -2298,6 +2462,30 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
         sheets.update_deposit_status(request_id, 'Approved', query.from_user.id, 'Quick approved')
         logger.info(f"Deposit {request_id} status updated to Approved")
 
+        # Check for promotion bonus
+        promo_data = context.bot_data.get(f'promo_{request_id}')
+        bonus_message = ""
+
+        if promo_data:
+            # Record promotion bonus
+            success = sheets.record_promotion_bonus(
+                user_id=promo_data['user_id'],
+                pppoker_id=promo_data['pppoker_id'],
+                promotion_id=promo_data['promotion_id'],
+                deposit_request_id=request_id,
+                deposit_amount=promo_data['deposit_amount'],
+                bonus_amount=promo_data['bonus_amount']
+            )
+
+            if success:
+                bonus_message = f"\n\n🎁 **PROMOTION BONUS APPLIED!**\n" \
+                              f"Bonus: +{promo_data['bonus_amount']:.2f} {promo_data['currency']}\n" \
+                              f"Total credited: {promo_data['deposit_amount'] + promo_data['bonus_amount']:.2f} {promo_data['currency']}"
+                logger.info(f"Promotion bonus recorded for user {promo_data['user_id']}: {promo_data['bonus_amount']} {promo_data['currency']}")
+
+            # Clean up promotion data
+            del context.bot_data[f'promo_{request_id}']
+
         # Notify user with club link button
         club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
         keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
@@ -2309,7 +2497,7 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
                 text=f"✅ **Your Deposit Has Been Approved!**\n\n"
                      f"**Request ID:** `{request_id}`\n"
                      f"**Amount:** {deposit['amount']} {'MVR' if deposit['payment_method'] != 'USDT' else 'USD'}\n"
-                     f"**PPPoker ID:** {deposit['pppoker_id']}\n\n"
+                     f"**PPPoker ID:** {deposit['pppoker_id']}{bonus_message}\n\n"
                      f"Your chips have been added to your account. Happy gaming! 🎮",
                 parse_mode='Markdown',
                 reply_markup=reply_markup
@@ -2366,6 +2554,11 @@ async def quick_reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # Store request_id for rejection reason
     admin_reply_context[query.from_user.id] = f"reject_deposit_{request_id}"
+
+    # Clean up promotion data if exists (rejection means no bonus)
+    if f'promo_{request_id}' in context.bot_data:
+        del context.bot_data[f'promo_{request_id}']
+        logger.info(f"Promotion bonus cancelled for rejected deposit {request_id}")
 
     # Remove buttons for ALL admins when rejection starts
     if request_id in notification_messages:
@@ -2924,6 +3117,27 @@ def main():
         ],
     )
 
+    # Promotion creation conversation handler
+    promo_conv = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(promo_create_start, pattern="^promo_create$"),
+        ],
+        states={
+            PROMO_PERCENTAGE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, promo_percentage_received),
+            ],
+            PROMO_START_DATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, promo_start_date_received),
+            ],
+            PROMO_END_DATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, promo_end_date_received),
+            ],
+        },
+        fallbacks=[
+            CommandHandler("cancel", promo_cancel),
+        ],
+    )
+
     # Add conversation handlers
     application.add_handler(deposit_conv)
     application.add_handler(withdrawal_conv)
@@ -2931,6 +3145,7 @@ def main():
     application.add_handler(support_conv)
     application.add_handler(update_account_conv)
     application.add_handler(broadcast_conv)
+    application.add_handler(promo_conv)
 
     # Register admin handlers and share notification_messages dict
     admin_panel.register_admin_handlers(application, notification_messages)

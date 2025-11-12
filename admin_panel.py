@@ -53,6 +53,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("💰 Pending Deposits", callback_data="admin_view_deposits")],
         [InlineKeyboardButton("💸 Pending Withdrawals", callback_data="admin_view_withdrawals")],
         [InlineKeyboardButton("🎮 Pending Join Requests", callback_data="admin_view_joins")],
+        [InlineKeyboardButton("🎁 Promotions", callback_data="admin_view_promotions")],
         [InlineKeyboardButton("🏦 Payment Accounts", callback_data="admin_view_accounts")],
         [InlineKeyboardButton("❌ Close", callback_data="admin_close")]
     ]
@@ -932,6 +933,88 @@ async def admin_close(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("✅ Admin panel closed.")
 
 
+# Promotion Management Handlers
+async def admin_view_promotions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View promotions management"""
+    query = update.callback_query
+    await query.answer()
+
+    active_promo = sheets.get_active_promotion()
+    all_promos = sheets.get_all_promotions()
+
+    message = "🎁 **Promotions Management**\n\n"
+
+    if active_promo:
+        message += f"**Active Promotion:**\n"
+        message += f"🆔 ID: `{active_promo['promotion_id']}`\n"
+        message += f"💰 Bonus: {active_promo['bonus_percentage']}%\n"
+        message += f"📅 Period: {active_promo['start_date']} to {active_promo['end_date']}\n\n"
+    else:
+        message += "**No active promotion**\n\n"
+
+    message += f"Total promotions: {len(all_promos)}\n"
+
+    keyboard = [
+        [InlineKeyboardButton("➕ Create Promotion", callback_data="promo_create")],
+        [InlineKeyboardButton("📋 View All", callback_data="promo_view_all")],
+    ]
+
+    if active_promo:
+        keyboard.append([InlineKeyboardButton("✏️ Edit Active", callback_data=f"promo_edit_{active_promo['promotion_id']}")])
+        keyboard.append([InlineKeyboardButton("🔴 Deactivate", callback_data=f"promo_deactivate_{active_promo['promotion_id']}")])
+
+    keyboard.append([InlineKeyboardButton("« Back", callback_data="admin_back")])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+
+
+async def admin_view_all_promotions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View all promotions"""
+    query = update.callback_query
+    await query.answer()
+
+    all_promos = sheets.get_all_promotions()
+
+    if not all_promos:
+        await query.edit_message_text(
+            "No promotions found.\n\nUse 'Create Promotion' to add one.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
+        )
+        return
+
+    message = "🎁 **All Promotions**\n\n"
+    for promo in all_promos[-10:]:  # Show last 10
+        status_emoji = "🟢" if promo['status'] == 'Active' else "⚪"
+        message += f"{status_emoji} **{promo['promotion_id']}**\n"
+        message += f"   Bonus: {promo['bonus_percentage']}%\n"
+        message += f"   Period: {promo['start_date']} to {promo['end_date']}\n"
+        message += f"   Status: {promo['status']}\n\n"
+
+    keyboard = [[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+
+
+async def promo_deactivate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Deactivate promotion"""
+    query = update.callback_query
+    await query.answer()
+
+    promotion_id = query.data.split('_')[-1]
+
+    if sheets.deactivate_promotion(promotion_id):
+        await query.edit_message_text(
+            f"✅ Promotion {promotion_id} has been deactivated.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
+        )
+    else:
+        await query.edit_message_text(
+            f"❌ Failed to deactivate promotion.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
+        )
+
+
 # REMOVED - Old update payment account handlers (replaced by conversation handlers in bot.py)
 # These are now handled by update_payment_account_start() in bot.py with interactive flow
 
@@ -952,6 +1035,9 @@ def register_admin_handlers(application, notif_messages=None):
     application.add_handler(CallbackQueryHandler(admin_view_deposits, pattern="^admin_view_deposits$"))
     application.add_handler(CallbackQueryHandler(admin_view_withdrawals, pattern="^admin_view_withdrawals$"))
     application.add_handler(CallbackQueryHandler(admin_view_joins, pattern="^admin_view_joins$"))
+    application.add_handler(CallbackQueryHandler(admin_view_promotions, pattern="^admin_view_promotions$"))
+    application.add_handler(CallbackQueryHandler(admin_view_all_promotions, pattern="^promo_view_all$"))
+    application.add_handler(CallbackQueryHandler(promo_deactivate, pattern="^promo_deactivate_"))
     application.add_handler(CallbackQueryHandler(admin_view_accounts, pattern="^admin_view_accounts$"))
     application.add_handler(CallbackQueryHandler(admin_back, pattern="^admin_back$"))
     application.add_handler(CallbackQueryHandler(admin_close, pattern="^admin_close$"))
