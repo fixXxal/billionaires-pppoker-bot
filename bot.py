@@ -1315,41 +1315,72 @@ async def live_support_message(update: Update, context: ContextTypes.DEFAULT_TYP
     if user.id not in support_mode_users:
         return ConversationHandler.END
 
-    # Forward message to ALL admins with reply buttons
-    message_text = f"💬 **Message from {user.first_name}** (@{user.username or 'No username'})\n\n_{update.message.text}_"
+    # Check if there's a handling admin (admin who clicked Reply)
+    if user.id in active_support_handlers:
+        # Only send to the handling admin
+        handling_admin_id = active_support_handlers[user.id]
+        message_text = f"💬 **Message from {user.first_name}** (@{user.username or 'No username'})\n\n_{update.message.text}_"
 
-    # Create buttons for admin
-    keyboard = [
-        [
-            InlineKeyboardButton("💬 Reply", callback_data=f"support_reply_{user.id}"),
-            InlineKeyboardButton("❌ End Chat", callback_data=f"support_end_{user.id}")
+        # Create buttons for handling admin
+        keyboard = [
+            [
+                InlineKeyboardButton("💬 Reply", callback_data=f"support_reply_{user.id}"),
+                InlineKeyboardButton("❌ End Chat", callback_data=f"support_end_{user.id}")
+            ]
         ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Send to all admins and track message IDs
-    all_admins = sheets.get_all_admins()
-    admin_ids = [ADMIN_USER_ID]  # Start with super admin
-    for admin in all_admins:
-        if admin['admin_id'] != ADMIN_USER_ID:
-            admin_ids.append(admin['admin_id'])
+        # Initialize tracking list if not exists
+        if user.id not in support_message_ids:
+            support_message_ids[user.id] = []
 
-    # Initialize tracking list if not exists
-    if user.id not in support_message_ids:
-        support_message_ids[user.id] = []
-
-    for admin_id in admin_ids:
         try:
             msg = await context.bot.send_message(
-                chat_id=admin_id,
+                chat_id=handling_admin_id,
                 text=message_text,
                 reply_markup=reply_markup,
                 parse_mode='Markdown'
             )
             # Track this message to remove buttons later
-            support_message_ids[user.id].append((admin_id, msg.message_id))
+            support_message_ids[user.id].append((handling_admin_id, msg.message_id))
         except Exception as e:
-            logger.error(f"Failed to send support message to admin {admin_id}: {e}")
+            logger.error(f"Failed to send support message to handling admin {handling_admin_id}: {e}")
+    else:
+        # No handling admin yet, send to ALL admins
+        message_text = f"💬 **Message from {user.first_name}** (@{user.username or 'No username'})\n\n_{update.message.text}_"
+
+        # Create buttons for admin
+        keyboard = [
+            [
+                InlineKeyboardButton("💬 Reply", callback_data=f"support_reply_{user.id}"),
+                InlineKeyboardButton("❌ End Chat", callback_data=f"support_end_{user.id}")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Send to all admins and track message IDs
+        all_admins = sheets.get_all_admins()
+        admin_ids = [ADMIN_USER_ID]  # Start with super admin
+        for admin in all_admins:
+            if admin['admin_id'] != ADMIN_USER_ID:
+                admin_ids.append(admin['admin_id'])
+
+        # Initialize tracking list if not exists
+        if user.id not in support_message_ids:
+            support_message_ids[user.id] = []
+
+        for admin_id in admin_ids:
+            try:
+                msg = await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=message_text,
+                    reply_markup=reply_markup,
+                    parse_mode='Markdown'
+                )
+                # Track this message to remove buttons later
+                support_message_ids[user.id].append((admin_id, msg.message_id))
+            except Exception as e:
+                logger.error(f"Failed to send support message to admin {admin_id}: {e}")
 
     await update.message.reply_text("✅ Message sent to admins.")
 
