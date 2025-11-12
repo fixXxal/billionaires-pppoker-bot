@@ -65,6 +65,8 @@ admin_reply_context: Dict[int, int] = {}  # admin_id: user_id (for reply context
 notification_messages: Dict[str, list] = {}  # request_id: [(admin_id, message_id), ...] (for editing notification buttons)
 active_support_handlers: Dict[int, int] = {}  # user_id: admin_id (tracks which admin is handling which support session)
 processing_requests: Dict[str, int] = {}  # request_id: admin_id (tracks which admin is processing which request)
+support_message_ids: Dict[int, list] = {}  # user_id: [(chat_id, message_id), ...] (tracks support messages with buttons to remove later)
+user_support_message_ids: Dict[int, list] = {}  # user_id: [message_id, ...] (tracks user messages with End Support button)
 
 
 # Helper Functions
@@ -1251,12 +1253,18 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
         keyboard = [[InlineKeyboardButton("❌ End Support", callback_data="user_end_support")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await update.message.reply_text(
+        msg = await update.message.reply_text(
             "💬 You're already in a support session!\n\n"
             "Type your message and it will be sent to our admin.\n"
             "Click the button below to end the session.",
             reply_markup=reply_markup
         )
+
+        # Track this message to remove button later
+        if user.id not in user_support_message_ids:
+            user_support_message_ids[user.id] = []
+        user_support_message_ids[user.id].append(msg.message_id)
+
         return SUPPORT_CHAT
 
     support_mode_users.add(user.id)
@@ -1266,13 +1274,16 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     keyboard = [[InlineKeyboardButton("❌ End Support", callback_data="user_end_support")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(
+    msg = await update.message.reply_text(
         "💬 **Live Support Session Started**\n\n"
         "You're now connected to our admin. Type your message below.\n\n"
         "Click the button below when you're done.",
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
+
+    # Initialize tracking and store this message
+    user_support_message_ids[user.id] = [msg.message_id]
 
     # Notify ALL admins
     all_admins = sheets.get_all_admins()
@@ -1316,21 +1327,27 @@ async def live_support_message(update: Update, context: ContextTypes.DEFAULT_TYP
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Send to all admins
+    # Send to all admins and track message IDs
     all_admins = sheets.get_all_admins()
     admin_ids = [ADMIN_USER_ID]  # Start with super admin
     for admin in all_admins:
         if admin['admin_id'] != ADMIN_USER_ID:
             admin_ids.append(admin['admin_id'])
 
+    # Initialize tracking list if not exists
+    if user.id not in support_message_ids:
+        support_message_ids[user.id] = []
+
     for admin_id in admin_ids:
         try:
-            await context.bot.send_message(
+            msg = await context.bot.send_message(
                 chat_id=admin_id,
                 text=message_text,
                 reply_markup=reply_markup,
                 parse_mode='Markdown'
             )
+            # Track this message to remove buttons later
+            support_message_ids[user.id].append((admin_id, msg.message_id))
         except Exception as e:
             logger.error(f"Failed to send support message to admin {admin_id}: {e}")
 
@@ -1471,12 +1488,17 @@ async def admin_reply_message_received(update: Update, context: ContextTypes.DEF
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Send message to user
-        await context.bot.send_message(
+        msg = await context.bot.send_message(
             chat_id=user_id,
             text=f"💬 **Admin:**\n\n{escape_markdown(message)}",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
+
+        # Track this user message to remove button later
+        if user_id not in user_support_message_ids:
+            user_support_message_ids[user_id] = []
+        user_support_message_ids[user_id].append(msg.message_id)
 
         await update.message.reply_text("✅ Message sent!")
 
@@ -1527,15 +1549,45 @@ async def admin_end_support_button(update: Update, context: ContextTypes.DEFAULT
         if user_id in active_support_handlers:
             del active_support_handlers[user_id]
 
-        # Notify user
+        # Remove all End Chat buttons from admin messages
+        if user_id in support_message_ids:
+            for admin_id, message_id in support_message_ids[user_id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+            # Clean up tracked messages
+            del support_message_ids[user_id]
+
+        # Remove all End Support buttons from user messages
+        if user_id in user_support_message_ids:
+            for message_id in user_support_message_ids[user_id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=user_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to remove End Support button from user message {message_id}: {e}")
+            # Clean up tracked user messages
+            del user_support_message_ids[user_id]
+
+        # Notify user (without button since session is ended)
         try:
             await context.bot.send_message(
                 chat_id=user_id,
-                text="💬 **Support session ended by admin.**\n\nThank you for contacting us!"
+                text="💬 **Support session ended by admin.**\n\nThank you for contacting us!",
+                parse_mode='Markdown'
             )
         except:
             pass
 
+        # Edit admin's message to remove button
         await query.edit_message_text(
             f"{query.message.text}\n\n✅ _Chat ended by admin._",
             parse_mode='Markdown'
@@ -1558,21 +1610,151 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
         support_mode_users.remove(user.id)
         if user.id in live_support_sessions:
             del live_support_sessions[user.id]
+        if user.id in active_support_handlers:
+            del active_support_handlers[user.id]
 
+        # Remove all End Chat buttons from admin messages
+        if user.id in support_message_ids:
+            for admin_id, message_id in support_message_ids[user.id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+            # Clean up tracked messages
+            del support_message_ids[user.id]
+
+        # Clean up user support message tracking
+        if user.id in user_support_message_ids:
+            del user_support_message_ids[user.id]
+
+        # Remove the button by editing message without reply_markup
         await query.edit_message_text(
-            "✅ **Support session ended.**\n\nThank you! Feel free to start a new session anytime."
+            "✅ **Support session ended.**\n\nThank you! Feel free to start a new session anytime.",
+            parse_mode='Markdown'
         )
 
-        # Notify admin
-        await context.bot.send_message(
-            chat_id=ADMIN_USER_ID,
-            text=f"💬 **Support session ended**\n\n"
-                 f"User: {user.first_name} (@{user.username or 'No username'}) ended the chat."
-        )
+        # Notify ALL admins
+        all_admins = sheets.get_all_admins()
+        admin_ids = [ADMIN_USER_ID]  # Start with super admin
+        for admin in all_admins:
+            if admin['admin_id'] != ADMIN_USER_ID:
+                admin_ids.append(admin['admin_id'])
+
+        for admin_id in admin_ids:
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=f"💬 **Support session ended**\n\n"
+                         f"User: {user.first_name} (@{user.username or 'No username'}) ended the chat.",
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                logger.error(f"Failed to notify admin {admin_id}: {e}")
     else:
         await query.edit_message_text("You're not in a support session.")
 
     return ConversationHandler.END
+
+
+async def admin_end_inactive_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin command to manually end any support session: /endsupport_user <user_id>"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ Admin access required.")
+        return
+
+    # Parse user_id from command
+    try:
+        if len(context.args) == 0:
+            # Show active support sessions
+            if not support_mode_users:
+                await update.message.reply_text("📭 No active support sessions.")
+                return
+
+            message = "💬 **Active Support Sessions:**\n\n"
+            for user_id in support_mode_users:
+                handler = "Not yet handled"
+                if user_id in active_support_handlers:
+                    handler_id = active_support_handlers[user_id]
+                    handler = f"Admin {handler_id}"
+                message += f"• User ID: `{user_id}` - {handler}\n"
+
+            message += f"\n📝 Use `/endsupport_user <user_id>` to end a session"
+            await update.message.reply_text(message, parse_mode='Markdown')
+            return
+
+        user_id = int(context.args[0])
+
+        if user_id not in support_mode_users:
+            await update.message.reply_text(f"❌ User {user_id} does not have an active support session.")
+            return
+
+        # End the session
+        support_mode_users.remove(user_id)
+        if user_id in live_support_sessions:
+            del live_support_sessions[user_id]
+        if user_id in active_support_handlers:
+            del active_support_handlers[user_id]
+
+        # Remove all End Chat buttons from admin messages
+        if user_id in support_message_ids:
+            for admin_id, message_id in support_message_ids[user_id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+            del support_message_ids[user_id]
+
+        # Notify user
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="💬 **Support session ended by admin due to inactivity.**\n\n"
+                     "Thank you for contacting us! Feel free to start a new session anytime.",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify user {user_id}: {e}")
+
+        # Notify all admins
+        all_admins = sheets.get_all_admins()
+        admin_ids = [ADMIN_USER_ID]
+        for admin in all_admins:
+            if admin['admin_id'] != ADMIN_USER_ID:
+                admin_ids.append(admin['admin_id'])
+
+        for admin_id in admin_ids:
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=f"💬 Support session with user {user_id} ended by {update.effective_user.first_name}",
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                logger.error(f"Failed to notify admin {admin_id}: {e}")
+
+        await update.message.reply_text(
+            f"✅ Support session with user {user_id} has been ended.",
+            parse_mode='Markdown'
+        )
+
+        logger.info(f"Admin {update.effective_user.id} manually ended support session with user {user_id}")
+
+    except (IndexError, ValueError):
+        await update.message.reply_text(
+            "❌ Invalid usage.\n\n"
+            "**Usage:** `/endsupport_user <user_id>`\n"
+            "**Example:** `/endsupport_user 123456789`\n\n"
+            "Or use `/endsupport_user` without arguments to see active sessions.",
+            parse_mode='Markdown'
+        )
 
 
 # Statistics and Reports
