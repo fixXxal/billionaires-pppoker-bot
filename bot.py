@@ -3828,22 +3828,24 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
         parse_mode='Markdown'
     )
 
-    # Use OCR to extract slip details
+    # Get seat request data
+    seat_data = seat_request_data[user.id]
+    request_id = seat_data['request_id']
+
+    # Try OCR extraction (optional, won't fail if OCR doesn't work)
+    ocr_details = "Manual verification required"
     try:
         ocr_result = vision_api.extract_payment_slip_info(photo_path)
+        if ocr_result and 'slip_details' in ocr_result:
+            ocr_details = ocr_result['slip_details']
+    except Exception as e:
+        logger.warning(f"OCR extraction failed (non-critical): {e}")
+        ocr_details = "OCR not available - Manual verification required"
 
-        # Clean up temp file
-        import os
-        if os.path.exists(photo_path):
-            os.remove(photo_path)
+    # Send slip details to admin for verification
+    username_display = f"@{user.username}" if user.username else "No username"
 
-        seat_data = seat_request_data[user.id]
-        request_id = seat_data['request_id']
-
-        # Send slip details to admin for verification
-        username_display = f"@{user.username}" if user.username else "No username"
-
-        admin_message = f"""💳 <b>SEAT PAYMENT SLIP RECEIVED</b>
+    admin_message = f"""💳 <b>SEAT PAYMENT SLIP RECEIVED</b>
 
 <b>Request ID:</b> {request_id}
 <b>User:</b> {user.first_name} {user.last_name or ''}
@@ -3853,56 +3855,55 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
 <b>Amount:</b> <b>{seat_data['amount']} chips/MVR</b>
 
 <b>📄 Slip Details:</b>
-{ocr_result.get('slip_details', 'Could not extract details')}
+{ocr_details}
 """
 
-        # Create verification buttons
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Verify & Settle", callback_data=f"settle_seat_{request_id}"),
-                InlineKeyboardButton("❌ Reject Slip", callback_data=f"reject_slip_{request_id}")
-            ]
+    # Create verification buttons
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Verify & Settle", callback_data=f"settle_seat_{request_id}"),
+            InlineKeyboardButton("❌ Reject Slip", callback_data=f"reject_slip_{request_id}")
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Send to all admins
-        all_admin_ids = [ADMIN_USER_ID]
-        try:
-            regular_admins = sheets.get_all_admins()
-            all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
-        except Exception as e:
-            logger.error(f"Failed to get admin list: {e}")
-
-        # Store for button removal
-        notification_messages[f"slip_{request_id}"] = []
-
-        for admin_id in all_admin_ids:
-            try:
-                # Send slip image
-                with open(photo_path if os.path.exists(photo_path) else photo.file_id, 'rb') as slip_file:
-                    await context.bot.send_photo(
-                        chat_id=admin_id,
-                        photo=photo.file_id,
-                        caption=admin_message,
-                        reply_markup=reply_markup,
-                        parse_mode='HTML'
-                    )
-            except Exception as e:
-                logger.error(f"Failed to send slip to admin {admin_id}: {e}")
-
-        await update.message.reply_text(
-            "✅ **Slip uploaded successfully!**\n\n"
-            "Your payment is being verified by the admin. You'll be notified soon.",
-            parse_mode='Markdown'
-        )
-
+    # Send to all admins
+    all_admin_ids = [ADMIN_USER_ID]
+    try:
+        regular_admins = sheets.get_all_admins()
+        all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
     except Exception as e:
-        logger.error(f"Error processing slip: {e}")
-        await update.message.reply_text(
-            "❌ **Error processing slip.**\n\n"
-            "Please try again or contact Live Support.",
-            parse_mode='Markdown'
-        )
+        logger.error(f"Failed to get admin list: {e}")
+
+    # Store for button removal
+    notification_messages[f"slip_{request_id}"] = []
+
+    for admin_id in all_admin_ids:
+        try:
+            # Send slip image with caption
+            await context.bot.send_photo(
+                chat_id=admin_id,
+                photo=photo.file_id,
+                caption=admin_message,
+                reply_markup=reply_markup,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Failed to send slip to admin {admin_id}: {e}")
+
+    # Clean up temp file
+    import os
+    if os.path.exists(photo_path):
+        try:
+            os.remove(photo_path)
+        except Exception as e:
+            logger.error(f"Error removing temp file: {e}")
+
+    await update.message.reply_text(
+        "✅ **Slip uploaded successfully!**\n\n"
+        "Your payment is being verified by the admin. You'll be notified soon.",
+        parse_mode='Markdown'
+    )
 
 
 async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
