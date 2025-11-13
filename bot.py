@@ -3819,11 +3819,10 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
 
     # Download the photo
     photo = update.message.photo[-1]  # Get highest resolution
-    file = await context.bot.get_file(photo.file_id)
-    photo_path = f"temp_slip_{user.id}.jpg"
-    await file.download_to_drive(photo_path)
+    photo_file_id = photo.file_id
 
-    await update.message.reply_text(
+    # Send processing message
+    processing_msg = await update.message.reply_text(
         "📸 **Processing your payment slip...**\n\nPlease wait while we verify the details.",
         parse_mode='Markdown'
     )
@@ -3832,15 +3831,54 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
     seat_data = seat_request_data[user.id]
     request_id = seat_data['request_id']
 
-    # Try OCR extraction (optional, won't fail if OCR doesn't work)
-    ocr_details = "Manual verification required"
+    # Try OCR extraction using the same method as deposits
+    ocr_details = ""
     try:
-        ocr_result = vision_api.extract_payment_slip_info(photo_path)
-        if ocr_result and 'slip_details' in ocr_result:
-            ocr_details = ocr_result['slip_details']
+        # Download photo as bytes
+        file = await context.bot.get_file(photo.file_id)
+        file_bytes = await file.download_as_bytearray()
+
+        # Process with Vision API
+        extracted_details = await vision_api.process_receipt_image(bytes(file_bytes))
+
+        # Format extracted details
+        details_msg = vision_api.format_extracted_details(extracted_details)
+
+        # Check if any details were actually extracted
+        has_details = any([
+            extracted_details.get('reference_number'),
+            extracted_details.get('amount'),
+            extracted_details.get('bank'),
+            extracted_details.get('sender_name'),
+            extracted_details.get('receiver_name'),
+            extracted_details.get('receiver_account_number')
+        ])
+
+        if has_details:
+            ocr_details = details_msg
+            logger.info(f"Vision API extracted slip details for user {user.id}")
+            await processing_msg.edit_text(
+                "✅ **Slip details extracted successfully!**\n\n"
+                f"{details_msg}\n\n"
+                "Sending to admin for verification...",
+                parse_mode='Markdown'
+            )
+        else:
+            ocr_details = "Could not extract details - Manual verification required"
+            logger.warning(f"Vision API could not parse slip details for user {user.id}")
+            await processing_msg.edit_text(
+                "⚠️ **Could not extract details automatically.**\n\n"
+                "Your slip will be reviewed manually by admin.",
+                parse_mode='Markdown'
+            )
     except Exception as e:
-        logger.warning(f"OCR extraction failed (non-critical): {e}")
-        ocr_details = "OCR not available - Manual verification required"
+        logger.error(f"Vision API processing failed: {e}")
+        ocr_details = "OCR failed - Manual verification required"
+        await processing_msg.edit_text(
+            "⚠️ **Could not extract slip details automatically.**\n\n"
+            "Your slip has been saved and will be reviewed manually.",
+            parse_mode='Markdown'
+        )
 
     # Send slip details to admin for verification
     username_display = f"@{user.username}" if user.username else "No username"
@@ -3891,19 +3929,20 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
         except Exception as e:
             logger.error(f"Failed to send slip to admin {admin_id}: {e}")
 
-    # Clean up temp file
-    import os
-    if os.path.exists(photo_path):
-        try:
-            os.remove(photo_path)
-        except Exception as e:
-            logger.error(f"Error removing temp file: {e}")
-
-    await update.message.reply_text(
-        "✅ **Slip uploaded successfully!**\n\n"
-        "Your payment is being verified by the admin. You'll be notified soon.",
-        parse_mode='Markdown'
-    )
+    # Send final confirmation if processing message still exists
+    try:
+        await processing_msg.edit_text(
+            "✅ **Slip uploaded successfully!**\n\n"
+            "Your payment is being verified by the admin. You'll be notified soon.",
+            parse_mode='Markdown'
+        )
+    except:
+        # If processing message was already edited, send new message
+        await update.message.reply_text(
+            "✅ **Slip uploaded successfully!**\n\n"
+            "Your payment is being verified by the admin. You'll be notified soon.",
+            parse_mode='Markdown'
+        )
 
 
 async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
