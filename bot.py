@@ -3988,6 +3988,19 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 pass
 
+        # Remove buttons for ALL admins
+        if f"slip_{request_id}" in notification_messages:
+            for admin_id, message_id in notification_messages[f"slip_{request_id}"]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+            del notification_messages[f"slip_{request_id}"]
+
         # Notify user
         try:
             await context.bot.send_message(
@@ -4033,6 +4046,19 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='HTML'
         )
         return
+
+    # Remove buttons for ALL admins
+    if f"slip_{request_id}" in notification_messages:
+        for admin_id, message_id in notification_messages[f"slip_{request_id}"]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+            except Exception as e:
+                logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+        del notification_messages[f"slip_{request_id}"]
 
     # Notify user to reupload or contact support
     try:
