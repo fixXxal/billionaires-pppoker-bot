@@ -3484,8 +3484,13 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
 
     context_data = admin_reply_context[admin_id]
     parts = context_data.split('_')
-    request_type = parts[1]  # deposit, withdrawal, or join
-    request_id = parts[2]
+    request_type = parts[1]  # deposit, withdrawal, join, or seat
+
+    # For seat requests, the ID is "SEAT_XXXXX" so we need to rejoin the remaining parts
+    if request_type == 'seat':
+        request_id = '_'.join(parts[2:])  # "SEAT_87D3AC20"
+    else:
+        request_id = parts[2]
 
     if request_type == 'deposit':
         deposit = sheets.get_deposit_request(request_id)
@@ -3576,7 +3581,8 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    request_id = query.data.split('_')[-1]
+    # Extract request_id: "approve_seat_SEAT_87D3AC20" -> "SEAT_87D3AC20"
+    request_id = query.data.replace('approve_seat_', '')
     await query.answer()
 
     # Get seat request details
@@ -3690,7 +3696,8 @@ async def reject_seat_request(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    request_id = query.data.split('_')[-1]
+    # Extract request_id: "reject_seat_SEAT_87D3AC20" -> "SEAT_87D3AC20"
+    request_id = query.data.replace('reject_seat_', '')
     await query.answer()
 
     # Store request_id for rejection reason
@@ -3906,7 +3913,8 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    request_id = query.data.split('_')[-1]
+    # Extract request_id: "settle_seat_SEAT_87D3AC20" -> "SEAT_87D3AC20"
+    request_id = query.data.replace('settle_seat_', '')
     await query.answer()
 
     # Get seat request
@@ -3973,7 +3981,8 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    request_id = query.data.split('_')[-1]
+    # Extract request_id: "reject_slip_SEAT_87D3AC20" -> "SEAT_87D3AC20"
+    request_id = query.data.replace('reject_slip_', '')
     await query.answer()
 
     # Get seat request
