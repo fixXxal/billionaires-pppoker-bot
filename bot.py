@@ -3993,17 +3993,25 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 pass
 
-        # Remove buttons for ALL admins
+        # Update message caption for ALL admins - remove buttons and show who settled
         if f"slip_{request_id}" in notification_messages:
             for admin_id, message_id in notification_messages[f"slip_{request_id}"]:
                 try:
-                    await context.bot.edit_message_reply_markup(
+                    # Get the original message to preserve caption
+                    await context.bot.edit_message_caption(
                         chat_id=admin_id,
                         message_id=message_id,
+                        caption=f"📸 **Payment Slip Verification**\n\n"
+                                f"**Request ID:** `{request_id}`\n"
+                                f"**User:** @{seat_req['username']} (ID: {seat_req['user_id']})\n"
+                                f"**PPPoker ID:** {seat_req['pppoker_id']}\n"
+                                f"**Amount:** {seat_req['amount']} chips/MVR\n\n"
+                                f"✅ <b>SETTLED by {query.from_user.first_name}</b>",
+                        parse_mode='HTML',
                         reply_markup=InlineKeyboardMarkup([])
                     )
                 except Exception as e:
-                    logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+                    logger.error(f"Failed to update message for admin {admin_id}: {e}")
             del notification_messages[f"slip_{request_id}"]
 
         # Notify user
@@ -4018,12 +4026,6 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except Exception as e:
             logger.error(f"Failed to notify user: {e}")
-
-        await query.edit_message_caption(
-            caption=f"{query.message.caption}\n\n✅ <b>SETTLED by {query.from_user.first_name}</b>",
-            parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup([])
-        )
     else:
         await query.edit_message_caption(
             caption=f"{query.message.caption}\n\n❌ _Failed to settle._",
@@ -4057,17 +4059,24 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(f"❌ This slip has already been {seat_req['status'].lower()}", show_alert=True)
         return
 
-    # Remove buttons for ALL admins
+    # Update message caption for ALL admins - remove buttons and show who rejected
     if f"slip_{request_id}" in notification_messages:
         for admin_id, message_id in notification_messages[f"slip_{request_id}"]:
             try:
-                await context.bot.edit_message_reply_markup(
+                await context.bot.edit_message_caption(
                     chat_id=admin_id,
                     message_id=message_id,
+                    caption=f"📸 **Payment Slip Verification**\n\n"
+                            f"**Request ID:** `{request_id}`\n"
+                            f"**User:** @{seat_req['username']} (ID: {seat_req['user_id']})\n"
+                            f"**PPPoker ID:** {seat_req['pppoker_id']}\n"
+                            f"**Amount:** {seat_req['amount']} chips/MVR\n\n"
+                            f"❌ <b>REJECTED by {query.from_user.first_name}</b>\nUser notified to reupload.",
+                    parse_mode='HTML',
                     reply_markup=InlineKeyboardMarkup([])
                 )
             except Exception as e:
-                logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+                logger.error(f"Failed to update message for admin {admin_id}: {e}")
         del notification_messages[f"slip_{request_id}"]
 
     # Notify user to reupload or contact support
@@ -4082,12 +4091,6 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     except Exception as e:
         logger.error(f"Failed to notify user: {e}")
-
-    await query.edit_message_caption(
-        caption=f"{query.message.caption}\n\n❌ <b>REJECTED by {query.from_user.first_name}</b>\nUser notified to reupload.",
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup([])
-    )
 
 
 # Message router
