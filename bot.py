@@ -3880,6 +3880,52 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
             parse_mode='Markdown'
         )
 
+    # Validate receiver name and account number (same as deposit validation)
+    validation_warnings = ""
+    if extracted_details:
+        # Validate receiver name
+        name_validation_warning = ""
+        if extracted_details.get('receiver_name'):
+            # Check against all payment methods since we don't know which one user used
+            for method in ['BML', 'MIB']:
+                stored_holder_name = sheets.get_payment_account_holder(method)
+                if stored_holder_name:
+                    extracted_receiver = extracted_details['receiver_name'].upper().strip()
+                    stored_holder = stored_holder_name.upper().strip()
+
+                    # Check if names match (allow partial match for flexibility)
+                    if stored_holder not in extracted_receiver and extracted_receiver not in stored_holder:
+                        name_validation_warning = f"\n\n⚠️ <b>NAME MISMATCH WARNING</b>\n" \
+                                                 f"Slip receiver: {extracted_details['receiver_name']}\n" \
+                                                 f"Check against: {stored_holder_name} ({method})"
+                    else:
+                        # Found a match, clear warning
+                        name_validation_warning = ""
+                        break
+
+        # Validate receiver account number
+        account_validation_warning = ""
+        if extracted_details.get('receiver_account_number'):
+            # Check against all payment methods since we don't know which one user used
+            for method in ['BML', 'MIB']:
+                stored_account_number = sheets.get_payment_account(method)
+                if stored_account_number:
+                    extracted_account = extracted_details['receiver_account_number'].replace(' ', '').replace('-', '').strip()
+                    stored_account = stored_account_number.replace(' ', '').replace('-', '').strip()
+
+                    # Check if account numbers match (exact match required)
+                    if extracted_account != stored_account:
+                        account_validation_warning = f"\n\n⚠️ <b>ACCOUNT NUMBER MISMATCH WARNING</b>\n" \
+                                                    f"Slip receiver account: {extracted_details['receiver_account_number']}\n" \
+                                                    f"Check against: {stored_account_number} ({method})"
+                    else:
+                        # Found a match, clear warning
+                        account_validation_warning = ""
+                        break
+
+        # Combine warnings
+        validation_warnings = name_validation_warning + account_validation_warning
+
     # Send slip details to admin for verification
     username_display = f"@{user.username}" if user.username else "No username"
 
@@ -3893,7 +3939,7 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
 <b>Amount:</b> <b>{seat_data['amount']} chips/MVR</b>
 
 <b>📄 Slip Details:</b>
-{ocr_details}
+{ocr_details}{validation_warnings}
 """
 
     # Create verification buttons
