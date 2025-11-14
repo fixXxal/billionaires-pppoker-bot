@@ -3966,6 +3966,11 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # Check if request is still approved (not already settled or rejected)
+    if seat_req['status'] != 'Approved':
+        await query.answer(f"❌ This slip has already been {seat_req['status'].lower()}", show_alert=True)
+        return
+
     # Settle in database
     success = sheets.settle_seat_request(
         request_id,
@@ -4045,6 +4050,11 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption=f"{query.message.caption}\n\n❌ _Request not found._",
             parse_mode='HTML'
         )
+        return
+
+    # Check if request is still approved (not already settled or rejected)
+    if seat_req['status'] != 'Approved':
+        await query.answer(f"❌ This slip has already been {seat_req['status'].lower()}", show_alert=True)
         return
 
     # Remove buttons for ALL admins
