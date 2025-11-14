@@ -3919,13 +3919,15 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
     for admin_id in all_admin_ids:
         try:
             # Send slip image with caption
-            await context.bot.send_photo(
+            msg = await context.bot.send_photo(
                 chat_id=admin_id,
                 photo=photo.file_id,
                 caption=admin_message,
                 reply_markup=reply_markup,
                 parse_mode='HTML'
             )
+            # Store message ID for later button removal
+            notification_messages[f"slip_{request_id}"].append((admin_id, msg.message_id))
         except Exception as e:
             logger.error(f"Failed to send slip to admin {admin_id}: {e}")
 
