@@ -168,24 +168,77 @@ class SheetsManager:
                 'Seat Request ID', 'Created At', 'Reminder Count', 'Status'
             ])
 
-        # Daily Reports worksheet (tracks daily/weekly/monthly/yearly reports)
+        # Daily Reports worksheet (tracks TODAY only)
         try:
             self.daily_reports_sheet = self.spreadsheet.worksheet('Daily Reports')
         except gspread.WorksheetNotFound:
-            self.daily_reports_sheet = self.spreadsheet.add_worksheet(title='Daily Reports', rows=1000, cols=25)
+            self.daily_reports_sheet = self.spreadsheet.add_worksheet(title='Daily Reports', rows=1000, cols=15)
             self.daily_reports_sheet.append_row([
                 'Report Date', 'Report Time',
-                # TODAY
-                'Today MVR Deposits', 'Today MVR Withdrawals', 'Today MVR Profit',
-                'Today USD Deposits', 'Today USD Withdrawals', 'Today USD Profit',
-                'Today USDT Deposits', 'Today USDT Withdrawals', 'Today USDT Profit',
-                'Today Total Profit (MVR)',
-                # THIS WEEK
-                'Week MVR Deposits', 'Week MVR Withdrawals', 'Week MVR Profit',
-                'Week USD Deposits', 'Week USD Withdrawals', 'Week USD Profit',
-                'Week USDT Deposits', 'Week USDT Withdrawals', 'Week USDT Profit',
-                'Week Total Profit (MVR)',
-                # CREDITS
+                'MVR Deposits', 'MVR Withdrawals', 'MVR Profit',
+                'USD Deposits', 'USD Withdrawals', 'USD Profit',
+                'USDT Deposits', 'USDT Withdrawals', 'USDT Profit',
+                'Total Profit (MVR)',
+                'Active Credits Count', 'Active Credits Amount',
+                'Generated At'
+            ])
+
+        # Weekly Reports worksheet (tracks THIS WEEK only)
+        try:
+            self.weekly_reports_sheet = self.spreadsheet.worksheet('Weekly Reports')
+        except gspread.WorksheetNotFound:
+            self.weekly_reports_sheet = self.spreadsheet.add_worksheet(title='Weekly Reports', rows=1000, cols=15)
+            self.weekly_reports_sheet.append_row([
+                'Report Date', 'Report Time',
+                'MVR Deposits', 'MVR Withdrawals', 'MVR Profit',
+                'USD Deposits', 'USD Withdrawals', 'USD Profit',
+                'USDT Deposits', 'USDT Withdrawals', 'USDT Profit',
+                'Total Profit (MVR)',
+                'Active Credits Count', 'Active Credits Amount',
+                'Generated At'
+            ])
+
+        # Monthly Reports worksheet (tracks THIS MONTH only)
+        try:
+            self.monthly_reports_sheet = self.spreadsheet.worksheet('Monthly Reports')
+        except gspread.WorksheetNotFound:
+            self.monthly_reports_sheet = self.spreadsheet.add_worksheet(title='Monthly Reports', rows=1000, cols=15)
+            self.monthly_reports_sheet.append_row([
+                'Report Date', 'Report Time',
+                'MVR Deposits', 'MVR Withdrawals', 'MVR Profit',
+                'USD Deposits', 'USD Withdrawals', 'USD Profit',
+                'USDT Deposits', 'USDT Withdrawals', 'USDT Profit',
+                'Total Profit (MVR)',
+                'Active Credits Count', 'Active Credits Amount',
+                'Generated At'
+            ])
+
+        # 6 Months Reports worksheet (tracks 6 MONTHS only)
+        try:
+            self.six_months_reports_sheet = self.spreadsheet.worksheet('6 Months Reports')
+        except gspread.WorksheetNotFound:
+            self.six_months_reports_sheet = self.spreadsheet.add_worksheet(title='6 Months Reports', rows=1000, cols=15)
+            self.six_months_reports_sheet.append_row([
+                'Report Date', 'Report Time',
+                'MVR Deposits', 'MVR Withdrawals', 'MVR Profit',
+                'USD Deposits', 'USD Withdrawals', 'USD Profit',
+                'USDT Deposits', 'USDT Withdrawals', 'USDT Profit',
+                'Total Profit (MVR)',
+                'Active Credits Count', 'Active Credits Amount',
+                'Generated At'
+            ])
+
+        # Yearly Reports worksheet (tracks THIS YEAR only)
+        try:
+            self.yearly_reports_sheet = self.spreadsheet.worksheet('Yearly Reports')
+        except gspread.WorksheetNotFound:
+            self.yearly_reports_sheet = self.spreadsheet.add_worksheet(title='Yearly Reports', rows=1000, cols=15)
+            self.yearly_reports_sheet.append_row([
+                'Report Date', 'Report Time',
+                'MVR Deposits', 'MVR Withdrawals', 'MVR Profit',
+                'USD Deposits', 'USD Withdrawals', 'USD Profit',
+                'USDT Deposits', 'USDT Withdrawals', 'USDT Profit',
+                'Total Profit (MVR)',
                 'Active Credits Count', 'Active Credits Amount',
                 'Generated At'
             ])
@@ -1091,42 +1144,50 @@ class SheetsManager:
                 'details': []
             }
 
-    def save_daily_report(self, report_data: Dict) -> bool:
-        """Save daily report to Google Sheets"""
+    def save_all_reports(self, all_reports_data: Dict) -> bool:
+        """Save all period reports to their respective Google Sheets"""
         try:
             now = datetime.now(self.timezone)
+            report_date = now.strftime('%Y-%m-%d')
+            report_time = now.strftime('%H:%M:%S')
+            timestamp = self._get_timestamp()
 
-            self.daily_reports_sheet.append_row([
-                now.strftime('%Y-%m-%d'),  # Report Date
-                now.strftime('%H:%M:%S'),  # Report Time
-                # TODAY
-                report_data.get('today_mvr_deposits', 0),
-                report_data.get('today_mvr_withdrawals', 0),
-                report_data.get('today_mvr_profit', 0),
-                report_data.get('today_usd_deposits', 0),
-                report_data.get('today_usd_withdrawals', 0),
-                report_data.get('today_usd_profit', 0),
-                report_data.get('today_usdt_deposits', 0),
-                report_data.get('today_usdt_withdrawals', 0),
-                report_data.get('today_usdt_profit', 0),
-                report_data.get('today_total_profit', 0),
-                # THIS WEEK
-                report_data.get('week_mvr_deposits', 0),
-                report_data.get('week_mvr_withdrawals', 0),
-                report_data.get('week_mvr_profit', 0),
-                report_data.get('week_usd_deposits', 0),
-                report_data.get('week_usd_withdrawals', 0),
-                report_data.get('week_usd_profit', 0),
-                report_data.get('week_usdt_deposits', 0),
-                report_data.get('week_usdt_withdrawals', 0),
-                report_data.get('week_usdt_profit', 0),
-                report_data.get('week_total_profit', 0),
-                # CREDITS
-                report_data.get('credits_count', 0),
-                report_data.get('credits_amount', 0),
-                self._get_timestamp()  # Generated At
-            ])
+            # Helper function to create row
+            def create_row(period_prefix):
+                return [
+                    report_date,
+                    report_time,
+                    all_reports_data.get(f'{period_prefix}_mvr_deposits', 0),
+                    all_reports_data.get(f'{period_prefix}_mvr_withdrawals', 0),
+                    all_reports_data.get(f'{period_prefix}_mvr_profit', 0),
+                    all_reports_data.get(f'{period_prefix}_usd_deposits', 0),
+                    all_reports_data.get(f'{period_prefix}_usd_withdrawals', 0),
+                    all_reports_data.get(f'{period_prefix}_usd_profit', 0),
+                    all_reports_data.get(f'{period_prefix}_usdt_deposits', 0),
+                    all_reports_data.get(f'{period_prefix}_usdt_withdrawals', 0),
+                    all_reports_data.get(f'{period_prefix}_usdt_profit', 0),
+                    all_reports_data.get(f'{period_prefix}_total_profit', 0),
+                    all_reports_data.get('credits_count', 0),
+                    all_reports_data.get('credits_amount', 0),
+                    timestamp
+                ]
+
+            # Save to Daily Reports
+            self.daily_reports_sheet.append_row(create_row('today'))
+
+            # Save to Weekly Reports
+            self.weekly_reports_sheet.append_row(create_row('week'))
+
+            # Save to Monthly Reports
+            self.monthly_reports_sheet.append_row(create_row('month'))
+
+            # Save to 6 Months Reports
+            self.six_months_reports_sheet.append_row(create_row('six_months'))
+
+            # Save to Yearly Reports
+            self.yearly_reports_sheet.append_row(create_row('year'))
+
             return True
         except Exception as e:
-            print(f"Error saving daily report: {e}")
+            print(f"Error saving reports: {e}")
             return False

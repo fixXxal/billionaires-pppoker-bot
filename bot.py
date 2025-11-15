@@ -2717,6 +2717,76 @@ async def clear_user_credit_callback(update: Update, context: ContextTypes.DEFAU
         )
 
 
+def calculate_all_periods_data(timezone_str='Indian/Maldives'):
+    """Calculate data for all periods (TODAY, WEEK, MONTH, 6 MONTHS, YEAR) for saving to Google Sheets"""
+    tz = pytz.timezone(timezone_str)
+    now = datetime.now(tz)
+
+    # Define all date ranges
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = now
+
+    week_start = now - timedelta(days=now.weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    six_months_start = (now - timedelta(days=180)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    periods = {
+        'today': (today_start, today_end),
+        'week': (week_start, today_end),
+        'month': (month_start, today_end),
+        'six_months': (six_months_start, today_end),
+        'year': (year_start, today_end)
+    }
+
+    # Get exchange rates
+    usd_rate = sheets.get_exchange_rate('USD') or 15.40
+    usdt_rate = sheets.get_exchange_rate('USDT') or 15.40
+
+    all_data = {}
+
+    for period_name, (start, end) in periods.items():
+        deposits = sheets.get_deposits_by_date_range(start, end)
+        withdrawals = sheets.get_withdrawals_by_date_range(start, end)
+
+        # Separate by currency
+        mvr_deposits = sum([d['amount'] for d in deposits if d['method'] in ['BML', 'MIB']])
+        usd_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USD'])
+        usdt_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USDT'])
+
+        mvr_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] in ['BML', 'MIB']])
+        usd_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USD'])
+        usdt_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USDT'])
+
+        # Calculate profits
+        mvr_profit = mvr_deposits - mvr_withdrawals
+        usd_profit = usd_deposits - usd_withdrawals
+        usdt_profit = usdt_deposits - usdt_withdrawals
+
+        # Calculate total profit in MVR
+        usd_mvr_equiv = usd_profit * usd_rate
+        usdt_mvr_equiv = usdt_profit * usdt_rate
+        total_mvr_profit = mvr_profit + usd_mvr_equiv + usdt_mvr_equiv
+
+        # Store data
+        all_data[f'{period_name}_mvr_deposits'] = mvr_deposits
+        all_data[f'{period_name}_mvr_withdrawals'] = mvr_withdrawals
+        all_data[f'{period_name}_mvr_profit'] = mvr_profit
+        all_data[f'{period_name}_usd_deposits'] = usd_deposits
+        all_data[f'{period_name}_usd_withdrawals'] = usd_withdrawals
+        all_data[f'{period_name}_usd_profit'] = usd_profit
+        all_data[f'{period_name}_usdt_deposits'] = usdt_deposits
+        all_data[f'{period_name}_usdt_withdrawals'] = usdt_withdrawals
+        all_data[f'{period_name}_usdt_profit'] = usdt_profit
+        all_data[f'{period_name}_total_profit'] = total_mvr_profit
+
+    return all_data
+
+
 async def send_daily_report(application):
     """Send daily profit/loss report to all admins"""
     try:
@@ -2745,16 +2815,19 @@ async def send_daily_report(application):
         else:
             report += "\n\n✅ <b>No active credits - All payments received!</b>\n"
 
-        # Add credit data to report_data
-        report_data['credits_count'] = credit_summary['count']
-        report_data['credits_amount'] = credit_summary['total_amount']
+        # Calculate ALL period reports for saving to Google Sheets
+        all_reports_data = calculate_all_periods_data()
 
-        # Save report to Google Sheets
+        # Add credit data
+        all_reports_data['credits_count'] = credit_summary['count']
+        all_reports_data['credits_amount'] = credit_summary['total_amount']
+
+        # Save all reports to Google Sheets
         try:
-            sheets.save_daily_report(report_data)
-            logger.info("Daily report saved to Google Sheets successfully")
+            sheets.save_all_reports(all_reports_data)
+            logger.info("All period reports saved to Google Sheets successfully")
         except Exception as e:
-            logger.error(f"Failed to save daily report to Google Sheets: {e}")
+            logger.error(f"Failed to save reports to Google Sheets: {e}")
 
         # Send to super admin
         try:
