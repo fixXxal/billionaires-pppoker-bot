@@ -4616,7 +4616,7 @@ def main():
     )
 
     scheduler.start()
-    logger.info("Scheduler started - Daily reports will be sent at midnight")
+    logger.info("Scheduler started - Daily reports will be sent at midnight (00:00) Maldives time")
 
     # Log startup
     logger.info("Bot started successfully!")
