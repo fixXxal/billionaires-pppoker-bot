@@ -168,6 +168,28 @@ class SheetsManager:
                 'Seat Request ID', 'Created At', 'Reminder Count', 'Status'
             ])
 
+        # Daily Reports worksheet (tracks daily/weekly/monthly/yearly reports)
+        try:
+            self.daily_reports_sheet = self.spreadsheet.worksheet('Daily Reports')
+        except gspread.WorksheetNotFound:
+            self.daily_reports_sheet = self.spreadsheet.add_worksheet(title='Daily Reports', rows=1000, cols=25)
+            self.daily_reports_sheet.append_row([
+                'Report Date', 'Report Time',
+                # TODAY
+                'Today MVR Deposits', 'Today MVR Withdrawals', 'Today MVR Profit',
+                'Today USD Deposits', 'Today USD Withdrawals', 'Today USD Profit',
+                'Today USDT Deposits', 'Today USDT Withdrawals', 'Today USDT Profit',
+                'Today Total Profit (MVR)',
+                # THIS WEEK
+                'Week MVR Deposits', 'Week MVR Withdrawals', 'Week MVR Profit',
+                'Week USD Deposits', 'Week USD Withdrawals', 'Week USD Profit',
+                'Week USDT Deposits', 'Week USDT Withdrawals', 'Week USDT Profit',
+                'Week Total Profit (MVR)',
+                # CREDITS
+                'Active Credits Count', 'Active Credits Amount',
+                'Generated At'
+            ])
+
     def _get_timestamp(self) -> str:
         """Get current timestamp in the configured timezone"""
         return datetime.now(self.timezone).strftime('%Y-%m-%d %H:%M:%S')
@@ -1038,3 +1060,73 @@ class SheetsManager:
         except Exception as e:
             print(f"Error clearing user credit: {e}")
         return False
+
+    def get_daily_credit_summary(self) -> Dict:
+        """Get summary of all active credits for daily notification"""
+        try:
+            credits = self.get_all_active_credits()
+            total_credit_amount = sum(credit['amount'] for credit in credits)
+            credit_count = len(credits)
+
+            # Get details for each credit
+            credit_details = []
+            for credit in credits:
+                credit_details.append({
+                    'username': credit['username'],
+                    'pppoker_id': credit['pppoker_id'],
+                    'amount': credit['amount'],
+                    'created_at': credit['created_at']
+                })
+
+            return {
+                'total_amount': total_credit_amount,
+                'count': credit_count,
+                'details': credit_details
+            }
+        except Exception as e:
+            print(f"Error getting daily credit summary: {e}")
+            return {
+                'total_amount': 0,
+                'count': 0,
+                'details': []
+            }
+
+    def save_daily_report(self, report_data: Dict) -> bool:
+        """Save daily report to Google Sheets"""
+        try:
+            now = datetime.now(self.timezone)
+
+            self.daily_reports_sheet.append_row([
+                now.strftime('%Y-%m-%d'),  # Report Date
+                now.strftime('%H:%M:%S'),  # Report Time
+                # TODAY
+                report_data.get('today_mvr_deposits', 0),
+                report_data.get('today_mvr_withdrawals', 0),
+                report_data.get('today_mvr_profit', 0),
+                report_data.get('today_usd_deposits', 0),
+                report_data.get('today_usd_withdrawals', 0),
+                report_data.get('today_usd_profit', 0),
+                report_data.get('today_usdt_deposits', 0),
+                report_data.get('today_usdt_withdrawals', 0),
+                report_data.get('today_usdt_profit', 0),
+                report_data.get('today_total_profit', 0),
+                # THIS WEEK
+                report_data.get('week_mvr_deposits', 0),
+                report_data.get('week_mvr_withdrawals', 0),
+                report_data.get('week_mvr_profit', 0),
+                report_data.get('week_usd_deposits', 0),
+                report_data.get('week_usd_withdrawals', 0),
+                report_data.get('week_usd_profit', 0),
+                report_data.get('week_usdt_deposits', 0),
+                report_data.get('week_usdt_withdrawals', 0),
+                report_data.get('week_usdt_profit', 0),
+                report_data.get('week_total_profit', 0),
+                # CREDITS
+                report_data.get('credits_count', 0),
+                report_data.get('credits_amount', 0),
+                self._get_timestamp()  # Generated At
+            ])
+            return True
+        except Exception as e:
+            print(f"Error saving daily report: {e}")
+            return False

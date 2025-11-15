@@ -2034,12 +2034,116 @@ async def admin_end_inactive_support(update: Update, context: ContextTypes.DEFAU
 
 
 # Statistics and Reports
-def generate_stats_report(timezone_str='Indian/Maldives'):
-    """Generate profit/loss statistics report"""
+def generate_daily_stats_report(timezone_str='Indian/Maldives'):
+    """Generate daily and weekly profit/loss statistics report for automatic notifications"""
     tz = pytz.timezone(timezone_str)
     now = datetime.now(tz)
 
-    # Define date ranges
+    # Define date ranges - ONLY TODAY and THIS WEEK
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = now
+
+    week_start = now - timedelta(days=now.weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Get data from sheets - ONLY TODAY and THIS WEEK
+    periods = {
+        'TODAY': (today_start, today_end),
+        'THIS WEEK': (week_start, today_end)
+    }
+
+    # Get exchange rates
+    usd_rate = sheets.get_exchange_rate('USD') or 15.40
+    usdt_rate = sheets.get_exchange_rate('USDT') or 15.40
+
+    report = "📊 <b>PROFIT/LOSS REPORT</b>\n\n"
+    report += f"💱 <b>Current Exchange Rates:</b>\n"
+    report += f"1 USD = {usd_rate:.2f} MVR\n"
+    report += f"1 USDT = {usdt_rate:.2f} MVR\n\n"
+    report += f"━━━━━━━━━━━━━━━━━━\n\n"
+
+    # Store data for saving to Google Sheets
+    report_data = {}
+
+    for period_name, (start, end) in periods.items():
+        deposits = sheets.get_deposits_by_date_range(start, end)
+        withdrawals = sheets.get_withdrawals_by_date_range(start, end)
+
+        # Separate by currency
+        mvr_deposits = sum([d['amount'] for d in deposits if d['method'] in ['BML', 'MIB']])
+        usd_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USD'])
+        usdt_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USDT'])
+
+        mvr_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] in ['BML', 'MIB']])
+        usd_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USD'])
+        usdt_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USDT'])
+
+        # Calculate profits per currency
+        mvr_profit = mvr_deposits - mvr_withdrawals
+        usd_profit = usd_deposits - usd_withdrawals
+        usdt_profit = usdt_deposits - usdt_withdrawals
+
+        # Calculate MVR equivalents
+        usd_mvr_equiv = usd_profit * usd_rate
+        usdt_mvr_equiv = usdt_profit * usdt_rate
+        total_mvr_profit = mvr_profit + usd_mvr_equiv + usdt_mvr_equiv
+
+        # Save data for Google Sheets
+        prefix = 'today_' if period_name == 'TODAY' else 'week_'
+        report_data[f'{prefix}mvr_deposits'] = mvr_deposits
+        report_data[f'{prefix}mvr_withdrawals'] = mvr_withdrawals
+        report_data[f'{prefix}mvr_profit'] = mvr_profit
+        report_data[f'{prefix}usd_deposits'] = usd_deposits
+        report_data[f'{prefix}usd_withdrawals'] = usd_withdrawals
+        report_data[f'{prefix}usd_profit'] = usd_profit
+        report_data[f'{prefix}usdt_deposits'] = usdt_deposits
+        report_data[f'{prefix}usdt_withdrawals'] = usdt_withdrawals
+        report_data[f'{prefix}usdt_profit'] = usdt_profit
+        report_data[f'{prefix}total_profit'] = total_mvr_profit
+
+        report += f"<b>{period_name}</b>\n"
+
+        # MVR Section
+        if mvr_deposits > 0 or mvr_withdrawals > 0:
+            mvr_emoji = "📈" if mvr_profit > 0 else "📉" if mvr_profit < 0 else "➖"
+            report += f"💰 MVR Deposits: {mvr_deposits:,.2f}\n"
+            report += f"💸 MVR Withdrawals: {mvr_withdrawals:,.2f}\n"
+            report += f"{mvr_emoji} MVR Profit: {mvr_profit:,.2f}\n\n"
+
+        # USD Section
+        if usd_deposits > 0 or usd_withdrawals > 0:
+            usd_emoji = "📈" if usd_profit > 0 else "📉" if usd_profit < 0 else "➖"
+            report += f"💵 USD Deposits: {usd_deposits:,.2f}\n"
+            report += f"💵 USD Withdrawals: {usd_withdrawals:,.2f}\n"
+            report += f"{usd_emoji} USD Profit: {usd_profit:,.2f}\n"
+            report += f"   ≈ {usd_mvr_equiv:,.2f} MVR\n\n"
+
+        # USDT Section
+        if usdt_deposits > 0 or usdt_withdrawals > 0:
+            usdt_emoji = "📈" if usdt_profit > 0 else "📉" if usdt_profit < 0 else "➖"
+            report += f"💎 USDT Deposits: {usdt_deposits:,.2f}\n"
+            report += f"💎 USDT Withdrawals: {usdt_withdrawals:,.2f}\n"
+            report += f"{usdt_emoji} USDT Profit: {usdt_profit:,.2f}\n"
+            report += f"   ≈ {usdt_mvr_equiv:,.2f} MVR\n\n"
+
+        # Total in MVR
+        if (mvr_deposits > 0 or mvr_withdrawals > 0 or
+            usd_deposits > 0 or usd_withdrawals > 0 or
+            usdt_deposits > 0 or usdt_withdrawals > 0):
+            total_emoji = "📈" if total_mvr_profit > 0 else "📉" if total_mvr_profit < 0 else "➖"
+            report += f"<b>{total_emoji} Total Profit (MVR):</b> {total_mvr_profit:,.2f}\n\n"
+
+        report += f"━━━━━━━━━━━━━━━━━━\n\n"
+
+    return report, report_data
+
+
+def generate_stats_report(timezone_str='Indian/Maldives'):
+    """Generate full profit/loss statistics report with all periods (for /stats command)"""
+    tz = pytz.timezone(timezone_str)
+    now = datetime.now(tz)
+
+    # Define date ranges - ALL PERIODS
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = now
 
@@ -2052,7 +2156,7 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
 
     year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # Get data from sheets
+    # Get data from sheets - ALL PERIODS
     periods = {
         'TODAY': (today_start, today_end),
         'THIS WEEK': (week_start, today_end),
@@ -2619,7 +2723,38 @@ async def send_daily_report(application):
         report_header = "🌅 <b>DAILY PROFIT/LOSS REPORT</b>\n"
         report_header += f"<i>{datetime.now(pytz.timezone('Indian/Maldives')).strftime('%B %d, %Y')}</i>\n\n"
 
-        report = report_header + generate_stats_report()
+        stats_report, report_data = generate_daily_stats_report()
+        report = report_header + stats_report
+
+        # Add credit summary section
+        credit_summary = sheets.get_daily_credit_summary()
+        if credit_summary['count'] > 0:
+            report += "\n\n💳 <b>ACTIVE CREDITS SUMMARY</b>\n"
+            report += f"━━━━━━━━━━━━━━━━━━\n\n"
+            report += f"<b>Total Outstanding Credits:</b> {credit_summary['count']}\n"
+            report += f"<b>Total Credit Amount:</b> {credit_summary['total_amount']:,.2f} MVR\n\n"
+
+            if credit_summary['details']:
+                report += "<b>Details:</b>\n"
+                for detail in credit_summary['details']:
+                    username_display = f"@{detail['username']}" if detail['username'] else "No username"
+                    report += f"• {username_display}\n"
+                    report += f"  Amount: {detail['amount']:,.2f} MVR\n"
+                    report += f"  PPPoker ID: {detail['pppoker_id']}\n"
+                    report += f"  Since: {detail['created_at']}\n\n"
+        else:
+            report += "\n\n✅ <b>No active credits - All payments received!</b>\n"
+
+        # Add credit data to report_data
+        report_data['credits_count'] = credit_summary['count']
+        report_data['credits_amount'] = credit_summary['total_amount']
+
+        # Save report to Google Sheets
+        try:
+            sheets.save_daily_report(report_data)
+            logger.info("Daily report saved to Google Sheets successfully")
+        except Exception as e:
+            logger.error(f"Failed to save daily report to Google Sheets: {e}")
 
         # Send to super admin
         try:
