@@ -1457,14 +1457,14 @@ class SheetsManager:
         """Get overall spin statistics"""
         try:
             users = self.spin_users_sheet.get_all_values()[1:]  # Skip header
-            logs = self.spin_logs_sheet.get_all_values()[1:]  # Skip header
+            rewards = self.milestone_rewards_sheet.get_all_values()[1:]  # Skip header
 
             total_users = len(users)
-            total_spins_used = sum(int(row[3]) if row[3] else 0 for row in users)
-            total_chips_awarded = sum(int(row[4]) if row[4] else 0 for row in users)
+            total_spins_used = sum(int(row[3]) if len(row) > 3 and row[3] else 0 for row in users)
+            total_chips_awarded = sum(int(row[4]) if len(row) > 4 and row[4] else 0 for row in users)
 
-            pending_rewards = len([row for row in logs if len(row) >= 9 and row[4] == 'display' and row[8] == 'No'])
-            approved_rewards = len([row for row in logs if len(row) >= 9 and row[4] == 'display' and row[8] == 'Yes'])
+            pending_rewards = len([row for row in rewards if len(row) >= 8 and (row[7] if len(row) > 7 else 'No') == 'No'])
+            approved_rewards = len([row for row in rewards if len(row) >= 8 and (row[7] if len(row) > 7 else 'No') == 'Yes'])
 
             # Top users by spins
             top_users = sorted(
@@ -1492,21 +1492,3 @@ class SheetsManager:
                 'top_users': []
             }
 
-    def get_global_spin_counter(self) -> int:
-        """Get the GLOBAL spin counter (all users combined)"""
-        try:
-            # Row 2 contains the counter (row 1 is header)
-            value = self.global_counter_sheet.cell(2, 2).value
-            return int(value) if value else 0
-        except Exception as e:
-            print(f"Error getting global counter: {e}")
-            return 0
-
-    def update_global_spin_counter(self, new_value: int):
-        """Update the GLOBAL spin counter"""
-        try:
-            self.global_counter_sheet.update_cell(2, 2, new_value)
-            return True
-        except Exception as e:
-            print(f"Error updating global counter: {e}")
-            return False
