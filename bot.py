@@ -4497,10 +4497,104 @@ async def spin_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
     elif data == "spin_admin_play":
         # Replace message with freespins interface
-        await query.delete_message()
-        # Create a fake update for freespins
-        update.message = query.message
-        await freespins_command(update, context)
+        try:
+            await query.delete_message()
+        except Exception as e:
+            logger.warning(f"Could not delete message: {e}")
+
+        # Send freespins using the chat directly
+        user = query.from_user
+
+        try:
+            # Get user's spin data
+            user_data = spin_bot.sheets.get_spin_user(user.id)
+
+            if not user_data or user_data.get('available_spins', 0) == 0:
+                # Create deposit button
+                keyboard = [[InlineKeyboardButton("💰 Make Deposit", callback_data="deposit_start")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text="━━━━━━━━━━━━━━━━━━\n"
+                        "🎰 *FREE SPINS* 🎰\n"
+                        "━━━━━━━━━━━━━━━━━━\n\n"
+                        "💫 *No spins available right now\\!*\n\n"
+                        "💰 Make a deposit to unlock free spins\\!\n"
+                        "🔥 More deposit → More spins → More prizes\\!\n\n"
+                        "🎁 *Win Amazing Prizes:*\n"
+                        "💎 Chips\n"
+                        "📱 iPhone 17 Pro Max\n"
+                        "💻 MacBook Pro\n"
+                        "⌚ Apple Watch Ultra\n"
+                        "🎧 AirPods Pro\n"
+                        "✨ \\& Many More\\!\n\n"
+                        "━━━━━━━━━━━━━━━━━━\n"
+                        "👉 Click button below to get started\\!\n"
+                        "━━━━━━━━━━━━━━━━━━",
+                    parse_mode='MarkdownV2',
+                    reply_markup=reply_markup
+                )
+                return
+
+            available = user_data.get('available_spins', 0)
+            total_used = user_data.get('total_spins_used', 0)
+            total_chips = user_data.get('total_chips_earned', 0)
+
+            # Create spin options keyboard
+            keyboard = []
+
+            # Single spin
+            keyboard.append([InlineKeyboardButton("🎯 Spin 1x", callback_data="spin_1")])
+
+            # Multi-spin options
+            if available >= 10:
+                keyboard.append([InlineKeyboardButton("🎰 Spin 10x", callback_data="spin_10")])
+
+            if available >= 50:
+                keyboard.append([InlineKeyboardButton("🔥 Spin 50x", callback_data="spin_50")])
+
+            if available >= 100:
+                keyboard.append([InlineKeyboardButton("💥 Spin 100x", callback_data="spin_100")])
+
+            if available > 1:
+                keyboard.append([InlineKeyboardButton(f"⚡ Spin ALL ({available}x)", callback_data=f"spin_all")])
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            # Escape username for MarkdownV2
+            username_escaped = user.first_name.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
+
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=f"━━━━━━━━━━━━━━━━━━\n"
+                    f"🎰 *FREE SPINS* 🎰\n"
+                    f"━━━━━━━━━━━━━━━━━━\n\n"
+                    f"👤 *{username_escaped}*\n\n"
+                    f"🎯 Available Spins: *{available}*\n"
+                    f"💎 Total Chips: *{total_chips}*\n\n"
+                    f"🎁 *Prize Wheel:*\n"
+                    f"💰 Chips\n"
+                    f"📱 iPhone 17 Pro Max\n"
+                    f"💻 MacBook Pro\n"
+                    f"⌚ Apple Watch Ultra\n"
+                    f"🎧 AirPods Pro\n"
+                    f"✨ \\& Many More Surprises\\!\n\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"⚡ *Choose Your Spins:* ⚡\n"
+                    f"━━━━━━━━━━━━━━━━━━",
+                parse_mode='MarkdownV2',
+                reply_markup=reply_markup
+            )
+
+        except Exception as e:
+            logger.error(f"Error in spin_admin_play: {e}")
+            import traceback
+            traceback.print_exc()
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="❌ Error loading spin data. Please try again."
+            )
 
 
 # Approve spin callback handler
