@@ -247,20 +247,20 @@ class SheetsManager:
         try:
             self.spin_users_sheet = self.spreadsheet.worksheet('Spin Users')
         except gspread.WorksheetNotFound:
-            self.spin_users_sheet = self.spreadsheet.add_worksheet(title='Spin Users', rows=1000, cols=8)
+            self.spin_users_sheet = self.spreadsheet.add_worksheet(title='Spin Users', rows=1000, cols=9)
             self.spin_users_sheet.append_row([
                 'User ID', 'Username', 'Available Spins', 'Total Spins Used',
-                'Total Chips Earned', 'Total Deposit (MVR)', 'Created At', 'Last Spin At'
+                'Total Chips Earned', 'Total Deposit (MVR)', 'Created At', 'Last Spin At', 'PPPoker ID'
             ])
 
         # Milestone Rewards worksheet
         try:
             self.milestone_rewards_sheet = self.spreadsheet.worksheet('Milestone Rewards')
         except gspread.WorksheetNotFound:
-            self.milestone_rewards_sheet = self.spreadsheet.add_worksheet(title='Milestone Rewards', rows=1000, cols=9)
+            self.milestone_rewards_sheet = self.spreadsheet.add_worksheet(title='Milestone Rewards', rows=1000, cols=10)
             self.milestone_rewards_sheet.append_row([
                 'User ID', 'Username', 'Milestone Type', 'Milestone Count',
-                'Chips Awarded', 'Triggered At Spin Count', 'Created At', 'Approved', 'Approved By'
+                'Chips Awarded', 'Triggered At Spin Count', 'Created At', 'Approved', 'Approved By', 'PPPoker ID'
             ])
 
     def _get_timestamp(self) -> str:
@@ -1228,14 +1228,15 @@ class SheetsManager:
                     'total_chips_earned': int(row[4]) if row[4] else 0,
                     'total_deposit': float(row[5]) if row[5] else 0,
                     'created_at': row[6] if len(row) > 6 else '',
-                    'last_spin_at': row[7] if len(row) > 7 else ''
+                    'last_spin_at': row[7] if len(row) > 7 else '',
+                    'pppoker_id': row[8] if len(row) > 8 else ''
                 }
             return None
         except Exception as e:
             print(f"Error getting spin user: {e}")
             return None
 
-    def create_spin_user(self, user_id: int, username: str, available_spins: int = 0, total_deposit: float = 0):
+    def create_spin_user(self, user_id: int, username: str, available_spins: int = 0, total_deposit: float = 0, pppoker_id: str = ''):
         """Create a new spin user"""
         try:
             self.spin_users_sheet.append_row([
@@ -1246,21 +1247,25 @@ class SheetsManager:
                 0,  # total_chips_earned
                 total_deposit,
                 self._get_timestamp(),
-                ''  # last_spin_at
+                '',  # last_spin_at
+                pppoker_id
             ])
             return True
         except Exception as e:
             print(f"Error creating spin user: {e}")
             return False
 
-    def update_spin_user(self, user_id: int, available_spins: int = None,
+    def update_spin_user(self, user_id: int, username: str = None, available_spins: int = None,
                         total_spins_used: int = None, total_chips_earned: int = None,
-                        total_deposit: float = None):
+                        total_deposit: float = None, pppoker_id: str = None):
         """Update spin user data"""
         try:
             cell = self.spin_users_sheet.find(str(user_id))
             if cell:
                 row = self.spin_users_sheet.row_values(cell.row)
+
+                if username is not None:
+                    self.spin_users_sheet.update_cell(cell.row, 2, username)
 
                 if available_spins is not None:
                     self.spin_users_sheet.update_cell(cell.row, 3, available_spins)
@@ -1275,6 +1280,9 @@ class SheetsManager:
                 if total_deposit is not None:
                     self.spin_users_sheet.update_cell(cell.row, 6, total_deposit)
 
+                if pppoker_id is not None:
+                    self.spin_users_sheet.update_cell(cell.row, 9, pppoker_id)
+
                 return True
             return False
         except Exception as e:
@@ -1284,7 +1292,7 @@ class SheetsManager:
     # Removed log_spin method - no longer needed (display prizes not tracked)
 
     def log_milestone_reward(self, user_id: int, username: str, milestone_type: str,
-                            milestone_count: int, chips_awarded: int, triggered_at: int):
+                            milestone_count: int, chips_awarded: int, triggered_at: int, pppoker_id: str = ''):
         """Log a milestone reward"""
         try:
             self.milestone_rewards_sheet.append_row([
@@ -1296,7 +1304,8 @@ class SheetsManager:
                 triggered_at,
                 self._get_timestamp(),
                 'No',  # Approved (default: No)
-                ''     # Approved By (default: empty)
+                '',    # Approved By (default: empty)
+                pppoker_id
             ])
             return True
         except Exception as e:
@@ -1321,6 +1330,7 @@ class SheetsManager:
                             # Build prize name
                             milestone_type = row[2] if len(row) > 2 else 'unknown'
                             chips_awarded = row[4] if len(row) > 4 else '0'
+                            pppoker_id = row[9] if len(row) > 9 else ''
                             prize_name = f"{chips_awarded} chips ({milestone_type})"
 
                             pending.append({
@@ -1332,6 +1342,7 @@ class SheetsManager:
                                 'date': str(row[6]) if len(row) > 6 else '',
                                 'approved': False,
                                 'approved_by': str(approved_by),
+                                'pppoker_id': str(pppoker_id),
                                 'row': idx
                             })
                     except Exception as e:
@@ -1354,6 +1365,7 @@ class SheetsManager:
             if row and len(row) >= 7:
                 approved = row[7] if len(row) > 7 else 'No'
                 approved_by = row[8] if len(row) > 8 else ''
+                pppoker_id = row[9] if len(row) > 9 else ''
                 prize_name = f"{row[4]} chips ({row[2]})"
 
                 return {
@@ -1366,6 +1378,7 @@ class SheetsManager:
                     'date': row[6],
                     'approved': approved == 'Yes',
                     'approved_by': approved_by,
+                    'pppoker_id': pppoker_id,
                     'row': row_num
                 }
             return None

@@ -3340,7 +3340,8 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
             spins_added = await spin_bot.add_spins_from_deposit(
                 user_id=deposit['user_id'],
                 username=deposit['username'],
-                amount_mvr=amount_mvr
+                amount_mvr=amount_mvr,
+                pppoker_id=deposit.get('pppoker_id', '')
             )
             if spins_added > 0:
                 spins_message = f"\n\n🎰 **FREE SPINS BONUS!**\n+{spins_added} free spins added!\nClick button below to play!"

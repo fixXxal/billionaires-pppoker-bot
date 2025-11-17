@@ -202,6 +202,7 @@ class SpinBot:
                 }
 
             available_spins = user_data.get('available_spins', 0)
+            user_pppoker_id = user_data.get('pppoker_id', '')
 
             if available_spins < spin_count:
                 return {
@@ -249,7 +250,8 @@ class SpinBot:
                                 milestone_type=f'{milestone}_spins',
                                 milestone_count=milestone_count,
                                 chips_awarded=prize_won['chips'],
-                                triggered_at=current_total
+                                triggered_at=current_total,
+                                pppoker_id=user_pppoker_id
                             )
                             break  # Only give one milestone reward per spin
 
@@ -273,7 +275,8 @@ class SpinBot:
                         milestone_type='surprise_reward',
                         milestone_count=0,
                         chips_awarded=surprise_chips,
-                        triggered_at=current_total
+                        triggered_at=current_total,
+                        pppoker_id=user_pppoker_id
                     )
 
             # Update user's spin count
@@ -284,6 +287,7 @@ class SpinBot:
 
             self.sheets.update_spin_user(
                 user_id=user_id,
+                username=username,
                 available_spins=new_available,
                 total_spins_used=current_total,
                 total_chips_earned=final_chips
@@ -308,7 +312,7 @@ class SpinBot:
                 'message': "❌ Error processing spin. Please try again."
             }
 
-    async def add_spins_from_deposit(self, user_id: int, username: str, amount_mvr: float) -> int:
+    async def add_spins_from_deposit(self, user_id: int, username: str, amount_mvr: float, pppoker_id: str = '') -> int:
         """Add spins to user based on deposit amount"""
         try:
             spins_to_add = self.calculate_spins_from_deposit(amount_mvr)
@@ -323,8 +327,10 @@ class SpinBot:
 
                     self.sheets.update_spin_user(
                         user_id=user_id,
+                        username=username,
                         available_spins=new_available,
-                        total_deposit=new_total_deposit
+                        total_deposit=new_total_deposit,
+                        pppoker_id=pppoker_id
                     )
                 else:
                     # Create new user
@@ -332,7 +338,8 @@ class SpinBot:
                         user_id=user_id,
                         username=username,
                         available_spins=spins_to_add,
-                        total_deposit=amount_mvr
+                        total_deposit=amount_mvr,
+                        pppoker_id=pppoker_id
                     )
 
                 logger.info(f"Added {spins_to_add} spins to user {user_id} for deposit of {amount_mvr} MVR")
@@ -465,6 +472,9 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
             await query.edit_message_text(result['message'])
             return
 
+        # Escape username for MarkdownV2
+        username_escaped = user.first_name.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
+
         # Format results message
         if result.get('milestone_prize'):
             # WON A MILESTONE PRIZE - Big celebration!
@@ -485,7 +495,7 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
                 message += f"⏳ Pending admin approval\n\n"
 
             message += f"━━━━━━━━━━━━━━━━━━\n"
-            message += f"👤 {user.first_name}\n"
+            message += f"👤 {username_escaped}\n"
             message += f"🎲 Spins Used: {spin_count}\n"
             message += f"💎 Total Chips: *{result['total_chips_earned']} chips*\n"
             message += f"🎯 Spins Left: *{result['available_spins']}*\n"
@@ -509,7 +519,7 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
                 message += f"💫 *Your next one could be legendary\\!*\n\n"
 
             message += f"━━━━━━━━━━━━━━━━━━\n"
-            message += f"👤 {user.first_name}\n"
+            message += f"👤 {username_escaped}\n"
             message += f"🎲 Spins Used: {spin_count}\n"
             message += f"💎 Total Chips: *{result['total_chips_earned']} chips*\n"
             message += f"🎯 Spins Left: *{result['available_spins']}*\n"
@@ -528,26 +538,13 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
 
         # Send notification to ALL admins if user won any prize
         if result.get('milestone_prize') or result.get('got_surprise'):
-            # Get user's PPPoker ID from last deposit
-            user_pppoker_id = "Not found"
-            try:
-                deposits = spin_bot.sheets.sheet.worksheet('Deposits').get_all_records()
-                # Filter deposits for this user
-                user_deposits = [d for d in deposits if str(d.get('User ID', '')).strip() == str(user.id).strip()]
+            # Get user's PPPoker ID from user data (stored in Spin Users sheet)
+            user_data = spin_bot.sheets.get_spin_user(user.id)
+            user_pppoker_id = user_data.get('pppoker_id', 'Not found') if user_data else 'Not found'
+            if not user_pppoker_id:
+                user_pppoker_id = 'Not found'
 
-                if user_deposits:
-                    # Get the most recent deposit (last in list)
-                    last_deposit = user_deposits[-1]
-                    # Try multiple possible column names
-                    pppoker_id = last_deposit.get('PPPoker ID') or last_deposit.get('PPPoker Id') or last_deposit.get('Pppoker ID') or last_deposit.get('pppoker_id')
-                    if pppoker_id and str(pppoker_id).strip():
-                        user_pppoker_id = str(pppoker_id).strip()
-
-                logger.info(f"Found PPPoker ID for user {user.id}: {user_pppoker_id}")
-            except Exception as e:
-                logger.error(f"Error getting PPPoker ID: {e}")
-                import traceback
-                traceback.print_exc()
+            logger.info(f"PPPoker ID for user {user.id}: {user_pppoker_id}")
 
             # Build prize information
             prize_info = ""
@@ -742,21 +739,11 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
         message += "━━━━━━━━━━━━━━━━━━\n\n"
 
         for idx, (user_id, user_data) in enumerate(user_rewards.items(), 1):
-            # Get user's PPPoker ID from their last deposit
-            user_pppoker_id = "Not found"
-            try:
-                # Get user's deposit history to find PPPoker ID
-                deposits = spin_bot.sheets.sheet.worksheet('Deposits').get_all_records()
-                user_deposits = [d for d in deposits if str(d.get('User ID', '')).strip() == str(user_id).strip()]
-                if user_deposits:
-                    # Get most recent deposit
-                    last_deposit = user_deposits[-1]
-                    # Try multiple possible column names
-                    pppoker_id = last_deposit.get('PPPoker ID') or last_deposit.get('PPPoker Id') or last_deposit.get('Pppoker ID') or last_deposit.get('pppoker_id')
-                    if pppoker_id and str(pppoker_id).strip():
-                        user_pppoker_id = str(pppoker_id).strip()
-            except Exception as e:
-                logger.error(f"Error getting PPPoker ID for user {user_id}: {e}")
+            # Get PPPoker ID from the reward data (already stored in milestone rewards sheet)
+            # Use the PPPoker ID from the first reward (they should all be the same for one user)
+            user_pppoker_id = user_data['rewards'][0].get('pppoker_id', 'Not found') if user_data['rewards'] else 'Not found'
+            if not user_pppoker_id:
+                user_pppoker_id = 'Not found'
 
             message += f"*{idx}\\. {user_data['username']}*\n"
             message += f"👤 Telegram ID: `{user_id}`\n"
@@ -844,6 +831,7 @@ async def approvespin_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             new_total = current_chips + spin_data['chips']
             spin_bot.sheets.update_spin_user(
                 user_id=spin_data['user_id'],
+                username=spin_data.get('username', 'Unknown'),
                 total_chips_earned=new_total
             )
 
@@ -952,16 +940,27 @@ async def addspins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, s
         # Get or create user
         user_data = spin_bot.sheets.get_spin_user(target_user_id)
 
+        # Try to get username from Telegram
+        target_username = "Unknown"
+        try:
+            target_chat = await context.bot.get_chat(target_user_id)
+            target_username = target_chat.username or target_chat.first_name or "Unknown"
+        except:
+            # If can't fetch, try to get from existing user data
+            if user_data:
+                target_username = user_data.get('username', 'Unknown')
+
         if user_data:
             new_available = user_data.get('available_spins', 0) + spins_to_add
             spin_bot.sheets.update_spin_user(
                 user_id=target_user_id,
+                username=target_username,
                 available_spins=new_available
             )
         else:
             spin_bot.sheets.create_spin_user(
                 user_id=target_user_id,
-                username="Unknown",
+                username=target_username,
                 available_spins=spins_to_add
             )
 
