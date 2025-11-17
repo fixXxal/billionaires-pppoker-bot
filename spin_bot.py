@@ -234,29 +234,33 @@ class SpinBot:
                     )
 
                 # Check if this spin should trigger a milestone reward
-                for milestone in self.milestones:
+                # Start from smallest milestone to ensure proper reward order
+                for milestone in sorted(self.milestones):
                     # Calculate which spin we are in the current milestone block
                     current_spin_in_block = ((current_total - 1) % milestone) + 1
 
-                    # Check if we should give reward at this spin
-                    if self.should_give_milestone_reward(user_id, current_spin_in_block, milestone):
-                        # Check if we're actually within a valid milestone block
-                        if current_total >= milestone:
+                    # We're within this milestone's block
+                    if current_spin_in_block <= milestone:
+                        # Check if we should give reward at this specific spin
+                        if self.should_give_milestone_reward(user_id, current_spin_in_block, milestone):
                             # Get random prize from prize pool
                             prize_won = self.get_milestone_prize()
                             milestone_prize = prize_won
                             total_chips += prize_won['chips']
+
+                            # Calculate which milestone block we're in (1st, 2nd, 3rd, etc.)
+                            milestone_count = (current_total - 1) // milestone + 1
 
                             # Log milestone reward
                             self.sheets.log_milestone_reward(
                                 user_id=user_id,
                                 username=username,
                                 milestone_type=f'{milestone}_spins',
-                                milestone_count=current_total // milestone,
+                                milestone_count=milestone_count,
                                 chips_awarded=prize_won['chips'],
                                 triggered_at=current_total
                             )
-                            break  # Only one milestone per spin
+                            break  # Only give one milestone reward per spin
 
             # Update user's spin count
             new_available = available_spins - spin_count
@@ -274,7 +278,8 @@ class SpinBot:
                 'milestone_prize': milestone_prize,
                 'total_chips': total_chips,
                 'available_spins': new_available,
-                'total_spins_used': current_total
+                'total_spins_used': current_total,
+                'total_chips_earned': user_data.get('total_chips_earned', 0) + total_chips
             }
 
         except Exception as e:
@@ -332,15 +337,22 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
         if not user_data or user_data.get('available_spins', 0) == 0:
             await update.message.reply_text(
-                "🎰 *FREE SPINS* 🎰\n\n"
-                "❌ You don't have any spins right now\\.\n\n"
-                "💰 Make a deposit to get free spins\\!\n"
-                "More deposit → More spins → More chances to win 🎁\n\n"
-                "🔥 *Spin to win:*\n"
-                "• Chips\n"
-                "• Premium prizes \\(iPhone, MacBook, Apple Watch \\& more\\)\n"
-                "• Surprise rewards\n\n"
-                "Use /deposit to get started\\!",
+                "━━━━━━━━━━━━━━━━━━\n"
+                "🎰 *FREE SPINS* 🎰\n"
+                "━━━━━━━━━━━━━━━━━━\n\n"
+                "💫 *No spins available right now\\!*\n\n"
+                "💰 Make a deposit to unlock free spins\\!\n"
+                "🔥 More deposit → More spins → More prizes\\!\n\n"
+                "🎁 *Win Amazing Prizes:*\n"
+                "💎 Chips\n"
+                "📱 iPhone 17 Pro Max\n"
+                "💻 MacBook Pro\n"
+                "⌚ Apple Watch Ultra\n"
+                "🎧 AirPods Pro\n"
+                "✨ \\& Many More\\!\n\n"
+                "━━━━━━━━━━━━━━━━━━\n"
+                "👉 Use /deposit to get started\\!\n"
+                "━━━━━━━━━━━━━━━━━━",
                 parse_mode='MarkdownV2'
             )
             return
@@ -374,18 +386,22 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         username_escaped = user.first_name.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
 
         await update.message.reply_text(
-            f"🎰 *FREE SPINS* 🎰\n\n"
-            f"👤 {username_escaped}\n\n"
-            f"🎲 Available Spins: *{available}*\n"
-            f"💎 Total Chips Earned: *{total_chips}*\n\n"
-            f"🔥 *Spin to win:*\n"
-            f"• Chips\n"
-            f"• iPhone 17 Pro Max\n"
-            f"• MacBook Pro\n"
-            f"• Apple Watch Ultra\n"
-            f"• AirPods Pro\n"
-            f"• Surprise rewards \\& More\\!\n\n"
-            f"⭐ Choose how many spins:",
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🎰 *FREE SPINS* 🎰\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 *{username_escaped}*\n\n"
+            f"🎯 Available Spins: *{available}*\n"
+            f"💎 Total Chips: *{total_chips}*\n\n"
+            f"🎁 *Prize Wheel:*\n"
+            f"💰 Chips\n"
+            f"📱 iPhone 17 Pro Max\n"
+            f"💻 MacBook Pro\n"
+            f"⌚ Apple Watch Ultra\n"
+            f"🎧 AirPods Pro\n"
+            f"✨ \\& Many More Surprises\\!\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"⚡ *Choose Your Spins:* ⚡\n"
+            f"━━━━━━━━━━━━━━━━━━",
             parse_mode='MarkdownV2',
             reply_markup=reply_markup
         )
@@ -426,59 +442,36 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
             return
 
         # Format results message
-        message = f"🎰 *SPIN RESULTS* 🎰\n\n"
-        message += f"👤 {user.first_name}\n"
-        message += f"🎲 Spins Used: *{spin_count}*\n\n"
-
-        # Group prizes
-        prize_counts = {}
-        for prize_result in result['results']:
-            prize_name = prize_result['prize']
-            if prize_name in prize_counts:
-                prize_counts[prize_name]['count'] += 1
-                prize_counts[prize_name]['total_chips'] += prize_result['chips']
-            else:
-                prize_counts[prize_name] = {
-                    'count': 1,
-                    'chips': prize_result['chips'],
-                    'total_chips': prize_result['chips'],
-                    'type': prize_result['type']
-                }
-
-        # Display prizes
-        message += "🎁 *Prizes Won:*\n"
-        display_prizes = []
-        chip_prizes = []
-
-        for prize_name, data in prize_counts.items():
-            if data['type'] == 'display':
-                # Display prizes - show WITHOUT any mention of chips or "Display Only"
-                if data['count'] > 1:
-                    prize_line = f"• {prize_name} x{data['count']}"
-                else:
-                    prize_line = f"• {prize_name}"
-                display_prizes.append(prize_line)
-            else:
-                # Real chip prizes - show chips earned
-                if data['count'] > 1:
-                    prize_line = f"• {prize_name} x{data['count']}"
-                else:
-                    prize_line = f"• {prize_name}"
-                chip_prizes.append(prize_line)
-
-        for prize in display_prizes + chip_prizes:
-            message += prize + "\n"
-
-        # Show milestone prize (if won)
         if result.get('milestone_prize'):
+            # WON A PRIZE - Big celebration!
             prize = result['milestone_prize']
-            message += f"\n🎊 *MILESTONE REWARD\\!* 🎊\n"
-            message += f"🎁 You won: *{prize['name']}*\\!\n"
-            message += f"💎 *\\+{prize['chips']} chips* added\\!\n\n"
-
-        message += f"🎲 Spins Remaining: *{result['available_spins']}*\n"
-        message += f"📊 Total Spins Used: *{result['total_spins_used']}*\n\n"
-        message += "🎮 Spin again with /freespins\\!"
+            message = f"━━━━━━━━━━━━━━━━━━\n"
+            message += f"🎊 *JACKPOT WINNER* 🎊\n"
+            message += f"━━━━━━━━━━━━━━━━━━\n\n"
+            message += f"🔥 *{prize['name']}* 🔥\n\n"
+            message += f"💰 *\\+{prize['chips']} CHIPS* 💰\n"
+            message += f"✨ Added to your balance\\! ✨\n\n"
+            message += f"━━━━━━━━━━━━━━━━━━\n"
+            message += f"👤 {user.first_name}\n"
+            message += f"🎲 Spins Used: {spin_count}\n"
+            message += f"💎 Total Earned: *{result['total_chips_earned']} chips*\n"
+            message += f"🎯 Spins Left: *{result['available_spins']}*\n"
+            message += f"━━━━━━━━━━━━━━━━━━\n\n"
+            message += f"🎰 Keep spinning for more prizes\\!"
+        else:
+            # No prize - Keep it exciting
+            message = f"━━━━━━━━━━━━━━━━━━\n"
+            message += f"🎰 *SPIN COMPLETE* 🎰\n"
+            message += f"━━━━━━━━━━━━━━━━━━\n\n"
+            message += f"😎 *Every spin is a new chance…*\n"
+            message += f"💫 *Your next one could be legendary\\!*\n\n"
+            message += f"━━━━━━━━━━━━━━━━━━\n"
+            message += f"👤 {user.first_name}\n"
+            message += f"🎲 Spins Used: {spin_count}\n"
+            message += f"💎 Total Earned: *{result['total_chips_earned']} chips*\n"
+            message += f"🎯 Spins Left: *{result['available_spins']}*\n"
+            message += f"━━━━━━━━━━━━━━━━━━\n\n"
+            message += f"🔥 Try again\\! Fortune favors the bold\\!"
 
         # Create keyboard for more spins
         keyboard = [[InlineKeyboardButton("🎰 Spin Again", callback_data="spin_again")]]
