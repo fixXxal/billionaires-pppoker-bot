@@ -4663,11 +4663,47 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
     except:
         pass
 
-    # Create a fake update with message to trigger deposit_start
-    update.message = query.message
+    # Get user data
+    user_data = sheets.get_user(update.effective_user.id)
 
-    # Call deposit_start to properly start the conversation
-    return await deposit_start(update, context)
+    # Get all configured payment accounts
+    payment_accounts = sheets.get_all_payment_accounts()
+
+    # Build keyboard with only configured payment methods
+    keyboard = []
+    if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
+        keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="deposit_bml")])
+    if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
+        keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="deposit_mib")])
+    if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
+        keyboard.append([InlineKeyboardButton("💵 USD", callback_data="deposit_usd")])
+    if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
+        keyboard.append([InlineKeyboardButton("💎 USDT (TRC20)", callback_data="deposit_usdt")])
+
+    # Add cancel button
+    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
+
+    # Check if any payment methods are configured
+    if len(keyboard) == 1:  # Only cancel button
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="⚠️ No payment methods are currently available.\n\n"
+                "Please contact admin for assistance.",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text="💰 **Deposit to Billionaires Club**\n\n"
+            "Please select your payment method:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+    return DEPOSIT_METHOD
 
 
 # Play freespins button callback handler
