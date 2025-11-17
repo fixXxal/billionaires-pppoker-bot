@@ -13,7 +13,9 @@
       "Bash(apt-get update:*)",
       "Bash(apt-get install:*)",
       "Bash(jobs)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(kill:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []
