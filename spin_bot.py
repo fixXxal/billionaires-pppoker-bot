@@ -654,7 +654,10 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
 
     if not is_admin_func(user.id):
-        await update.message.reply_text("❌ Admin access required!")
+        if update.callback_query:
+            await update.callback_query.answer("❌ Admin access required!")
+        else:
+            await update.message.reply_text("❌ Admin access required!")
         return
 
     try:
@@ -662,20 +665,39 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
         pending = spin_bot.sheets.get_pending_spin_rewards()
 
         if not pending:
-            await update.message.reply_text("✅ No pending spin rewards!")
+            if update.callback_query:
+                await update.callback_query.message.reply_text("✅ No pending spin rewards!")
+            else:
+                await update.message.reply_text("✅ No pending spin rewards!")
             return
+
+        # Group rewards by user
+        user_rewards = {}
+        for reward in pending:
+            user_id = reward['user_id']
+            if user_id not in user_rewards:
+                user_rewards[user_id] = {
+                    'username': reward['username'],
+                    'user_id': user_id,
+                    'rewards': [],
+                    'total_chips': 0,
+                    'spin_ids': []
+                }
+            user_rewards[user_id]['rewards'].append(reward)
+            user_rewards[user_id]['total_chips'] += int(reward['chips'])
+            user_rewards[user_id]['spin_ids'].append(reward['spin_id'])
 
         message = "━━━━━━━━━━━━━━━━━━\n"
         message += "🎰 *PENDING SPIN REWARDS* 🎰\n"
         message += "━━━━━━━━━━━━━━━━━━\n\n"
 
-        for idx, reward in enumerate(pending, 1):
+        for idx, (user_id, user_data) in enumerate(user_rewards.items(), 1):
             # Get user's PPPoker ID from their last deposit
             user_pppoker_id = "Not found"
             try:
                 # Get user's deposit history to find PPPoker ID
                 deposits = spin_bot.sheets.sheet.worksheet('Deposits').get_all_records()
-                user_deposits = [d for d in deposits if str(d.get('User ID')) == str(reward['user_id'])]
+                user_deposits = [d for d in deposits if str(d.get('User ID')) == str(user_id)]
                 if user_deposits:
                     # Get most recent deposit
                     last_deposit = user_deposits[-1]
@@ -683,25 +705,40 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
             except:
                 pass
 
-            # Check if approved
-            approval_status = ""
-            if reward.get('approved'):
-                approved_by = reward.get('approved_by', 'Unknown')
-                approval_status = f"✅ *Approved by:* {approved_by}\n"
+            message += f"*{idx}\\. {user_data['username']}*\n"
+            message += f"👤 Telegram ID: `{user_id}`\n"
+            message += f"🎮 PPPoker ID: `{user_pppoker_id}`\n\n"
 
-            message += f"*{idx}\\. {reward['username']}*\n"
-            message += f"👤 Telegram ID: `{reward['user_id']}`\n"
-            message += f"🎮 PPPoker ID: `{user_pppoker_id}`\n"
-            message += f"🎁 Prize: *{reward['prize']}*\n"
-            message += f"💎 Chips: *{reward['chips']}*\n"
-            message += f"📅 Won: {reward['date']}\n"
-            message += approval_status
-            message += f"🔖 Spin ID: `{reward['spin_id']}`\n"
+            # List individual rewards
+            for reward in user_data['rewards']:
+                message += f"  🎁 {reward['prize']}\n"
+
+            message += f"\n💰 *TOTAL: {user_data['total_chips']} chips* \\({len(user_data['rewards'])} rewards\\)\n"
             message += f"━━━━━━━━━━━━━━━━━━\n\n"
 
-        message += "✅ Use `/approvespin <spin_id>` to approve\\."
+        message += "Click to approve all rewards for user:"
 
-        await update.message.reply_text(message, parse_mode='MarkdownV2')
+        # Create inline buttons - ONE button per user to approve ALL their rewards
+        keyboard = []
+        for user_id, user_data in user_rewards.items():
+            # Create comma-separated list of spin IDs
+            spin_ids_str = ','.join(user_data['spin_ids'])
+            button_text = f"✅ Approve {user_data['username']} ({user_data['total_chips']} chips)"
+            keyboard.append([InlineKeyboardButton(button_text, callback_data=f"approve_user_{user_id}_{spin_ids_str}")])
+
+        reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+
+        # Send message based on whether it's from callback or command
+        if update.callback_query:
+            if reply_markup:
+                await update.callback_query.message.reply_text(message, parse_mode='MarkdownV2', reply_markup=reply_markup)
+            else:
+                await update.callback_query.message.reply_text(message, parse_mode='MarkdownV2')
+        else:
+            if reply_markup:
+                await update.message.reply_text(message, parse_mode='MarkdownV2', reply_markup=reply_markup)
+            else:
+                await update.message.reply_text(message, parse_mode='MarkdownV2')
 
     except Exception as e:
         logger.error(f"Error in pendingspins command: {e}")
@@ -900,7 +937,10 @@ async def spinsstats_command(update: Update, context: ContextTypes.DEFAULT_TYPE,
     user = update.effective_user
 
     if not is_admin_func(user.id):
-        await update.message.reply_text("❌ Admin access required!")
+        if update.callback_query:
+            await update.callback_query.answer("❌ Admin access required!")
+        else:
+            await update.message.reply_text("❌ Admin access required!")
         return
 
     try:
@@ -917,8 +957,14 @@ async def spinsstats_command(update: Update, context: ContextTypes.DEFAULT_TYPE,
         for idx, user_stat in enumerate(stats['top_users'][:5], 1):
             message += f"{idx}\\. {user_stat['username']} \\- {user_stat['total_spins']} spins\n"
 
-        await update.message.reply_text(message, parse_mode='MarkdownV2')
+        if update.callback_query:
+            await update.callback_query.message.reply_text(message, parse_mode='MarkdownV2')
+        else:
+            await update.message.reply_text(message, parse_mode='MarkdownV2')
 
     except Exception as e:
         logger.error(f"Error in spinsstats command: {e}")
-        await update.message.reply_text("❌ Error fetching statistics.")
+        if update.callback_query:
+            await update.callback_query.message.reply_text("❌ Error fetching statistics.")
+        else:
+            await update.message.reply_text("❌ Error fetching statistics.")

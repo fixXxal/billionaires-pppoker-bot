@@ -1311,27 +1311,38 @@ class SheetsManager:
 
             for idx, row in enumerate(all_rows, start=2):  # Start from row 2 (row 1 is header)
                 if len(row) >= 7:
-                    # Check if approved (we'll add Approved column)
-                    approved = row[7] if len(row) > 7 else 'No'
-                    approved_by = row[8] if len(row) > 8 else ''
+                    try:
+                        # Check if approved (column 7 = index 7 in 0-based)
+                        approved = row[7] if len(row) > 7 else 'No'
+                        approved_by = row[8] if len(row) > 8 else ''
 
-                    if approved == 'No':
-                        prize_name = f"{row[4]} chips ({row[2]})"  # "100 chips (10_spins)" or "15 chips (surprise_reward)"
-                        pending.append({
-                            'spin_id': str(idx),  # Use row number as ID
-                            'user_id': row[0],
-                            'username': row[1],
-                            'prize': prize_name,
-                            'chips': row[4],
-                            'date': row[6],
-                            'approved': approved == 'Yes',
-                            'approved_by': approved_by,
-                            'row': idx
-                        })
+                        # Only show pending (not approved)
+                        if approved != 'Yes':
+                            # Build prize name
+                            milestone_type = row[2] if len(row) > 2 else 'unknown'
+                            chips_awarded = row[4] if len(row) > 4 else '0'
+                            prize_name = f"{chips_awarded} chips ({milestone_type})"
+
+                            pending.append({
+                                'spin_id': str(idx),  # Use row number as ID
+                                'user_id': str(row[0]),
+                                'username': str(row[1]) if len(row) > 1 else 'Unknown',
+                                'prize': prize_name,
+                                'chips': str(chips_awarded),
+                                'date': str(row[6]) if len(row) > 6 else '',
+                                'approved': False,
+                                'approved_by': str(approved_by),
+                                'row': idx
+                            })
+                    except Exception as e:
+                        print(f"Error processing row {idx}: {e}")
+                        continue
 
             return pending
         except Exception as e:
             print(f"Error getting pending spin rewards: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     def get_spin_by_id(self, spin_id: str) -> Optional[Dict]:

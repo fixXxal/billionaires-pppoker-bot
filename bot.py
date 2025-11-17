@@ -149,10 +149,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if user is admin - show admin menu
     if is_admin(user.id):
         keyboard = [
-            [KeyboardButton("📋 Admin Panel")],
+            [KeyboardButton("📋 Admin Panel"), KeyboardButton("🎰 Spin Management")],
             [KeyboardButton("📊 View Deposits"), KeyboardButton("💸 View Withdrawals")],
             [KeyboardButton("🎮 View Join Requests"), KeyboardButton("💳 Payment Accounts")],
-            [KeyboardButton("👤 User Mode")]
+            [KeyboardButton("🎲 Free Spins"), KeyboardButton("👤 User Mode")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -163,10 +163,12 @@ Welcome back, Admin {user.first_name}! 👨‍💼
 
 <b>Quick Access:</b>
 📋 <b>Admin Panel</b> - Full admin dashboard
+🎰 <b>Spin Management</b> - Manage spin rewards
 📊 <b>View Deposits</b> - Manage deposit requests
 💸 <b>View Withdrawals</b> - Manage withdrawal requests
 🎮 <b>View Join Requests</b> - Approve/reject club joins
 💳 <b>Payment Accounts</b> - Update payment details
+🎲 <b>Free Spins</b> - Play spin wheel
 👤 <b>User Mode</b> - Switch to regular user view
 
 Select an option to get started:
@@ -176,9 +178,9 @@ Select an option to get started:
         # Regular user menu
         keyboard = [
             [KeyboardButton("💰 Deposit"), KeyboardButton("💸 Withdrawal")],
-            [KeyboardButton("🪑 Seat"), KeyboardButton("🎮 Join Club")],
-            [KeyboardButton("📊 My Info"), KeyboardButton("💬 Live Support")],
-            [KeyboardButton("❓ Help")]
+            [KeyboardButton("🎲 Free Spins"), KeyboardButton("🎮 Join Club")],
+            [KeyboardButton("🪑 Seat"), KeyboardButton("💬 Live Support")],
+            [KeyboardButton("📊 My Info"), KeyboardButton("❓ Help")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -190,6 +192,7 @@ Hello {user.first_name}! 👋
 I'm here to help you with:
 💰 <b>Deposits</b> - Add funds to your account
 💸 <b>Withdrawals</b> - Cash out your winnings
+🎲 <b>Free Spins</b> - Win chips by spinning!
 🎮 <b>Club Access</b> - Join our exclusive club
 💬 <b>Live Support</b> - Chat with our admin
 
@@ -219,9 +222,10 @@ async def user_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [KeyboardButton("💰 Deposit"), KeyboardButton("💸 Withdrawal")],
-        [KeyboardButton("🪑 Seat"), KeyboardButton("🎮 Join Club")],
-        [KeyboardButton("📊 My Info"), KeyboardButton("💬 Live Support")],
-        [KeyboardButton("❓ Help"), KeyboardButton("🔙 Back to Admin")]
+        [KeyboardButton("🎲 Free Spins"), KeyboardButton("🎮 Join Club")],
+        [KeyboardButton("🪑 Seat"), KeyboardButton("💬 Live Support")],
+        [KeyboardButton("📊 My Info"), KeyboardButton("❓ Help")],
+        [KeyboardButton("🔙 Back to Admin")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -4399,11 +4403,174 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Failed to notify user: {e}")
 
 
+# Spin Management Panel for Admins
+async def spin_management_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show spin management panel for admins"""
+    keyboard = [
+        [InlineKeyboardButton("📋 Pending Rewards", callback_data="spin_admin_pending")],
+        [InlineKeyboardButton("📊 Spin Statistics", callback_data="spin_admin_stats")],
+        [InlineKeyboardButton("➕ Add Spins to User", callback_data="spin_admin_add")],
+        [InlineKeyboardButton("🎲 My Free Spins", callback_data="spin_admin_play")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🎰 *SPIN MANAGEMENT* 🎰\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "Select an option:\n\n"
+        "📋 *Pending Rewards* \\- View and approve pending rewards\n"
+        "📊 *Spin Statistics* \\- View global spin stats\n"
+        "➕ *Add Spins to User* \\- Manually give spins\n"
+        "🎲 *My Free Spins* \\- Play your own spins",
+        reply_markup=reply_markup,
+        parse_mode='MarkdownV2'
+    )
+
+
+# Spin admin callback handlers
+async def spin_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle spin management callbacks"""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+
+    if not is_admin(user_id):
+        await query.edit_message_text("❌ Admin access required!")
+        return
+
+    data = query.data
+
+    # Handle add spins amount selection
+    if data.startswith("add_spins_amount_"):
+        amount = data.replace("add_spins_amount_", "")
+        # Store the amount in user context
+        context.user_data['pending_spin_amount'] = amount
+
+        await query.edit_message_text(
+            f"➕ *ADD {amount} SPINS*\n\n"
+            f"Please reply with the user's Telegram ID\n\n"
+            f"Example: `123456789`\n\n"
+            f"Or use command directly:\n"
+            f"`/addspins <user_id> {amount}`",
+            parse_mode='MarkdownV2'
+        )
+        # Set flag that admin is in "add spins mode"
+        context.user_data['awaiting_user_id_for_spins'] = True
+        return
+
+    if data == "spin_admin_pending":
+        await pendingspins_command(update, context)
+    elif data == "spin_admin_stats":
+        await spinsstats_command(update, context)
+    elif data == "spin_admin_add":
+        # Show common spin amounts as buttons
+        keyboard = [
+            [
+                InlineKeyboardButton("➕ 10 Spins", callback_data="add_spins_amount_10"),
+                InlineKeyboardButton("➕ 25 Spins", callback_data="add_spins_amount_25")
+            ],
+            [
+                InlineKeyboardButton("➕ 50 Spins", callback_data="add_spins_amount_50"),
+                InlineKeyboardButton("➕ 100 Spins", callback_data="add_spins_amount_100")
+            ],
+            [
+                InlineKeyboardButton("➕ 250 Spins", callback_data="add_spins_amount_250")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            "➕ *ADD SPINS TO USER*\n\n"
+            "Select amount, then I'll ask for user ID:\n\n"
+            "Or use command:\n"
+            "`/addspins <user_id> <amount>`",
+            parse_mode='MarkdownV2',
+            reply_markup=reply_markup
+        )
+    elif data == "spin_admin_play":
+        # Replace message with freespins interface
+        await query.delete_message()
+        # Create a fake update for freespins
+        update.message = query.message
+        await freespins_command(update, context)
+
+
+# Approve spin callback handler
+async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle approve spin button clicks - approves ALL pending rewards for a user"""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+
+    if not is_admin(user_id):
+        await query.edit_message_text("❌ Admin access required!")
+        return
+
+    # Extract data from callback_data
+    # Format: approve_user_<user_id>_<spin_id1>,<spin_id2>,<spin_id3>
+    data_parts = query.data.replace("approve_user_", "").split("_", 1)
+    target_user_id = data_parts[0]
+    spin_ids = data_parts[1].split(",") if len(data_parts) > 1 else []
+
+    # Approve all spin IDs for this user
+    approved_count = 0
+    total_chips = 0
+
+    for spin_id in spin_ids:
+        # Call approvespin for each spin_id
+        context.args = [spin_id]
+        update.message = query.message
+
+        try:
+            # Get spin data before approval
+            spin_data = spin_bot.sheets.get_spin_by_id(spin_id)
+            if spin_data and not spin_data.get('approved'):
+                total_chips += int(spin_data.get('chips', 0))
+
+                # Approve this spin
+                await approvespin_command(update, context)
+                approved_count += 1
+        except Exception as e:
+            logger.error(f"Error approving spin {spin_id}: {e}")
+
+    # Edit the original message to show it was processed
+    try:
+        await query.edit_message_text(
+            f"✅ *APPROVED ALL REWARDS*\n\n"
+            f"✅ Approved: {approved_count} rewards\n"
+            f"💰 Total Chips: {total_chips}\n"
+            f"👤 User ID: `{target_user_id}`\n\n"
+            f"User has been notified\\!",
+            parse_mode='MarkdownV2'
+        )
+    except Exception as e:
+        logger.error(f"Error editing message: {e}")
+        pass
+
+
 # Message router
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Route text messages to appropriate handlers"""
     user_id = update.effective_user.id
     text = update.message.text
+
+    # Check if admin is in "add spins mode"
+    if is_admin(user_id) and context.user_data.get('awaiting_user_id_for_spins'):
+        # Admin sent a user ID
+        target_user_id = text.strip()
+        amount = context.user_data.get('pending_spin_amount')
+
+        # Clear the flags
+        context.user_data['awaiting_user_id_for_spins'] = False
+        context.user_data['pending_spin_amount'] = None
+
+        # Call addspins command
+        context.args = [target_user_id, amount]
+        await addspins_command(update, context)
+        return
 
     # Check if admin is replying to a user or providing rejection reason
     if is_admin(user_id) and user_id in admin_reply_context:
@@ -4446,6 +4613,13 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return await live_support_start(update, context)
     elif text == "❓ Help":
         return await help_command(update, context)
+    elif text == "🎲 Free Spins":
+        return await freespins_command(update, context)
+    elif text == "🎰 Spin Management":
+        if is_admin(user_id):
+            return await spin_management_panel(update, context)
+        else:
+            await update.message.reply_text("❌ Admin access required!")
     else:
         # Check if user is in support mode
         if user_id in support_mode_users:
@@ -4490,6 +4664,8 @@ def main():
     # Spin bot callback handlers
     application.add_handler(CallbackQueryHandler(spin_callback, pattern="^spin_"))
     application.add_handler(CallbackQueryHandler(spin_again_callback, pattern="^spin_again$"))
+    application.add_handler(CallbackQueryHandler(spin_admin_callback, pattern="^spin_admin_"))
+    application.add_handler(CallbackQueryHandler(approve_spin_callback, pattern="^approve_(spin_|user_)"))
 
     # Button callback handlers for live support
     application.add_handler(CallbackQueryHandler(admin_reply_button_clicked, pattern="^support_reply_"))
