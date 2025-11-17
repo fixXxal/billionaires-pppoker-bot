@@ -3343,7 +3343,7 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
                 amount_mvr=amount_mvr
             )
             if spins_added > 0:
-                spins_message = f"\n\n🎰 **FREE SPINS BONUS!**\n+{spins_added} free spins added!\nUse /freespins to play!"
+                spins_message = f"\n\n🎰 **FREE SPINS BONUS!**\n+{spins_added} free spins added!\nClick button below to play!"
             logger.info(f"Added {spins_added} spins to user {deposit['user_id']} for deposit of {amount_mvr} MVR")
         except Exception as e:
             logger.error(f"Error adding spins for deposit: {e}")
@@ -3372,9 +3372,14 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
             # Clean up promotion data
             del context.bot_data[f'promo_{request_id}']
 
-        # Notify user with club link button
+        # Notify user with club link button and spins button if applicable
         club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
         keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
+
+        # Add "Play Spins" button if spins were added
+        if spins_added > 0:
+            keyboard.append([InlineKeyboardButton("🎲 Play Free Spins", callback_data="play_freespins")])
+
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         try:
@@ -4551,6 +4556,44 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         pass
 
 
+# Deposit button callback handler (from no spins message)
+async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle deposit button click from free spins no-spins message"""
+    query = update.callback_query
+    await query.answer()
+
+    # Delete the original message
+    try:
+        await query.delete_message()
+    except:
+        pass
+
+    # Create a fake update with message for deposit_start
+    update.message = query.message
+
+    # Call deposit_start
+    await deposit_start(update, context)
+
+
+# Play freespins button callback handler
+async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle play freespins button click"""
+    query = update.callback_query
+    await query.answer()
+
+    # Delete the original message
+    try:
+        await query.delete_message()
+    except:
+        pass
+
+    # Create a fake update with message for freespins_command
+    update.message = query.message
+
+    # Call freespins command
+    await freespins_command(update, context)
+
+
 # Message router
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Route text messages to appropriate handlers"""
@@ -4666,6 +4709,8 @@ def main():
     application.add_handler(CallbackQueryHandler(spin_again_callback, pattern="^spin_again$"))
     application.add_handler(CallbackQueryHandler(spin_admin_callback, pattern="^spin_admin_"))
     application.add_handler(CallbackQueryHandler(approve_spin_callback, pattern="^approve_(spin_|user_)"))
+    application.add_handler(CallbackQueryHandler(deposit_button_callback, pattern="^deposit_start$"))
+    application.add_handler(CallbackQueryHandler(play_freespins_callback, pattern="^play_freespins$"))
 
     # Button callback handlers for live support
     application.add_handler(CallbackQueryHandler(admin_reply_button_clicked, pattern="^support_reply_"))

@@ -355,6 +355,10 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         user_data = spin_bot.sheets.get_spin_user(user.id)
 
         if not user_data or user_data.get('available_spins', 0) == 0:
+            # Create deposit button
+            keyboard = [[InlineKeyboardButton("💰 Make Deposit", callback_data="deposit_start")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
             await update.message.reply_text(
                 "━━━━━━━━━━━━━━━━━━\n"
                 "🎰 *FREE SPINS* 🎰\n"
@@ -370,9 +374,10 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 "🎧 AirPods Pro\n"
                 "✨ \\& Many More\\!\n\n"
                 "━━━━━━━━━━━━━━━━━━\n"
-                "👉 Use /deposit to get started\\!\n"
+                "👉 Click button below to get started\\!\n"
                 "━━━━━━━━━━━━━━━━━━",
-                parse_mode='MarkdownV2'
+                parse_mode='MarkdownV2',
+                reply_markup=reply_markup
             )
             return
 
@@ -557,16 +562,38 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
                 f"{prize_info}\n"
                 f"💰 <b>Total Pending:</b> <b>{total_pending} chips</b>\n\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"⏳ Waiting for approval...\n"
-                f"Use /pendingspins to view all pending rewards."
+                f"⏳ Click button below to approve:"
             )
+
+            # Get all pending rewards for this user to create approve button
+            try:
+                pending_rewards = spin_bot.sheets.get_pending_spin_rewards()
+                user_pending = [r for r in pending_rewards if str(r['user_id']) == str(user.id)]
+
+                # Create approve button with all spin IDs for this user
+                keyboard = None
+                if user_pending:
+                    spin_ids = [r['spin_id'] for r in user_pending]
+                    spin_ids_str = ','.join(spin_ids)
+                    keyboard = [[InlineKeyboardButton(
+                        f"✅ Approve All ({total_pending} chips)",
+                        callback_data=f"approve_user_{user.id}_{spin_ids_str}"
+                    )]]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                else:
+                    # Fallback if we can't get pending rewards
+                    reply_markup = None
+            except Exception as e:
+                logger.error(f"Error getting pending rewards for button: {e}")
+                reply_markup = None
 
             # Send to super admin
             try:
                 await context.bot.send_message(
                     chat_id=admin_user_id,
                     text=admin_message,
-                    parse_mode='HTML'
+                    parse_mode='HTML',
+                    reply_markup=reply_markup
                 )
             except Exception as e:
                 logger.error(f"Failed to notify super admin: {e}")
@@ -579,7 +606,8 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
                         await context.bot.send_message(
                             chat_id=admin['admin_id'],
                             text=admin_message,
-                            parse_mode='HTML'
+                            parse_mode='HTML',
+                            reply_markup=reply_markup
                         )
                     except Exception as e:
                         logger.error(f"Failed to notify admin {admin['admin_id']}: {e}")
@@ -631,9 +659,12 @@ async def spin_again_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
+        # Escape username for MarkdownV2
+        username_escaped = user.first_name.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
+
         await query.edit_message_text(
             f"🎰 *FREE SPINS* 🎰\n\n"
-            f"👤 {user.first_name}\n\n"
+            f"👤 {username_escaped}\n\n"
             f"🎲 Available Spins: *{available}*\n"
             f"📊 Total Spins Used: *{total_used}*\n"
             f"💎 Total Chips Earned: *{total_chips}*\n\n"
@@ -918,9 +949,14 @@ async def addspins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, s
 
         # Notify user
         try:
+            # Create "Play Now" button
+            keyboard = [[InlineKeyboardButton("🎲 Play Now", callback_data="play_freespins")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
             await context.bot.send_message(
                 chat_id=target_user_id,
-                text=f"🎁 You received {spins_to_add} free spins!\n\nUse /freespins to play!"
+                text=f"🎁 You received {spins_to_add} free spins!\n\nClick button to play!",
+                reply_markup=reply_markup
             )
         except:
             pass
