@@ -253,33 +253,15 @@ class SheetsManager:
                 'Total Chips Earned', 'Total Deposit (MVR)', 'Created At', 'Last Spin At'
             ])
 
-        # Spin Logs worksheet
-        try:
-            self.spin_logs_sheet = self.spreadsheet.worksheet('Spin Logs')
-        except gspread.WorksheetNotFound:
-            self.spin_logs_sheet = self.spreadsheet.add_worksheet(title='Spin Logs', rows=5000, cols=10)
-            self.spin_logs_sheet.append_row([
-                'Spin ID', 'User ID', 'Username', 'Prize', 'Prize Type',
-                'Chips', 'Spin Hash', 'Spun At', 'Approved', 'Approved By'
-            ])
-
         # Milestone Rewards worksheet
         try:
             self.milestone_rewards_sheet = self.spreadsheet.worksheet('Milestone Rewards')
         except gspread.WorksheetNotFound:
-            self.milestone_rewards_sheet = self.spreadsheet.add_worksheet(title='Milestone Rewards', rows=1000, cols=7)
+            self.milestone_rewards_sheet = self.spreadsheet.add_worksheet(title='Milestone Rewards', rows=1000, cols=9)
             self.milestone_rewards_sheet.append_row([
                 'User ID', 'Username', 'Milestone Type', 'Milestone Count',
-                'Chips Awarded', 'Triggered At Spin Count', 'Created At'
+                'Chips Awarded', 'Triggered At Spin Count', 'Created At', 'Approved', 'Approved By'
             ])
-
-        # Global Spin Counter worksheet (stores single counter for all users)
-        try:
-            self.global_counter_sheet = self.spreadsheet.worksheet('Global Spin Counter')
-        except gspread.WorksheetNotFound:
-            self.global_counter_sheet = self.spreadsheet.add_worksheet(title='Global Spin Counter', rows=10, cols=2)
-            self.global_counter_sheet.append_row(['Counter Name', 'Counter Value'])
-            self.global_counter_sheet.append_row(['total_spins', '0'])
 
     def _get_timestamp(self) -> str:
         """Get current timestamp in the configured timezone"""
@@ -1299,27 +1281,7 @@ class SheetsManager:
             print(f"Error updating spin user: {e}")
             return False
 
-    def log_spin(self, user_id: int, username: str, prize: str, prize_type: str,
-                chips: int, spin_hash: str):
-        """Log a spin result"""
-        try:
-            spin_id = self._generate_request_id('SPIN')
-            self.spin_logs_sheet.append_row([
-                spin_id,
-                user_id,
-                username,
-                prize,
-                prize_type,
-                chips,
-                spin_hash,
-                self._get_timestamp(),
-                'No' if prize_type == 'display' else 'Auto',  # Approved status
-                'System' if prize_type == 'chips' else ''  # Approved by
-            ])
-            return spin_id
-        except Exception as e:
-            print(f"Error logging spin: {e}")
-            return None
+    # Removed log_spin method - no longer needed (display prizes not tracked)
 
     def log_milestone_reward(self, user_id: int, username: str, milestone_type: str,
                             milestone_count: int, chips_awarded: int, triggered_at: int):
@@ -1332,7 +1294,9 @@ class SheetsManager:
                 milestone_count,
                 chips_awarded,
                 triggered_at,
-                self._get_timestamp()
+                self._get_timestamp(),
+                'No',  # Approved (default: No)
+                ''     # Approved By (default: empty)
             ])
             return True
         except Exception as e:
@@ -1340,21 +1304,30 @@ class SheetsManager:
             return False
 
     def get_pending_spin_rewards(self) -> List[Dict]:
-        """Get all pending spin rewards (display prizes not yet approved)"""
+        """Get all pending milestone/surprise rewards"""
         try:
-            all_rows = self.spin_logs_sheet.get_all_values()[1:]  # Skip header
+            all_rows = self.milestone_rewards_sheet.get_all_values()[1:]  # Skip header
             pending = []
 
-            for row in all_rows:
-                if len(row) >= 9 and row[4] == 'display' and row[8] == 'No':
-                    pending.append({
-                        'spin_id': row[0],
-                        'user_id': row[1],
-                        'username': row[2],
-                        'prize': row[3],
-                        'chips': row[5],
-                        'date': row[7]
-                    })
+            for idx, row in enumerate(all_rows, start=2):  # Start from row 2 (row 1 is header)
+                if len(row) >= 7:
+                    # Check if approved (we'll add Approved column)
+                    approved = row[7] if len(row) > 7 else 'No'
+                    approved_by = row[8] if len(row) > 8 else ''
+
+                    if approved == 'No':
+                        prize_name = f"{row[4]} chips ({row[2]})"  # "100 chips (10_spins)" or "15 chips (surprise_reward)"
+                        pending.append({
+                            'spin_id': str(idx),  # Use row number as ID
+                            'user_id': row[0],
+                            'username': row[1],
+                            'prize': prize_name,
+                            'chips': row[4],
+                            'date': row[6],
+                            'approved': approved == 'Yes',
+                            'approved_by': approved_by,
+                            'row': idx
+                        })
 
             return pending
         except Exception as e:
@@ -1362,23 +1335,27 @@ class SheetsManager:
             return []
 
     def get_spin_by_id(self, spin_id: str) -> Optional[Dict]:
-        """Get spin data by spin ID"""
+        """Get milestone reward data by row ID"""
         try:
-            cell = self.spin_logs_sheet.find(spin_id)
-            if cell:
-                row = self.spin_logs_sheet.row_values(cell.row)
+            row_num = int(spin_id)
+            row = self.milestone_rewards_sheet.row_values(row_num)
+
+            if row and len(row) >= 7:
+                approved = row[7] if len(row) > 7 else 'No'
+                approved_by = row[8] if len(row) > 8 else ''
+                prize_name = f"{row[4]} chips ({row[2]})"
+
                 return {
-                    'spin_id': row[0],
-                    'user_id': int(row[1]),
-                    'username': row[2],
-                    'prize': row[3],
-                    'prize_type': row[4],
-                    'chips': int(row[5]),
-                    'spin_hash': row[6],
-                    'spun_at': row[7],
-                    'approved': row[8] if len(row) > 8 else 'No',
-                    'approved_by': row[9] if len(row) > 9 else '',
-                    'row': cell.row
+                    'spin_id': spin_id,
+                    'user_id': int(row[0]),
+                    'username': row[1],
+                    'prize': prize_name,
+                    'chips': int(row[4]),
+                    'milestone_type': row[2],
+                    'date': row[6],
+                    'approved': approved == 'Yes',
+                    'approved_by': approved_by,
+                    'row': row_num
                 }
             return None
         except Exception as e:
@@ -1386,14 +1363,13 @@ class SheetsManager:
             return None
 
     def approve_spin_reward(self, spin_id: str, admin_id: int, admin_name: str):
-        """Approve a spin reward"""
+        """Approve a milestone/surprise reward"""
         try:
-            spin_data = self.get_spin_by_id(spin_id)
-            if spin_data:
-                self.spin_logs_sheet.update_cell(spin_data['row'], 9, 'Yes')
-                self.spin_logs_sheet.update_cell(spin_data['row'], 10, f"{admin_name} ({admin_id})")
-                return True
-            return False
+            row_num = int(spin_id)
+            # Add "Yes" to column 8 (Approved) and admin name to column 9 (Approved By)
+            self.milestone_rewards_sheet.update_cell(row_num, 8, 'Yes')
+            self.milestone_rewards_sheet.update_cell(row_num, 9, f"{admin_name}")
+            return True
         except Exception as e:
             print(f"Error approving spin reward: {e}")
             return False

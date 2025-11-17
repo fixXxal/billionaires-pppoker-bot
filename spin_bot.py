@@ -222,16 +222,7 @@ class SpinBot:
                 prize = self.spin_wheel(user_id)
                 if prize:
                     results.append(prize)
-
-                    # Log spin
-                    self.sheets.log_spin(
-                        user_id=user_id,
-                        username=username,
-                        prize=prize['prize'],
-                        prize_type=prize['type'],
-                        chips=0,  # Always 0
-                        spin_hash=prize['hash']
-                    )
+                    # Display prizes are not logged - only for animation
 
                 # Check if this spin should trigger a milestone reward
                 # Start from smallest milestone to ensure proper reward order
@@ -262,24 +253,52 @@ class SpinBot:
                             )
                             break  # Only give one milestone reward per spin
 
+            # Check for Surprise Rewards (only for multi-spins: 10+)
+            surprise_chips = 0
+            got_surprise = False
+            if spin_count >= 10:
+                # 80% chance to get surprise reward, 20% chance to get nothing
+                random.seed()  # Use true randomness
+                chance = random.random()
+
+                if chance < 0.80:  # 80% chance
+                    # Give random chips between 1-20
+                    surprise_chips = random.randint(1, 20)
+                    got_surprise = True
+
+                    # Log surprise reward as milestone (pending admin approval)
+                    self.sheets.log_milestone_reward(
+                        user_id=user_id,
+                        username=username,
+                        milestone_type='surprise_reward',
+                        milestone_count=0,
+                        chips_awarded=surprise_chips,
+                        triggered_at=current_total
+                    )
+
             # Update user's spin count
             new_available = available_spins - spin_count
+
+            # Update spin user (DON'T add surprise chips - pending approval!)
+            final_chips = user_data.get('total_chips_earned', 0)
 
             self.sheets.update_spin_user(
                 user_id=user_id,
                 available_spins=new_available,
                 total_spins_used=current_total,
-                total_chips_earned=user_data.get('total_chips_earned', 0) + total_chips
+                total_chips_earned=final_chips
             )
 
             return {
                 'success': True,
                 'results': results,
                 'milestone_prize': milestone_prize,
-                'total_chips': total_chips,
+                'total_chips': total_chips,  # Milestone chips (pending approval)
+                'surprise_chips': surprise_chips if got_surprise else 0,
+                'got_surprise': got_surprise,
                 'available_spins': new_available,
                 'total_spins_used': current_total,
-                'total_chips_earned': user_data.get('total_chips_earned', 0) + total_chips
+                'total_chips_earned': final_chips
             }
 
         except Exception as e:
@@ -443,32 +462,51 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
 
         # Format results message
         if result.get('milestone_prize'):
-            # WON A PRIZE - Big celebration!
+            # WON A MILESTONE PRIZE - Big celebration!
             prize = result['milestone_prize']
             message = f"━━━━━━━━━━━━━━━━━━\n"
             message += f"🎊 *JACKPOT WINNER* 🎊\n"
             message += f"━━━━━━━━━━━━━━━━━━\n\n"
             message += f"🔥 *{prize['name']}* 🔥\n\n"
-            message += f"💰 *\\+{prize['chips']} CHIPS* 💰\n"
-            message += f"✨ Added to your balance\\! ✨\n\n"
+            message += f"💰 *{prize['chips']} CHIPS WON* 💰\n\n"
+            message += f"⏳ *Pending Admin Approval*\n"
+            message += f"✅ Your chips will be added to your PPPoker account once approved\\.\n"
+            message += f"You'll be notified immediately\\! 🎉\n\n"
+
+            # Add surprise reward if any
+            if result.get('got_surprise'):
+                message += f"✨ *BONUS SURPRISE\\!* ✨\n"
+                message += f"🎁 Surprise Reward: *{result['surprise_chips']} chips*\\!\n"
+                message += f"⏳ Pending admin approval\n\n"
+
             message += f"━━━━━━━━━━━━━━━━━━\n"
             message += f"👤 {user.first_name}\n"
             message += f"🎲 Spins Used: {spin_count}\n"
-            message += f"💎 Total Earned: *{result['total_chips_earned']} chips*\n"
+            message += f"💎 Total Chips: *{result['total_chips_earned']} chips*\n"
             message += f"🎯 Spins Left: *{result['available_spins']}*\n"
             message += f"━━━━━━━━━━━━━━━━━━\n\n"
             message += f"🎰 Keep spinning for more prizes\\!"
         else:
-            # No prize - Keep it exciting
+            # No milestone prize
             message = f"━━━━━━━━━━━━━━━━━━\n"
             message += f"🎰 *SPIN COMPLETE* 🎰\n"
             message += f"━━━━━━━━━━━━━━━━━━\n\n"
-            message += f"😎 *Every spin is a new chance…*\n"
-            message += f"💫 *Your next one could be legendary\\!*\n\n"
+
+            # Check if got surprise reward
+            if result.get('got_surprise'):
+                message += f"✨ *SURPRISE REWARD\\!* ✨\n"
+                message += f"🎁 You won *{result['surprise_chips']} chips*\\!\n\n"
+                message += f"⏳ *Pending Admin Approval*\n"
+                message += f"✅ Your chips will be added to your PPPoker account once approved\\.\n"
+                message += f"You'll be notified immediately\\! 🎉\n\n"
+            else:
+                message += f"😎 *Every spin is a new chance…*\n"
+                message += f"💫 *Your next one could be legendary\\!*\n\n"
+
             message += f"━━━━━━━━━━━━━━━━━━\n"
             message += f"👤 {user.first_name}\n"
             message += f"🎲 Spins Used: {spin_count}\n"
-            message += f"💎 Total Earned: *{result['total_chips_earned']} chips*\n"
+            message += f"💎 Total Chips: *{result['total_chips_earned']} chips*\n"
             message += f"🎯 Spins Left: *{result['available_spins']}*\n"
             message += f"━━━━━━━━━━━━━━━━━━\n\n"
             message += f"🔥 Try again\\! Fortune favors the bold\\!"
@@ -482,6 +520,71 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
             parse_mode='MarkdownV2',
             reply_markup=reply_markup if result['available_spins'] > 0 else None
         )
+
+        # Send notification to ALL admins if user won any prize
+        if result.get('milestone_prize') or result.get('got_surprise'):
+            # Get user's PPPoker ID from last deposit
+            user_pppoker_id = "Not found"
+            try:
+                deposits = spin_bot.sheets.sheet.worksheet('Deposits').get_all_records()
+                user_deposits = [d for d in deposits if str(d.get('User ID')) == str(user.id)]
+                if user_deposits:
+                    last_deposit = user_deposits[-1]
+                    user_pppoker_id = last_deposit.get('PPPoker ID', 'Not found')
+            except:
+                pass
+
+            # Build prize information
+            prize_info = ""
+            total_pending = 0
+
+            if result.get('milestone_prize'):
+                prize = result['milestone_prize']
+                prize_info += f"🎁 <b>Milestone:</b> {prize['name']} ({prize['chips']} chips)\n"
+                total_pending += prize['chips']
+
+            if result.get('got_surprise'):
+                prize_info += f"✨ <b>Surprise:</b> {result['surprise_chips']} chips\n"
+                total_pending += result['surprise_chips']
+
+            admin_message = (
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"🎊 <b>NEW PRIZE WON!</b> 🎊\n"
+                f"━━━━━━━━━━━━━━━━━━\n\n"
+                f"👤 <b>User:</b> {user.first_name} (@{user.username if user.username else 'no username'})\n"
+                f"🆔 <b>Telegram ID:</b> <code>{user.id}</code>\n"
+                f"🎮 <b>PPPoker ID:</b> <code>{user_pppoker_id}</code>\n\n"
+                f"{prize_info}\n"
+                f"💰 <b>Total Pending:</b> <b>{total_pending} chips</b>\n\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"⏳ Waiting for approval...\n"
+                f"Use /pendingspins to view all pending rewards."
+            )
+
+            # Send to super admin
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_user_id,
+                    text=admin_message,
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                logger.error(f"Failed to notify super admin: {e}")
+
+            # Send to all regular admins
+            try:
+                admins = spin_bot.sheets.get_all_admins()
+                for admin in admins:
+                    try:
+                        await context.bot.send_message(
+                            chat_id=admin['admin_id'],
+                            text=admin_message,
+                            parse_mode='HTML'
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to notify admin {admin['admin_id']}: {e}")
+            except Exception as e:
+                logger.error(f"Failed to get admin list: {e}")
 
     except Exception as e:
         logger.error(f"Error in spin callback: {e}")
@@ -562,17 +665,41 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text("✅ No pending spin rewards!")
             return
 
-        message = "🎰 *PENDING SPIN REWARDS* 🎰\n\n"
+        message = "━━━━━━━━━━━━━━━━━━\n"
+        message += "🎰 *PENDING SPIN REWARDS* 🎰\n"
+        message += "━━━━━━━━━━━━━━━━━━\n\n"
 
         for idx, reward in enumerate(pending, 1):
-            message += f"*{idx}\\. User:* {reward['username']}\n"
-            message += f"   🆔 `{reward['user_id']}`\n"
-            message += f"   🎁 Prize: {reward['prize']}\n"
-            message += f"   💎 Chips: {reward['chips']}\n"
-            message += f"   📅 Date: {reward['date']}\n"
-            message += f"   🔖 ID: `{reward['spin_id']}`\n\n"
+            # Get user's PPPoker ID from their last deposit
+            user_pppoker_id = "Not found"
+            try:
+                # Get user's deposit history to find PPPoker ID
+                deposits = spin_bot.sheets.sheet.worksheet('Deposits').get_all_records()
+                user_deposits = [d for d in deposits if str(d.get('User ID')) == str(reward['user_id'])]
+                if user_deposits:
+                    # Get most recent deposit
+                    last_deposit = user_deposits[-1]
+                    user_pppoker_id = last_deposit.get('PPPoker ID', 'Not found')
+            except:
+                pass
 
-        message += "Use `/approvespin <spin_id>` to approve a reward\\."
+            # Check if approved
+            approval_status = ""
+            if reward.get('approved'):
+                approved_by = reward.get('approved_by', 'Unknown')
+                approval_status = f"✅ *Approved by:* {approved_by}\n"
+
+            message += f"*{idx}\\. {reward['username']}*\n"
+            message += f"👤 Telegram ID: `{reward['user_id']}`\n"
+            message += f"🎮 PPPoker ID: `{user_pppoker_id}`\n"
+            message += f"🎁 Prize: *{reward['prize']}*\n"
+            message += f"💎 Chips: *{reward['chips']}*\n"
+            message += f"📅 Won: {reward['date']}\n"
+            message += approval_status
+            message += f"🔖 Spin ID: `{reward['spin_id']}`\n"
+            message += f"━━━━━━━━━━━━━━━━━━\n\n"
+
+        message += "✅ Use `/approvespin <spin_id>` to approve\\."
 
         await update.message.reply_text(message, parse_mode='MarkdownV2')
 
@@ -604,20 +731,44 @@ async def approvespin_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         if spin_data.get('approved'):
-            await update.message.reply_text("⚠️ This reward was already approved!")
+            approved_by = spin_data.get('approved_by', 'Unknown admin')
+            await update.message.reply_text(
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"⚠️ *ALREADY APPROVED* ⚠️\n"
+                f"━━━━━━━━━━━━━━━━━━\n\n"
+                f"This reward was already approved by:\n"
+                f"👤 *{approved_by}*\n\n"
+                f"Cannot approve twice\\!",
+                parse_mode='MarkdownV2'
+            )
             return
 
         # Mark as approved
-        spin_bot.sheets.approve_spin_reward(spin_id, user.id, user.username or user.first_name)
+        approver_name = user.username or user.first_name
+        spin_bot.sheets.approve_spin_reward(spin_id, user.id, approver_name)
+
+        # Update user's total approved chips
+        user_data = spin_bot.sheets.get_spin_user(spin_data['user_id'])
+        if user_data:
+            current_chips = user_data.get('total_chips_earned', 0)
+            new_total = current_chips + spin_data['chips']
+            spin_bot.sheets.update_spin_user(
+                user_id=spin_data['user_id'],
+                total_chips_earned=new_total
+            )
 
         # Notify user
         try:
             user_message = (
-                f"✅ *REWARD APPROVED* ✅\n\n"
-                f"🎁 Your spin reward has been approved\\!\n\n"
-                f"Prize: {spin_data['prize']}\n"
-                f"💎 Chips: *{spin_data['chips']}*\n\n"
-                f"Your chips have been added to your PPPoker account\\!\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"✅ *REWARD APPROVED* ✅\n"
+                f"━━━━━━━━━━━━━━━━━━\n\n"
+                f"🎊 Congratulations\\!\n\n"
+                f"🎁 Prize: *{spin_data['prize']}*\n"
+                f"💰 Chips: *{spin_data['chips']}*\n\n"
+                f"✨ *Added to your balance\\!* ✨\n"
+                f"Your chips have been credited to your PPPoker account\\!\n\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
                 f"Thank you for playing\\! 🎰"
             )
 
@@ -629,12 +780,57 @@ async def approvespin_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception as e:
             logger.error(f"Error notifying user: {e}")
 
+        # Notify ALL admins about the approval
+        admin_notification = (
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"✅ <b>REWARD APPROVED</b> ✅\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 <b>User:</b> {spin_data['username']}\n"
+            f"🎁 <b>Prize:</b> {spin_data['prize']}\n"
+            f"💎 <b>Chips:</b> {spin_data['chips']}\n\n"
+            f"✅ <b>Approved by:</b> {approver_name}\n"
+            f"🔖 <b>Spin ID:</b> <code>{spin_id}</code>\n\n"
+            f"━━━━━━━━━━━━━━━━━━"
+        )
+
+        # Get admin_user_id from spin_bot
+        try:
+            # Send to super admin (if not the one who approved)
+            if user.id != spin_bot.admin_user_id:
+                try:
+                    await context.bot.send_message(
+                        chat_id=spin_bot.admin_user_id,
+                        text=admin_notification,
+                        parse_mode='HTML'
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to notify super admin: {e}")
+
+            # Send to all other admins
+            admins = spin_bot.sheets.get_all_admins()
+            for admin in admins:
+                # Don't notify the admin who approved it
+                if admin['admin_id'] != user.id:
+                    try:
+                        await context.bot.send_message(
+                            chat_id=admin['admin_id'],
+                            text=admin_notification,
+                            parse_mode='HTML'
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to notify admin {admin['admin_id']}: {e}")
+        except Exception as e:
+            logger.error(f"Error notifying other admins: {e}")
+
         await update.message.reply_text(
-            f"✅ Reward approved\\!\n\n"
-            f"User: {spin_data['username']}\n"
-            f"Prize: {spin_data['prize']}\n"
-            f"Chips: {spin_data['chips']}\n\n"
-            f"User has been notified\\.",
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"✅ *REWARD APPROVED* ✅\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 User: {spin_data['username']}\n"
+            f"🎁 Prize: {spin_data['prize']}\n"
+            f"💎 Chips: {spin_data['chips']}\n\n"
+            f"✅ User has been notified\\!\n"
+            f"💰 Manually add {spin_data['chips']} chips to PPPoker ID\\.",
             parse_mode='MarkdownV2'
         )
 
