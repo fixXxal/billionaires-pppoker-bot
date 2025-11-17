@@ -820,10 +820,18 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     except Exception as e:
         logger.error(f"Error in pendingspins command: {e}")
+        import traceback
+        traceback.print_exc()
         if update.callback_query:
-            await update.callback_query.message.reply_text("❌ Error fetching pending rewards.")
+            try:
+                await update.callback_query.message.reply_text(f"❌ Error fetching pending rewards.\n\nError: {str(e)}")
+            except:
+                await context.bot.send_message(
+                    chat_id=update.callback_query.message.chat_id,
+                    text=f"❌ Error fetching pending rewards.\n\nError: {str(e)}"
+                )
         else:
-            await update.message.reply_text("❌ Error fetching pending rewards.")
+            await update.message.reply_text(f"❌ Error fetching pending rewards.\n\nError: {str(e)}")
 
 
 async def approvespin_command(update: Update, context: ContextTypes.DEFAULT_TYPE, spin_bot: SpinBot, is_admin_func):

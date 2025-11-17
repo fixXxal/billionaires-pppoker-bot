@@ -4449,8 +4449,8 @@ async def spin_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     data = query.data
 
     # Handle add spins amount selection
-    if data.startswith("add_spins_amount_"):
-        amount = data.replace("add_spins_amount_", "")
+    if data.startswith("spin_admin_add_amount_"):
+        amount = data.replace("spin_admin_add_amount_", "")
         # Store the amount in user context
         context.user_data['pending_spin_amount'] = amount
 
@@ -4474,15 +4474,15 @@ async def spin_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Show common spin amounts as buttons
         keyboard = [
             [
-                InlineKeyboardButton("➕ 10 Spins", callback_data="add_spins_amount_10"),
-                InlineKeyboardButton("➕ 25 Spins", callback_data="add_spins_amount_25")
+                InlineKeyboardButton("➕ 10 Spins", callback_data="spin_admin_add_amount_10"),
+                InlineKeyboardButton("➕ 25 Spins", callback_data="spin_admin_add_amount_25")
             ],
             [
-                InlineKeyboardButton("➕ 50 Spins", callback_data="add_spins_amount_50"),
-                InlineKeyboardButton("➕ 100 Spins", callback_data="add_spins_amount_100")
+                InlineKeyboardButton("➕ 50 Spins", callback_data="spin_admin_add_amount_50"),
+                InlineKeyboardButton("➕ 100 Spins", callback_data="spin_admin_add_amount_100")
             ],
             [
-                InlineKeyboardButton("➕ 250 Spins", callback_data="add_spins_amount_250")
+                InlineKeyboardButton("➕ 250 Spins", callback_data="spin_admin_add_amount_250")
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
