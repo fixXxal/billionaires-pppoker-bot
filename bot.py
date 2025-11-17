@@ -3329,6 +3329,21 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
         sheets.update_deposit_status(request_id, 'Approved', query.from_user.id, 'Quick approved')
         logger.info(f"Deposit {request_id} status updated to Approved")
 
+        # Add free spins based on deposit amount
+        spins_message = ""
+        try:
+            amount_mvr = float(deposit['amount'])
+            spins_added = await spin_bot.add_spins_from_deposit(
+                user_id=deposit['user_id'],
+                username=deposit['username'],
+                amount_mvr=amount_mvr
+            )
+            if spins_added > 0:
+                spins_message = f"\n\n🎰 **FREE SPINS BONUS!**\n+{spins_added} free spins added!\nUse /freespins to play!"
+            logger.info(f"Added {spins_added} spins to user {deposit['user_id']} for deposit of {amount_mvr} MVR")
+        except Exception as e:
+            logger.error(f"Error adding spins for deposit: {e}")
+
         # Check for promotion bonus
         promo_data = context.bot_data.get(f'promo_{request_id}')
         bonus_message = ""
@@ -3364,7 +3379,7 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
                 text=f"✅ **Your Deposit Has Been Approved!**\n\n"
                      f"**Request ID:** `{request_id}`\n"
                      f"**Amount:** {deposit['amount']} {'MVR' if deposit['payment_method'] != 'USDT' else 'USD'}\n"
-                     f"**PPPoker ID:** {deposit['pppoker_id']}{bonus_message}\n\n"
+                     f"**PPPoker ID:** {deposit['pppoker_id']}{bonus_message}{spins_message}\n\n"
                      f"Your chips have been added to your account. Happy gaming! 🎮",
                 parse_mode='Markdown',
                 reply_markup=reply_markup
