@@ -972,18 +972,23 @@ async def addspins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, s
             if user_data:
                 target_username = user_data.get('username', 'Unknown')
 
+        # Try to get PPPoker ID from Deposits sheet
+        pppoker_id = spin_bot.sheets.get_pppoker_id_from_deposits(target_user_id)
+
         if user_data:
             new_available = user_data.get('available_spins', 0) + spins_to_add
             spin_bot.sheets.update_spin_user(
                 user_id=target_user_id,
                 username=target_username,
-                available_spins=new_available
+                available_spins=new_available,
+                pppoker_id=pppoker_id if pppoker_id else None  # Only update if found
             )
         else:
             spin_bot.sheets.create_spin_user(
                 user_id=target_user_id,
                 username=target_username,
-                available_spins=spins_to_add
+                available_spins=spins_to_add,
+                pppoker_id=pppoker_id  # Store PPPoker ID if found
             )
 
         await update.message.reply_text(

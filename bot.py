@@ -4537,7 +4537,7 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 total_chips += int(spin_data.get('chips', 0))
 
                 # Approve this spin
-                await approvespin_command(update, context)
+                await approvespin_command(update, context, spin_bot, is_admin)
                 approved_count += 1
         except Exception as e:
             logger.error(f"Error approving spin {spin_id}: {e}")
