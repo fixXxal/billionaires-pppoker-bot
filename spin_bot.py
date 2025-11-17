@@ -324,32 +324,35 @@ class SpinBot:
         try:
             spins_to_add = self.calculate_spins_from_deposit(amount_mvr)
 
+            # Get or create user (do this for ALL deposits, not just ones that give spins)
+            user_data = self.sheets.get_spin_user(user_id)
+
+            if user_data:
+                # Update existing user
+                new_available = user_data.get('available_spins', 0) + spins_to_add
+                new_total_deposit = user_data.get('total_deposit', 0) + amount_mvr
+
+                self.sheets.update_spin_user(
+                    user_id=user_id,
+                    username=username,
+                    available_spins=new_available,
+                    total_deposit=new_total_deposit,
+                    pppoker_id=pppoker_id  # Update PPPoker ID even if spins_to_add = 0
+                )
+            else:
+                # Create new user (even if they get 0 spins, store their PPPoker ID)
+                self.sheets.create_spin_user(
+                    user_id=user_id,
+                    username=username,
+                    available_spins=spins_to_add,
+                    total_deposit=amount_mvr,
+                    pppoker_id=pppoker_id
+                )
+
             if spins_to_add > 0:
-                # Get or create user
-                user_data = self.sheets.get_spin_user(user_id)
-
-                if user_data:
-                    new_available = user_data.get('available_spins', 0) + spins_to_add
-                    new_total_deposit = user_data.get('total_deposit', 0) + amount_mvr
-
-                    self.sheets.update_spin_user(
-                        user_id=user_id,
-                        username=username,
-                        available_spins=new_available,
-                        total_deposit=new_total_deposit,
-                        pppoker_id=pppoker_id
-                    )
-                else:
-                    # Create new user
-                    self.sheets.create_spin_user(
-                        user_id=user_id,
-                        username=username,
-                        available_spins=spins_to_add,
-                        total_deposit=amount_mvr,
-                        pppoker_id=pppoker_id
-                    )
-
                 logger.info(f"Added {spins_to_add} spins to user {user_id} for deposit of {amount_mvr} MVR")
+            else:
+                logger.info(f"Deposit of {amount_mvr} MVR from user {user_id} recorded (no spins - below minimum)")
 
             return spins_to_add
 
