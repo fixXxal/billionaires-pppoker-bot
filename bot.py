@@ -20,6 +20,11 @@ from apscheduler.triggers.cron import CronTrigger
 from sheets_manager import SheetsManager
 import admin_panel
 import vision_api
+from spin_bot import (
+    SpinBot, freespins_command, spin_callback,
+    spin_again_callback, pendingspins_command,
+    approvespin_command, addspins_command, spinsstats_command
+)
 
 # Load environment variables
 load_dotenv()
@@ -50,6 +55,9 @@ TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
 
 # Initialize Sheets Manager
 sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
+
+# Initialize Spin Bot
+spin_bot = SpinBot(sheets, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
 
 # Conversation states
 (DEPOSIT_METHOD, DEPOSIT_AMOUNT, DEPOSIT_PPPOKER_ID, DEPOSIT_ACCOUNT_NAME,
@@ -4427,8 +4435,19 @@ def main():
     application.add_handler(CommandHandler("listadmins", listadmins_command))
     application.add_handler(CommandHandler("user_credit", user_credit_command))
 
+    # Spin bot command handlers
+    application.add_handler(CommandHandler("freespins", freespins_command))
+    application.add_handler(CommandHandler("addspins", addspins_command))
+    application.add_handler(CommandHandler("spinsstats", spinsstats_command))
+    application.add_handler(CommandHandler("pendingspins", pendingspins_command))
+    application.add_handler(CommandHandler("approvespin", approvespin_command))
+
     # Test button handlers
     application.add_handler(CallbackQueryHandler(test_button_handler, pattern="^test_"))
+
+    # Spin bot callback handlers
+    application.add_handler(CallbackQueryHandler(spin_callback, pattern="^spin_"))
+    application.add_handler(CallbackQueryHandler(spin_again_callback, pattern="^spin_again$"))
 
     # Button callback handlers for live support
     application.add_handler(CallbackQueryHandler(admin_reply_button_clicked, pattern="^support_reply_"))
