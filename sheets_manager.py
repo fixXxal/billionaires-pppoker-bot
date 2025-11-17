@@ -1328,6 +1328,34 @@ class SheetsManager:
 
     # Removed log_spin method - no longer needed (display prizes not tracked)
 
+    def get_pppoker_id_from_deposits(self, user_id: int) -> str:
+        """Get user's PPPoker ID from their last deposit"""
+        try:
+            deposits = self.deposits_sheet.get_all_records()
+
+            # Filter deposits for this user (with proper string handling)
+            user_deposits = [d for d in deposits
+                           if str(d.get('User ID', '')).strip() == str(user_id).strip()]
+
+            if user_deposits:
+                # Get the most recent deposit (last in list)
+                last_deposit = user_deposits[-1]
+
+                # Try multiple possible column names
+                pppoker_id = (last_deposit.get('PPPoker ID') or
+                            last_deposit.get('PPPoker Id') or
+                            last_deposit.get('Pppoker ID') or
+                            last_deposit.get('pppoker_id') or
+                            last_deposit.get('PPPoker Id'))
+
+                if pppoker_id and str(pppoker_id).strip():
+                    return str(pppoker_id).strip()
+
+            return ''
+        except Exception as e:
+            print(f"Error getting PPPoker ID from deposits: {e}")
+            return ''
+
     def log_milestone_reward(self, user_id: int, username: str, milestone_type: str,
                             milestone_count: int, chips_awarded: int, triggered_at: int, pppoker_id: str = ''):
         """Log a milestone reward"""

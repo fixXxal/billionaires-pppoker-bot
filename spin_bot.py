@@ -204,6 +204,13 @@ class SpinBot:
             available_spins = user_data.get('available_spins', 0)
             user_pppoker_id = user_data.get('pppoker_id', '')
 
+            # If PPPoker ID is not in Spin Users, try to get it from Deposits
+            if not user_pppoker_id:
+                user_pppoker_id = self.sheets.get_pppoker_id_from_deposits(user_id)
+                # Update Spin Users with the PPPoker ID for future reference
+                if user_pppoker_id:
+                    self.sheets.update_spin_user(user_id=user_id, pppoker_id=user_pppoker_id)
+
             if available_spins < spin_count:
                 return {
                     'success': False,
@@ -540,7 +547,13 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
         if result.get('milestone_prize') or result.get('got_surprise'):
             # Get user's PPPoker ID from user data (stored in Spin Users sheet)
             user_data = spin_bot.sheets.get_spin_user(user.id)
-            user_pppoker_id = user_data.get('pppoker_id', 'Not found') if user_data else 'Not found'
+            user_pppoker_id = user_data.get('pppoker_id', '') if user_data else ''
+
+            # If PPPoker ID is not in Spin Users, try to get it from Deposits
+            if not user_pppoker_id:
+                user_pppoker_id = spin_bot.sheets.get_pppoker_id_from_deposits(user.id)
+
+            # Set to "Not found" if still empty
             if not user_pppoker_id:
                 user_pppoker_id = 'Not found'
 
@@ -741,7 +754,13 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
         for idx, (user_id, user_data) in enumerate(user_rewards.items(), 1):
             # Get PPPoker ID from the reward data (already stored in milestone rewards sheet)
             # Use the PPPoker ID from the first reward (they should all be the same for one user)
-            user_pppoker_id = user_data['rewards'][0].get('pppoker_id', 'Not found') if user_data['rewards'] else 'Not found'
+            user_pppoker_id = user_data['rewards'][0].get('pppoker_id', '') if user_data['rewards'] else ''
+
+            # If PPPoker ID is not in reward data, try to get it from Deposits
+            if not user_pppoker_id:
+                user_pppoker_id = spin_bot.sheets.get_pppoker_id_from_deposits(int(user_id))
+
+            # Set to "Not found" if still empty
             if not user_pppoker_id:
                 user_pppoker_id = 'Not found'
 
