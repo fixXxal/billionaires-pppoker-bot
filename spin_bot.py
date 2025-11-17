@@ -590,24 +590,38 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
 
             # Get all pending rewards for this user to create approve button
             try:
+                # Small delay to ensure Google Sheets has processed the write
+                import asyncio
+                await asyncio.sleep(1.0)
+
                 pending_rewards = spin_bot.sheets.get_pending_spin_rewards()
+                logger.info(f"Total pending rewards in system: {len(pending_rewards)}")
                 user_pending = [r for r in pending_rewards if str(r['user_id']) == str(user.id)]
+                logger.info(f"Pending rewards for user {user.id}: {len(user_pending)}")
+
+                if user_pending:
+                    logger.info(f"User pending rewards: {user_pending}")
 
                 # Create approve button with all spin IDs for this user
                 keyboard = None
                 if user_pending:
                     spin_ids = [r['spin_id'] for r in user_pending]
                     spin_ids_str = ','.join(spin_ids)
+                    logger.info(f"Creating button with spin IDs: {spin_ids_str}")
                     keyboard = [[InlineKeyboardButton(
                         f"✅ Approve All ({total_pending} chips)",
                         callback_data=f"approve_user_{user.id}_{spin_ids_str}"
                     )]]
                     reply_markup = InlineKeyboardMarkup(keyboard)
+                    logger.info(f"Button created successfully!")
                 else:
                     # Fallback if we can't get pending rewards
+                    logger.warning(f"No pending rewards found for user {user.id}")
                     reply_markup = None
             except Exception as e:
                 logger.error(f"Error getting pending rewards for button: {e}")
+                import traceback
+                traceback.print_exc()
                 reply_markup = None
 
             # Send to super admin

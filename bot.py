@@ -4563,39 +4563,17 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     await query.answer()
 
-    # Edit the message to show we're processing
+    # Delete the current message
     try:
-        await query.edit_message_text("💰 Starting deposit process...")
+        await query.delete_message()
     except:
         pass
 
-    # Get user data and payment accounts
-    user_data = sheets.get_user(query.from_user.id)
-    payment_accounts = sheets.get_all_payment_accounts()
+    # Create a fake update with message to trigger deposit_start
+    update.message = query.message
 
-    # Build keyboard with only configured payment methods
-    keyboard = []
-    if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
-        keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="deposit_bml")])
-    if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
-        keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="deposit_mib")])
-    if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
-        keyboard.append([InlineKeyboardButton("💵 USDT (TRC20)", callback_data="deposit_usdt")])
-
-    if not keyboard:
-        await query.edit_message_text(
-            "❌ No payment methods are currently configured. Please contact support."
-        )
-        return
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await query.edit_message_text(
-        "💰 **Make a Deposit**\n\n"
-        "Please select your payment method:",
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
+    # Call deposit_start to properly start the conversation
+    return await deposit_start(update, context)
 
 
 # Play freespins button callback handler
@@ -4732,7 +4710,7 @@ def main():
     application.add_handler(CallbackQueryHandler(spin_again_callback, pattern="^spin_again$"))
     application.add_handler(CallbackQueryHandler(spin_admin_callback, pattern="^spin_admin_"))
     application.add_handler(CallbackQueryHandler(approve_spin_callback, pattern="^approve_(spin_|user_)"))
-    application.add_handler(CallbackQueryHandler(deposit_button_callback, pattern="^deposit_start$"))
+    # deposit_button_callback is now in deposit ConversationHandler entry_points (line 4740)
     application.add_handler(CallbackQueryHandler(play_freespins_callback, pattern="^play_freespins$"))
 
     # Button callback handlers for live support
@@ -4758,7 +4736,8 @@ def main():
     # Deposit conversation handler
     deposit_conv = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.Regex("^💰 Deposit$"), deposit_start)
+            MessageHandler(filters.Regex("^💰 Deposit$"), deposit_start),
+            CallbackQueryHandler(deposit_button_callback, pattern="^deposit_start$")
         ],
         states={
             DEPOSIT_METHOD: [CallbackQueryHandler(deposit_method_selected, pattern="^deposit_")],
