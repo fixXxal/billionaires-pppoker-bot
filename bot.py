@@ -4811,10 +4811,11 @@ def main():
     application.add_handler(CallbackQueryHandler(test_button_handler, pattern="^test_"))
 
     # Spin bot callback handlers
-    application.add_handler(CallbackQueryHandler(spin_callback, pattern="^spin_"))
-    application.add_handler(CallbackQueryHandler(spin_again_callback, pattern="^spin_again$"))
+    # IMPORTANT: Register more specific patterns FIRST before generic ones
     application.add_handler(CallbackQueryHandler(spin_admin_callback, pattern="^spin_admin_"))
+    application.add_handler(CallbackQueryHandler(spin_again_callback, pattern="^spin_again$"))
     application.add_handler(CallbackQueryHandler(approve_spin_callback, pattern="^approve_(spin_|user_)"))
+    application.add_handler(CallbackQueryHandler(spin_callback, pattern="^spin_"))
     # deposit_button_callback is now in deposit ConversationHandler entry_points (line 4740)
     application.add_handler(CallbackQueryHandler(play_freespins_callback, pattern="^play_freespins$"))
 
