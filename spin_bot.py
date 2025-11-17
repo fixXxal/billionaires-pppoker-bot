@@ -970,13 +970,13 @@ async def addspins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, s
 
         # Notify user
         try:
-            # Create "Play Now" button
-            keyboard = [[InlineKeyboardButton("🎲 Play Now", callback_data="play_freespins")]]
+            # Create "Spin Now" button
+            keyboard = [[InlineKeyboardButton("🎲 Spin Now", callback_data="play_freespins")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await context.bot.send_message(
                 chat_id=target_user_id,
-                text=f"🎁 You received {spins_to_add} free spins!\n\nClick button to play!",
+                text=f"🎁 You received {spins_to_add} free spins!\n\nClick button to spin!",
                 reply_markup=reply_markup
             )
         except:

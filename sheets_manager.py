@@ -263,6 +263,39 @@ class SheetsManager:
                 'Chips Awarded', 'Triggered At Spin Count', 'Created At', 'Approved', 'Approved By', 'PPPoker ID'
             ])
 
+        # Run migration to add PPPoker ID columns if they don't exist
+        self._migrate_add_pppoker_columns()
+
+    def _migrate_add_pppoker_columns(self):
+        """Add PPPoker ID columns to existing sheets if they don't exist"""
+        try:
+            # Check and add to Spin Users sheet
+            try:
+                headers = self.spin_users_sheet.row_values(1)
+                if len(headers) < 9 or 'PPPoker ID' not in headers:
+                    print("🔄 Adding PPPoker ID column to Spin Users sheet...")
+                    # Update header row to add PPPoker ID column
+                    if len(headers) == 8:
+                        self.spin_users_sheet.update_cell(1, 9, 'PPPoker ID')
+                        print("✅ PPPoker ID column added to Spin Users sheet!")
+            except Exception as e:
+                print(f"Note: Could not add PPPoker ID to Spin Users: {e}")
+
+            # Check and add to Milestone Rewards sheet
+            try:
+                headers = self.milestone_rewards_sheet.row_values(1)
+                if len(headers) < 10 or 'PPPoker ID' not in headers:
+                    print("🔄 Adding PPPoker ID column to Milestone Rewards sheet...")
+                    # Update header row to add PPPoker ID column
+                    if len(headers) == 9:
+                        self.milestone_rewards_sheet.update_cell(1, 10, 'PPPoker ID')
+                        print("✅ PPPoker ID column added to Milestone Rewards sheet!")
+            except Exception as e:
+                print(f"Note: Could not add PPPoker ID to Milestone Rewards: {e}")
+
+        except Exception as e:
+            print(f"Migration note: {e}")
+
     def _get_timestamp(self) -> str:
         """Get current timestamp in the configured timezone"""
         return datetime.now(self.timezone).strftime('%Y-%m-%d %H:%M:%S')
@@ -1222,14 +1255,14 @@ class SheetsManager:
                 row = self.spin_users_sheet.row_values(cell.row)
                 return {
                     'user_id': int(row[0]),
-                    'username': row[1],
-                    'available_spins': int(row[2]) if row[2] else 0,
-                    'total_spins_used': int(row[3]) if row[3] else 0,
-                    'total_chips_earned': int(row[4]) if row[4] else 0,
-                    'total_deposit': float(row[5]) if row[5] else 0,
+                    'username': row[1] if len(row) > 1 else 'Unknown',
+                    'available_spins': int(row[2]) if len(row) > 2 and row[2] else 0,
+                    'total_spins_used': int(row[3]) if len(row) > 3 and row[3] else 0,
+                    'total_chips_earned': int(row[4]) if len(row) > 4 and row[4] else 0,
+                    'total_deposit': float(row[5]) if len(row) > 5 and row[5] else 0,
                     'created_at': row[6] if len(row) > 6 else '',
                     'last_spin_at': row[7] if len(row) > 7 else '',
-                    'pppoker_id': row[8] if len(row) > 8 else ''
+                    'pppoker_id': row[8] if len(row) > 8 and row[8] else ''
                 }
             return None
         except Exception as e:
@@ -1281,7 +1314,11 @@ class SheetsManager:
                     self.spin_users_sheet.update_cell(cell.row, 6, total_deposit)
 
                 if pppoker_id is not None:
-                    self.spin_users_sheet.update_cell(cell.row, 9, pppoker_id)
+                    # Only update if column exists (for backward compatibility)
+                    try:
+                        self.spin_users_sheet.update_cell(cell.row, 9, pppoker_id)
+                    except Exception as e:
+                        print(f"Note: PPPoker ID column not yet added to sheet: {e}")
 
                 return True
             return False
@@ -1295,21 +1332,39 @@ class SheetsManager:
                             milestone_count: int, chips_awarded: int, triggered_at: int, pppoker_id: str = ''):
         """Log a milestone reward"""
         try:
-            self.milestone_rewards_sheet.append_row([
-                user_id,
-                username,
-                milestone_type,
-                milestone_count,
-                chips_awarded,
-                triggered_at,
-                self._get_timestamp(),
-                'No',  # Approved (default: No)
-                '',    # Approved By (default: empty)
-                pppoker_id
-            ])
+            # Try with PPPoker ID column first
+            try:
+                self.milestone_rewards_sheet.append_row([
+                    user_id,
+                    username,
+                    milestone_type,
+                    milestone_count,
+                    chips_awarded,
+                    triggered_at,
+                    self._get_timestamp(),
+                    'No',  # Approved (default: No)
+                    '',    # Approved By (default: empty)
+                    pppoker_id
+                ])
+            except Exception as col_error:
+                # If that fails (column doesn't exist), try without PPPoker ID
+                print(f"Note: Logging without PPPoker ID column (not yet added): {col_error}")
+                self.milestone_rewards_sheet.append_row([
+                    user_id,
+                    username,
+                    milestone_type,
+                    milestone_count,
+                    chips_awarded,
+                    triggered_at,
+                    self._get_timestamp(),
+                    'No',  # Approved (default: No)
+                    ''     # Approved By (default: empty)
+                ])
             return True
         except Exception as e:
             print(f"Error logging milestone reward: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def get_pending_spin_rewards(self) -> List[Dict]:
