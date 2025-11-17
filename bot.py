@@ -4603,49 +4603,146 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
 
-    user_id = query.from_user.id
+    user = query.from_user
 
-    if not is_admin(user_id):
+    if not is_admin(user.id):
         await query.edit_message_text("❌ Admin access required!")
         return
 
     # Extract data from callback_data
     # Format: approve_user_<user_id>_<spin_id1>,<spin_id2>,<spin_id3>
     data_parts = query.data.replace("approve_user_", "").split("_", 1)
-    target_user_id = data_parts[0]
+    target_user_id = int(data_parts[0])
     spin_ids = data_parts[1].split(",") if len(data_parts) > 1 else []
 
     # Approve all spin IDs for this user
     approved_count = 0
     total_chips = 0
+    approver_name = user.username or user.first_name
+    target_username = "Unknown"
 
     for spin_id in spin_ids:
-        # Call approvespin for each spin_id
-        context.args = [spin_id]
-        update.message = query.message
-
         try:
             # Get spin data before approval
             spin_data = spin_bot.sheets.get_spin_by_id(spin_id)
-            if spin_data and not spin_data.get('approved'):
-                total_chips += int(spin_data.get('chips', 0))
 
-                # Approve this spin
-                await approvespin_command(update, context, spin_bot, is_admin)
-                approved_count += 1
+            if not spin_data:
+                logger.warning(f"Spin ID {spin_id} not found")
+                continue
+
+            if spin_data.get('approved'):
+                logger.info(f"Spin ID {spin_id} already approved, skipping")
+                continue
+
+            # Store username for later
+            target_username = spin_data.get('username', 'Unknown')
+
+            # Mark as approved
+            spin_bot.sheets.approve_spin_reward(spin_id, user.id, approver_name)
+
+            # Add to totals
+            chips = int(spin_data.get('chips', 0))
+            total_chips += chips
+            approved_count += 1
+
+            # Update user's total approved chips
+            user_data = spin_bot.sheets.get_spin_user(spin_data['user_id'])
+            if user_data:
+                current_chips = user_data.get('total_chips_earned', 0)
+                new_total = current_chips + chips
+                spin_bot.sheets.update_spin_user(
+                    user_id=spin_data['user_id'],
+                    username=target_username,
+                    total_chips_earned=new_total
+                )
+
+            # Notify user about this specific reward
+            try:
+                user_message = (
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"✅ *REWARD APPROVED* ✅\n"
+                    f"━━━━━━━━━━━━━━━━━━\n\n"
+                    f"🎊 Congratulations\\!\n\n"
+                    f"🎁 Prize: *{spin_data['prize']}*\n"
+                    f"💰 Chips: *{chips}*\n\n"
+                    f"✨ *Added to your balance\\!* ✨\n"
+                    f"Your chips have been credited to your PPPoker account\\!\n\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"Thank you for playing\\! 🎰"
+                )
+
+                await context.bot.send_message(
+                    chat_id=spin_data['user_id'],
+                    text=user_message,
+                    parse_mode='MarkdownV2'
+                )
+            except Exception as e:
+                logger.error(f"Error notifying user about spin {spin_id}: {e}")
+
         except Exception as e:
             logger.error(f"Error approving spin {spin_id}: {e}")
+            import traceback
+            traceback.print_exc()
+
+    # Notify ALL other admins about the batch approval
+    if approved_count > 0:
+        admin_notification = (
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"✅ <b>REWARDS APPROVED</b> ✅\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 <b>User:</b> {target_username}\n"
+            f"🎁 <b>Rewards:</b> {approved_count}\n"
+            f"💎 <b>Total Chips:</b> {total_chips}\n\n"
+            f"✅ <b>Approved by:</b> {approver_name}\n\n"
+            f"━━━━━━━━━━━━━━━━━━"
+        )
+
+        try:
+            # Send to super admin (if not the one who approved)
+            if user.id != ADMIN_USER_ID:
+                try:
+                    await context.bot.send_message(
+                        chat_id=ADMIN_USER_ID,
+                        text=admin_notification,
+                        parse_mode='HTML'
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to notify super admin: {e}")
+
+            # Send to all other admins
+            admins = spin_bot.sheets.get_all_admins()
+            for admin in admins:
+                # Don't notify the admin who approved it
+                if admin['admin_id'] != user.id:
+                    try:
+                        await context.bot.send_message(
+                            chat_id=admin['admin_id'],
+                            text=admin_notification,
+                            parse_mode='HTML'
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to notify admin {admin['admin_id']}: {e}")
+        except Exception as e:
+            logger.error(f"Error notifying other admins: {e}")
 
     # Edit the original message to show it was processed
     try:
-        await query.edit_message_text(
-            f"✅ *APPROVED ALL REWARDS*\n\n"
-            f"✅ Approved: {approved_count} rewards\n"
-            f"💰 Total Chips: {total_chips}\n"
-            f"👤 User ID: `{target_user_id}`\n\n"
-            f"User has been notified\\!",
-            parse_mode='MarkdownV2'
-        )
+        if approved_count > 0:
+            await query.edit_message_text(
+                f"✅ *APPROVED ALL REWARDS*\n\n"
+                f"✅ Approved: {approved_count} rewards\n"
+                f"💰 Total Chips: {total_chips}\n"
+                f"👤 User: {target_username}\n\n"
+                f"User has been notified\\!\n"
+                f"💰 Manually add {total_chips} chips to PPPoker ID\\.",
+                parse_mode='MarkdownV2'
+            )
+        else:
+            await query.edit_message_text(
+                f"⚠️ No rewards to approve\\.\n"
+                f"All rewards may already be approved\\.",
+                parse_mode='MarkdownV2'
+            )
     except Exception as e:
         logger.error(f"Error editing message: {e}")
         pass
