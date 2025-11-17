@@ -661,6 +661,8 @@ async def spin_again_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
 
+    logger.info(f"Spin again button clicked by user {query.from_user.id}")
+
     # Call freespins command logic
     user = query.from_user
 

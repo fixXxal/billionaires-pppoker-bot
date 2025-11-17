@@ -4579,20 +4579,31 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
 # Play freespins button callback handler
 async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle play freespins button click"""
-    query = update.callback_query
-    await query.answer()
-
-    # Delete the original message
     try:
-        await query.delete_message()
-    except:
-        pass
+        query = update.callback_query
+        await query.answer()
 
-    # Create a fake update with message for freespins_command
-    update.message = query.message
+        logger.info(f"Play freespins button clicked by user {query.from_user.id}")
 
-    # Call freespins command
-    await freespins_command(update, context)
+        # Delete the original message
+        try:
+            await query.delete_message()
+        except Exception as e:
+            logger.warning(f"Could not delete message: {e}")
+
+        # Create a fake update with message for freespins_command
+        update.message = query.message
+
+        # Call freespins command
+        await freespins_command(update, context)
+    except Exception as e:
+        logger.error(f"Error in play_freespins_callback: {e}")
+        import traceback
+        traceback.print_exc()
+        try:
+            await query.message.reply_text("❌ Error starting free spins. Please try /freespins command.")
+        except:
+            pass
 
 
 # Message router
