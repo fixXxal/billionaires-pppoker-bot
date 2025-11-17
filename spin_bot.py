@@ -532,12 +532,22 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
             user_pppoker_id = "Not found"
             try:
                 deposits = spin_bot.sheets.sheet.worksheet('Deposits').get_all_records()
-                user_deposits = [d for d in deposits if str(d.get('User ID')) == str(user.id)]
+                # Filter deposits for this user
+                user_deposits = [d for d in deposits if str(d.get('User ID', '')).strip() == str(user.id).strip()]
+
                 if user_deposits:
+                    # Get the most recent deposit (last in list)
                     last_deposit = user_deposits[-1]
-                    user_pppoker_id = last_deposit.get('PPPoker ID', 'Not found')
-            except:
-                pass
+                    # Try multiple possible column names
+                    pppoker_id = last_deposit.get('PPPoker ID') or last_deposit.get('PPPoker Id') or last_deposit.get('Pppoker ID') or last_deposit.get('pppoker_id')
+                    if pppoker_id and str(pppoker_id).strip():
+                        user_pppoker_id = str(pppoker_id).strip()
+
+                logger.info(f"Found PPPoker ID for user {user.id}: {user_pppoker_id}")
+            except Exception as e:
+                logger.error(f"Error getting PPPoker ID: {e}")
+                import traceback
+                traceback.print_exc()
 
             # Build prize information
             prize_info = ""
@@ -659,23 +669,32 @@ async def spin_again_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Escape username for MarkdownV2
-        username_escaped = user.first_name.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
+        # Delete the old message and send a new one instead of editing
+        # This avoids MarkdownV2 parsing issues when editing
+        try:
+            await query.delete_message()
+        except:
+            pass
 
-        await query.edit_message_text(
-            f"🎰 *FREE SPINS* 🎰\n\n"
-            f"👤 {username_escaped}\n\n"
-            f"🎲 Available Spins: *{available}*\n"
-            f"📊 Total Spins Used: *{total_used}*\n"
-            f"💎 Total Chips Earned: *{total_chips}*\n\n"
+        # Send new message with spin options
+        await query.message.reply_text(
+            f"🎰 FREE SPINS 🎰\n\n"
+            f"👤 {user.first_name}\n\n"
+            f"🎲 Available Spins: {available}\n"
+            f"📊 Total Spins Used: {total_used}\n"
+            f"💎 Total Chips Earned: {total_chips}\n\n"
             f"⭐ Choose how many spins:",
-            parse_mode='MarkdownV2',
             reply_markup=reply_markup
         )
 
     except Exception as e:
         logger.error(f"Error in spin again: {e}")
-        await query.edit_message_text("❌ Error loading spin data. Please try again.")
+        import traceback
+        traceback.print_exc()
+        try:
+            await query.edit_message_text("❌ Error loading spin data. Please try again.")
+        except:
+            await query.message.reply_text("❌ Error loading spin data. Please try again.")
 
 
 # Admin Commands
@@ -728,13 +747,16 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
             try:
                 # Get user's deposit history to find PPPoker ID
                 deposits = spin_bot.sheets.sheet.worksheet('Deposits').get_all_records()
-                user_deposits = [d for d in deposits if str(d.get('User ID')) == str(user_id)]
+                user_deposits = [d for d in deposits if str(d.get('User ID', '')).strip() == str(user_id).strip()]
                 if user_deposits:
                     # Get most recent deposit
                     last_deposit = user_deposits[-1]
-                    user_pppoker_id = last_deposit.get('PPPoker ID', 'Not found')
-            except:
-                pass
+                    # Try multiple possible column names
+                    pppoker_id = last_deposit.get('PPPoker ID') or last_deposit.get('PPPoker Id') or last_deposit.get('Pppoker ID') or last_deposit.get('pppoker_id')
+                    if pppoker_id and str(pppoker_id).strip():
+                        user_pppoker_id = str(pppoker_id).strip()
+            except Exception as e:
+                logger.error(f"Error getting PPPoker ID for user {user_id}: {e}")
 
             message += f"*{idx}\\. {user_data['username']}*\n"
             message += f"👤 Telegram ID: `{user_id}`\n"

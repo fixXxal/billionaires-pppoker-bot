@@ -4562,17 +4562,39 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     await query.answer()
 
-    # Delete the original message
+    # Edit the message to show we're processing
     try:
-        await query.delete_message()
+        await query.edit_message_text("💰 Starting deposit process...")
     except:
         pass
 
-    # Create a fake update with message for deposit_start
-    update.message = query.message
+    # Get user data and payment accounts
+    user_data = sheets.get_user(query.from_user.id)
+    payment_accounts = sheets.get_all_payment_accounts()
 
-    # Call deposit_start
-    await deposit_start(update, context)
+    # Build keyboard with only configured payment methods
+    keyboard = []
+    if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
+        keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="deposit_bml")])
+    if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
+        keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="deposit_mib")])
+    if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
+        keyboard.append([InlineKeyboardButton("💵 USDT (TRC20)", callback_data="deposit_usdt")])
+
+    if not keyboard:
+        await query.edit_message_text(
+            "❌ No payment methods are currently configured. Please contact support."
+        )
+        return
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        "💰 **Make a Deposit**\n\n"
+        "Please select your payment method:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
 
 
 # Play freespins button callback handler
