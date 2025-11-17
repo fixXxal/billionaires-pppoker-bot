@@ -243,6 +243,44 @@ class SheetsManager:
                 'Generated At'
             ])
 
+        # Spin Users worksheet
+        try:
+            self.spin_users_sheet = self.spreadsheet.worksheet('Spin Users')
+        except gspread.WorksheetNotFound:
+            self.spin_users_sheet = self.spreadsheet.add_worksheet(title='Spin Users', rows=1000, cols=8)
+            self.spin_users_sheet.append_row([
+                'User ID', 'Username', 'Available Spins', 'Total Spins Used',
+                'Total Chips Earned', 'Total Deposit (MVR)', 'Created At', 'Last Spin At'
+            ])
+
+        # Spin Logs worksheet
+        try:
+            self.spin_logs_sheet = self.spreadsheet.worksheet('Spin Logs')
+        except gspread.WorksheetNotFound:
+            self.spin_logs_sheet = self.spreadsheet.add_worksheet(title='Spin Logs', rows=5000, cols=10)
+            self.spin_logs_sheet.append_row([
+                'Spin ID', 'User ID', 'Username', 'Prize', 'Prize Type',
+                'Chips', 'Spin Hash', 'Spun At', 'Approved', 'Approved By'
+            ])
+
+        # Milestone Rewards worksheet
+        try:
+            self.milestone_rewards_sheet = self.spreadsheet.worksheet('Milestone Rewards')
+        except gspread.WorksheetNotFound:
+            self.milestone_rewards_sheet = self.spreadsheet.add_worksheet(title='Milestone Rewards', rows=1000, cols=7)
+            self.milestone_rewards_sheet.append_row([
+                'User ID', 'Username', 'Milestone Type', 'Milestone Count',
+                'Chips Awarded', 'Triggered At Spin Count', 'Created At'
+            ])
+
+        # Global Spin Counter worksheet (stores single counter for all users)
+        try:
+            self.global_counter_sheet = self.spreadsheet.worksheet('Global Spin Counter')
+        except gspread.WorksheetNotFound:
+            self.global_counter_sheet = self.spreadsheet.add_worksheet(title='Global Spin Counter', rows=10, cols=2)
+            self.global_counter_sheet.append_row(['Counter Name', 'Counter Value'])
+            self.global_counter_sheet.append_row(['total_spins', '0'])
+
     def _get_timestamp(self) -> str:
         """Get current timestamp in the configured timezone"""
         return datetime.now(self.timezone).strftime('%Y-%m-%d %H:%M:%S')
@@ -1190,4 +1228,230 @@ class SheetsManager:
             return True
         except Exception as e:
             print(f"Error saving reports: {e}")
+            return False
+
+    # Spin Bot Methods
+
+    def get_spin_user(self, user_id: int) -> Optional[Dict]:
+        """Get spin user data"""
+        try:
+            cell = self.spin_users_sheet.find(str(user_id))
+            if cell:
+                row = self.spin_users_sheet.row_values(cell.row)
+                return {
+                    'user_id': int(row[0]),
+                    'username': row[1],
+                    'available_spins': int(row[2]) if row[2] else 0,
+                    'total_spins_used': int(row[3]) if row[3] else 0,
+                    'total_chips_earned': int(row[4]) if row[4] else 0,
+                    'total_deposit': float(row[5]) if row[5] else 0,
+                    'created_at': row[6] if len(row) > 6 else '',
+                    'last_spin_at': row[7] if len(row) > 7 else ''
+                }
+            return None
+        except Exception as e:
+            print(f"Error getting spin user: {e}")
+            return None
+
+    def create_spin_user(self, user_id: int, username: str, available_spins: int = 0, total_deposit: float = 0):
+        """Create a new spin user"""
+        try:
+            self.spin_users_sheet.append_row([
+                user_id,
+                username,
+                available_spins,
+                0,  # total_spins_used
+                0,  # total_chips_earned
+                total_deposit,
+                self._get_timestamp(),
+                ''  # last_spin_at
+            ])
+            return True
+        except Exception as e:
+            print(f"Error creating spin user: {e}")
+            return False
+
+    def update_spin_user(self, user_id: int, available_spins: int = None,
+                        total_spins_used: int = None, total_chips_earned: int = None,
+                        total_deposit: float = None):
+        """Update spin user data"""
+        try:
+            cell = self.spin_users_sheet.find(str(user_id))
+            if cell:
+                row = self.spin_users_sheet.row_values(cell.row)
+
+                if available_spins is not None:
+                    self.spin_users_sheet.update_cell(cell.row, 3, available_spins)
+
+                if total_spins_used is not None:
+                    self.spin_users_sheet.update_cell(cell.row, 4, total_spins_used)
+                    self.spin_users_sheet.update_cell(cell.row, 8, self._get_timestamp())  # last_spin_at
+
+                if total_chips_earned is not None:
+                    self.spin_users_sheet.update_cell(cell.row, 5, total_chips_earned)
+
+                if total_deposit is not None:
+                    self.spin_users_sheet.update_cell(cell.row, 6, total_deposit)
+
+                return True
+            return False
+        except Exception as e:
+            print(f"Error updating spin user: {e}")
+            return False
+
+    def log_spin(self, user_id: int, username: str, prize: str, prize_type: str,
+                chips: int, spin_hash: str):
+        """Log a spin result"""
+        try:
+            spin_id = self._generate_request_id('SPIN')
+            self.spin_logs_sheet.append_row([
+                spin_id,
+                user_id,
+                username,
+                prize,
+                prize_type,
+                chips,
+                spin_hash,
+                self._get_timestamp(),
+                'No' if prize_type == 'display' else 'Auto',  # Approved status
+                'System' if prize_type == 'chips' else ''  # Approved by
+            ])
+            return spin_id
+        except Exception as e:
+            print(f"Error logging spin: {e}")
+            return None
+
+    def log_milestone_reward(self, user_id: int, username: str, milestone_type: str,
+                            milestone_count: int, chips_awarded: int, triggered_at: int):
+        """Log a milestone reward"""
+        try:
+            self.milestone_rewards_sheet.append_row([
+                user_id,
+                username,
+                milestone_type,
+                milestone_count,
+                chips_awarded,
+                triggered_at,
+                self._get_timestamp()
+            ])
+            return True
+        except Exception as e:
+            print(f"Error logging milestone reward: {e}")
+            return False
+
+    def get_pending_spin_rewards(self) -> List[Dict]:
+        """Get all pending spin rewards (display prizes not yet approved)"""
+        try:
+            all_rows = self.spin_logs_sheet.get_all_values()[1:]  # Skip header
+            pending = []
+
+            for row in all_rows:
+                if len(row) >= 9 and row[4] == 'display' and row[8] == 'No':
+                    pending.append({
+                        'spin_id': row[0],
+                        'user_id': row[1],
+                        'username': row[2],
+                        'prize': row[3],
+                        'chips': row[5],
+                        'date': row[7]
+                    })
+
+            return pending
+        except Exception as e:
+            print(f"Error getting pending spin rewards: {e}")
+            return []
+
+    def get_spin_by_id(self, spin_id: str) -> Optional[Dict]:
+        """Get spin data by spin ID"""
+        try:
+            cell = self.spin_logs_sheet.find(spin_id)
+            if cell:
+                row = self.spin_logs_sheet.row_values(cell.row)
+                return {
+                    'spin_id': row[0],
+                    'user_id': int(row[1]),
+                    'username': row[2],
+                    'prize': row[3],
+                    'prize_type': row[4],
+                    'chips': int(row[5]),
+                    'spin_hash': row[6],
+                    'spun_at': row[7],
+                    'approved': row[8] if len(row) > 8 else 'No',
+                    'approved_by': row[9] if len(row) > 9 else '',
+                    'row': cell.row
+                }
+            return None
+        except Exception as e:
+            print(f"Error getting spin by ID: {e}")
+            return None
+
+    def approve_spin_reward(self, spin_id: str, admin_id: int, admin_name: str):
+        """Approve a spin reward"""
+        try:
+            spin_data = self.get_spin_by_id(spin_id)
+            if spin_data:
+                self.spin_logs_sheet.update_cell(spin_data['row'], 9, 'Yes')
+                self.spin_logs_sheet.update_cell(spin_data['row'], 10, f"{admin_name} ({admin_id})")
+                return True
+            return False
+        except Exception as e:
+            print(f"Error approving spin reward: {e}")
+            return False
+
+    def get_spin_statistics(self) -> Dict:
+        """Get overall spin statistics"""
+        try:
+            users = self.spin_users_sheet.get_all_values()[1:]  # Skip header
+            logs = self.spin_logs_sheet.get_all_values()[1:]  # Skip header
+
+            total_users = len(users)
+            total_spins_used = sum(int(row[3]) if row[3] else 0 for row in users)
+            total_chips_awarded = sum(int(row[4]) if row[4] else 0 for row in users)
+
+            pending_rewards = len([row for row in logs if len(row) >= 9 and row[4] == 'display' and row[8] == 'No'])
+            approved_rewards = len([row for row in logs if len(row) >= 9 and row[4] == 'display' and row[8] == 'Yes'])
+
+            # Top users by spins
+            top_users = sorted(
+                [{'username': row[1], 'total_spins': int(row[3]) if row[3] else 0} for row in users],
+                key=lambda x: x['total_spins'],
+                reverse=True
+            )
+
+            return {
+                'total_users': total_users,
+                'total_spins_used': total_spins_used,
+                'total_chips_awarded': total_chips_awarded,
+                'pending_rewards': pending_rewards,
+                'approved_rewards': approved_rewards,
+                'top_users': top_users
+            }
+        except Exception as e:
+            print(f"Error getting spin statistics: {e}")
+            return {
+                'total_users': 0,
+                'total_spins_used': 0,
+                'total_chips_awarded': 0,
+                'pending_rewards': 0,
+                'approved_rewards': 0,
+                'top_users': []
+            }
+
+    def get_global_spin_counter(self) -> int:
+        """Get the GLOBAL spin counter (all users combined)"""
+        try:
+            # Row 2 contains the counter (row 1 is header)
+            value = self.global_counter_sheet.cell(2, 2).value
+            return int(value) if value else 0
+        except Exception as e:
+            print(f"Error getting global counter: {e}")
+            return 0
+
+    def update_global_spin_counter(self, new_value: int):
+        """Update the GLOBAL spin counter"""
+        try:
+            self.global_counter_sheet.update_cell(2, 2, new_value)
+            return True
+        except Exception as e:
+            print(f"Error updating global counter: {e}")
             return False
