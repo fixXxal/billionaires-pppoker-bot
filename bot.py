@@ -20,11 +20,8 @@ from apscheduler.triggers.cron import CronTrigger
 from sheets_manager import SheetsManager
 import admin_panel
 import vision_api
-from spin_bot import (
-    SpinBot, freespins_command, spin_callback,
-    spin_again_callback, pendingspins_command,
-    approvespin_command, addspins_command, spinsstats_command
-)
+from spin_bot import SpinBot
+import spin_bot as spin_bot_module
 
 # Load environment variables
 load_dotenv()
@@ -84,6 +81,36 @@ seat_reminder_jobs: Dict[int, object] = {}  # user_id: job (tracks seat reminder
 def is_admin(user_id: int) -> bool:
     """Check if user is admin (super admin or regular admin)"""
     return sheets.is_admin(user_id, ADMIN_USER_ID)
+
+
+# Spin Bot Wrapper Functions
+async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Wrapper for spin bot freespins command"""
+    await spin_bot_module.freespins_command(update, context, spin_bot)
+
+async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Wrapper for spin bot callback"""
+    await spin_bot_module.spin_callback(update, context, spin_bot, ADMIN_USER_ID)
+
+async def spin_again_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Wrapper for spin again callback"""
+    await spin_bot_module.spin_again_callback(update, context, spin_bot)
+
+async def addspins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Wrapper for add spins command"""
+    await spin_bot_module.addspins_command(update, context, spin_bot, is_admin)
+
+async def spinsstats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Wrapper for spin stats command"""
+    await spin_bot_module.spinsstats_command(update, context, spin_bot, is_admin)
+
+async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Wrapper for pending spins command"""
+    await spin_bot_module.pendingspins_command(update, context, spin_bot, is_admin)
+
+async def approvespin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Wrapper for approve spin command"""
+    await spin_bot_module.approvespin_command(update, context, spin_bot, is_admin)
 
 
 async def send_admin_notification(context: ContextTypes.DEFAULT_TYPE, message: str):
