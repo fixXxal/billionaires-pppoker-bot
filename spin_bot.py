@@ -333,23 +333,14 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         if not user_data or user_data.get('available_spins', 0) == 0:
             await update.message.reply_text(
                 "🎰 *FREE SPINS* 🎰\n\n"
-                "❌ You don't have any spins available\\!\n\n"
-                "💰 *Get Free Spins:*\n"
-                "• 200 MVR → 1 spin\n"
-                "• 2,000 MVR → 25 spins\n"
-                "• 5,000 MVR → 60 spins\n"
-                "• 10,000 MVR → 120 spins\n"
-                "• 20,000\\+ MVR → 250 spins\n\n"
-                "🏆 *Milestone Rewards:*\n"
-                "• Every 10 spins → Random prize\\!\n"
-                "• Every 50 spins → Random prize\\!\n"
-                "• Every 100 spins → Random prize\\!\n"
-                "• Every 500 spins → Random prize\\!\n"
-                "• Every 1000 spins → Random prize\\!\n\n"
-                "🎁 *Prize Pool:*\n"
-                "🏆 500 Chips \\| 💰 250 Chips \\| 💎 100 Chips\n"
-                "💵 50 Chips \\| 🪙 25 Chips \\| 🎯 10 Chips\n\n"
-                "Use /deposit to make a deposit and get free spins\\!",
+                "❌ You don't have any spins right now\\.\n\n"
+                "💰 Make a deposit to get free spins\\!\n"
+                "More deposit → More spins → More chances to win 🎁\n\n"
+                "🔥 *Spin to win:*\n"
+                "• Chips\n"
+                "• Premium prizes \\(iPhone, MacBook, Apple Watch \\& more\\)\n"
+                "• Surprise rewards\n\n"
+                "Use /deposit to get started\\!",
                 parse_mode='MarkdownV2'
             )
             return
@@ -379,27 +370,21 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
+        # Escape username for MarkdownV2
+        username_escaped = user.first_name.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
+
         await update.message.reply_text(
             f"🎰 *FREE SPINS* 🎰\n\n"
-            f"👤 {user.first_name}\n\n"
+            f"👤 {username_escaped}\n\n"
             f"🎲 Available Spins: *{available}*\n"
-            f"📊 Total Spins Used: *{total_used}*\n"
             f"💎 Total Chips Earned: *{total_chips}*\n\n"
-            f"🎁 *Spin \\& Win:*\n"
+            f"🔥 *Spin to win:*\n"
+            f"• Chips\n"
             f"• iPhone 17 Pro Max\n"
             f"• MacBook Pro\n"
             f"• Apple Watch Ultra\n"
             f"• AirPods Pro\n"
-            f"• Points \\& More\\!\n\n"
-            f"🏆 *Milestone Rewards:*\n"
-            f"• Every 10 spins → Random prize\\!\n"
-            f"• Every 50 spins → Random prize\\!\n"
-            f"• Every 100 spins → Random prize\\!\n"
-            f"• Every 500 spins → Random prize\\!\n"
-            f"• Every 1000 spins → Random prize\\!\n\n"
-            f"🎁 *Prize Pool:*\n"
-            f"🏆 500 Chips \\| 💰 250 Chips \\| 💎 100 Chips\n"
-            f"💵 50 Chips \\| 🪙 25 Chips \\| 🎯 10 Chips\n\n"
+            f"• Surprise rewards \\& More\\!\n\n"
             f"⭐ Choose how many spins:",
             parse_mode='MarkdownV2',
             reply_markup=reply_markup
