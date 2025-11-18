@@ -5309,8 +5309,12 @@ def main():
         name='Daily Profit/Loss Report'
     )
 
-    scheduler.start()
-    logger.info("Scheduler started - Daily reports will be sent at midnight (00:00) Maldives time")
+    # Start scheduler after application initializes
+    async def post_init(application):
+        scheduler.start()
+        logger.info("Scheduler started - Daily reports will be sent at midnight (00:00) Maldives time")
+
+    application.post_init = post_init
 
     # Log startup
     logger.info("Bot started successfully!")
