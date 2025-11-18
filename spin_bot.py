@@ -624,14 +624,28 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
                 traceback.print_exc()
                 reply_markup = None
 
+            # Store notification message IDs for button removal later
+            # Use a unique key based on user_id to track all pending rewards for this user
+            notification_key = f"spin_reward_{user.id}"
+
+            # Initialize storage if not exists
+            if not hasattr(context.bot_data, 'spin_notification_messages'):
+                context.bot_data['spin_notification_messages'] = {}
+
+            if notification_key not in context.bot_data['spin_notification_messages']:
+                context.bot_data['spin_notification_messages'][notification_key] = []
+
             # Send to super admin
             try:
-                await context.bot.send_message(
+                msg = await context.bot.send_message(
                     chat_id=admin_user_id,
                     text=admin_message,
                     parse_mode='HTML',
                     reply_markup=reply_markup
                 )
+                # Store message ID
+                context.bot_data['spin_notification_messages'][notification_key].append((admin_user_id, msg.message_id))
+                logger.info(f"Stored spin notification message ID for super admin")
             except Exception as e:
                 logger.error(f"Failed to notify super admin: {e}")
 
@@ -640,12 +654,15 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
                 admins = spin_bot.sheets.get_all_admins()
                 for admin in admins:
                     try:
-                        await context.bot.send_message(
+                        msg = await context.bot.send_message(
                             chat_id=admin['admin_id'],
                             text=admin_message,
                             parse_mode='HTML',
                             reply_markup=reply_markup
                         )
+                        # Store message ID
+                        context.bot_data['spin_notification_messages'][notification_key].append((admin['admin_id'], msg.message_id))
+                        logger.info(f"Stored spin notification message ID for admin {admin['admin_id']}")
                     except Exception as e:
                         logger.error(f"Failed to notify admin {admin['admin_id']}: {e}")
             except Exception as e:

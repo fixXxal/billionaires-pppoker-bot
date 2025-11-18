@@ -4620,6 +4620,7 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
     total_chips = 0
     approver_name = user.username or user.first_name
     target_username = "Unknown"
+    approved_rewards = []  # Store details of approved rewards
 
     for spin_id in spin_ids:
         try:
@@ -4645,6 +4646,12 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
             total_chips += chips
             approved_count += 1
 
+            # Store reward details
+            approved_rewards.append({
+                'prize': spin_data['prize'],
+                'chips': chips
+            })
+
             # Update user's total approved chips
             user_data = spin_bot.sheets.get_spin_user(spin_data['user_id'])
             if user_data:
@@ -4656,33 +4663,67 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     total_chips_earned=new_total
                 )
 
-            # Notify user about this specific reward
-            try:
-                user_message = (
-                    f"━━━━━━━━━━━━━━━━━━\n"
-                    f"✅ *REWARD APPROVED* ✅\n"
-                    f"━━━━━━━━━━━━━━━━━━\n\n"
-                    f"🎊 Congratulations\\!\n\n"
-                    f"🎁 Prize: *{spin_data['prize']}*\n"
-                    f"💰 Chips: *{chips}*\n\n"
-                    f"✨ *Added to your balance\\!* ✨\n"
-                    f"Your chips have been credited to your PPPoker account\\!\n\n"
-                    f"━━━━━━━━━━━━━━━━━━\n"
-                    f"Thank you for playing\\! 🎰"
-                )
-
-                await context.bot.send_message(
-                    chat_id=spin_data['user_id'],
-                    text=user_message,
-                    parse_mode='MarkdownV2'
-                )
-            except Exception as e:
-                logger.error(f"Error notifying user about spin {spin_id}: {e}")
-
         except Exception as e:
             logger.error(f"Error approving spin {spin_id}: {e}")
             import traceback
             traceback.print_exc()
+
+    # Send ONE consolidated notification to user with all approved rewards
+    if approved_count > 0 and target_user_id:
+        try:
+            # Build reward list
+            rewards_text = ""
+            for idx, reward in enumerate(approved_rewards, 1):
+                # Escape prize name for MarkdownV2
+                prize_escaped = reward['prize'].replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
+                rewards_text += f"{idx}\\. {prize_escaped} \\- *{reward['chips']} chips*\n"
+
+            user_message = (
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"✅ *REWARDS APPROVED* ✅\n"
+                f"━━━━━━━━━━━━━━━━━━\n\n"
+                f"🎊 Congratulations\\!\n\n"
+                f"🎁 *Your Rewards:*\n"
+                f"{rewards_text}\n"
+                f"💰 *TOTAL: {total_chips} chips*\n\n"
+                f"✨ *Added to your balance\\!* ✨\n"
+                f"Your chips have been credited to your PPPoker account\\!\n\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"Thank you for playing\\! 🎰"
+            )
+
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=user_message,
+                parse_mode='MarkdownV2'
+            )
+            logger.info(f"Successfully sent consolidated notification to user {target_user_id} for {approved_count} rewards")
+        except Exception as e:
+            logger.error(f"Error sending consolidated notification to user: {e}")
+            import traceback
+            traceback.print_exc()
+            # Try sending without markdown as fallback
+            try:
+                rewards_simple = ""
+                for idx, reward in enumerate(approved_rewards, 1):
+                    rewards_simple += f"{idx}. {reward['prize']} - {reward['chips']} chips\n"
+
+                simple_message = (
+                    f"✅ REWARDS APPROVED ✅\n\n"
+                    f"🎊 Congratulations!\n\n"
+                    f"🎁 Your Rewards:\n"
+                    f"{rewards_simple}\n"
+                    f"💰 TOTAL: {total_chips} chips\n\n"
+                    f"Your chips have been credited to your PPPoker account!\n\n"
+                    f"Thank you for playing! 🎰"
+                )
+                await context.bot.send_message(
+                    chat_id=target_user_id,
+                    text=simple_message
+                )
+                logger.info(f"Sent simple consolidated notification to user {target_user_id} (fallback)")
+            except Exception as e2:
+                logger.error(f"Failed to send fallback notification: {e2}")
 
     # Notify ALL other admins about the batch approval
     if approved_count > 0:
