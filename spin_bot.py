@@ -679,8 +679,6 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
         # Show spinning animation ONLY for single spins or if milestone prize won
         if spin_count == 1 or result.get('milestone_prize'):
             await spin_bot.show_spin_animation(query, result, spin_count)
-            # Send wheel result image after animation
-            await spin_bot.send_wheel_result_image(context, query.message.chat_id, result)
 
         if not result['success']:
             await rate_limiter.wait_for_edit()
@@ -751,6 +749,9 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
             parse_mode='MarkdownV2',
             reply_markup=reply_markup if result['available_spins'] > 0 else None
         )
+
+        # Send wheel result image AFTER the text result (for ALL spins: 1x, 10x, 50x, 100x, ALL)
+        await spin_bot.send_wheel_result_image(context, query.message.chat_id, result)
 
         # Send notification to ALL admins if user won any prize
         if result.get('milestone_prize') or result.get('got_surprise'):
