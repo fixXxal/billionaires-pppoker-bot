@@ -15,7 +15,9 @@
       "Bash(jobs)",
       "Bash(git add:*)",
       "Bash(kill:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(command -v:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

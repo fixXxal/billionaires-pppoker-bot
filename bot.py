@@ -9,7 +9,7 @@ import asyncio
 from typing import Dict
 from datetime import datetime, timedelta
 import pytz
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ConversationHandler, ContextTypes, filters
@@ -85,8 +85,63 @@ def is_admin(user_id: int) -> bool:
 
 # Spin Bot Wrapper Functions
 async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Wrapper for spin bot freespins command"""
-    await spin_bot_module.freespins_command(update, context, spin_bot)
+    """Open Mini App for spinning wheel"""
+    user = update.effective_user
+
+    try:
+        # Get user's spin data
+        user_data = spin_bot.sheets.get_spin_user(user.id)
+
+        if not user_data or user_data.get('available_spins', 0) == 0:
+            # Create deposit button
+            keyboard = [[InlineKeyboardButton("💰 Make Deposit", callback_data="deposit_start")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await update.message.reply_text(
+                "━━━━━━━━━━━━━━━━━━\n"
+                "🎰 *FREE SPINS* 🎰\n"
+                "━━━━━━━━━━━━━━━━━━\n\n"
+                "💫 *No spins available right now\\!*\n\n"
+                "💰 Make a deposit to unlock free spins\\!\n"
+                "🔥 More deposit → More spins → More prizes\\!\n\n"
+                "━━━━━━━━━━━━━━━━━━\n"
+                "👉 Click button below to get started\\!\n"
+                "━━━━━━━━━━━━━━━━━━",
+                parse_mode='MarkdownV2',
+                reply_markup=reply_markup
+            )
+            return
+
+        available = user_data.get('available_spins', 0)
+
+        # MINI APP URL - Replace this with your hosted URL
+        # You need to host spin_wheel.html on a public HTTPS server
+        # Options: GitHub Pages, Vercel, Netlify, or your own server
+        mini_app_url = "YOUR_MINI_APP_URL_HERE"  # TODO: Replace with actual URL
+
+        # Create button to open Mini App
+        keyboard = [[
+            InlineKeyboardButton(
+                "🎰 Open Spin Wheel 🎰",
+                web_app=WebAppInfo(url=mini_app_url)
+            )
+        ]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await update.message.reply_text(
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🎰 *FREE SPINS* 🎰\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"🎯 You have *{available}* spins available\\!\n\n"
+            f"Click the button below to open the spinning wheel\\!\n\n"
+            f"━━━━━━━━━━━━━━━━━━",
+            parse_mode='MarkdownV2',
+            reply_markup=reply_markup
+        )
+
+    except Exception as e:
+        logger.error(f"Error in freespins command: {e}")
+        await update.message.reply_text("❌ Error loading spin wheel\\. Please try again\\.", parse_mode='MarkdownV2')
 
 async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Wrapper for spin bot callback"""
@@ -111,6 +166,26 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
 async def approvespin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Wrapper for approve spin command"""
     await spin_bot_module.approvespin_command(update, context, spin_bot, is_admin)
+
+
+async def handle_mini_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle data sent from the Mini App after spinning"""
+    try:
+        import json
+        web_app_data = update.message.web_app_data.data
+        result = json.loads(web_app_data)
+
+        logger.info(f"Received Mini App data: {result}")
+
+        # The result already contains all the spin information
+        # Just acknowledge receipt to the user
+        await update.message.reply_text(
+            "✅ Spin completed! Check your results in the Mini App.",
+            parse_mode='Markdown'
+        )
+
+    except Exception as e:
+        logger.error(f"Error handling Mini App data: {e}")
 
 
 async def send_admin_notification(context: ContextTypes.DEFAULT_TYPE, message: str):
@@ -5110,6 +5185,9 @@ def main():
     application.add_handler(CommandHandler("spinsstats", spinsstats_command))
     application.add_handler(CommandHandler("pendingspins", pendingspins_command))
     application.add_handler(CommandHandler("approvespin", approvespin_command))
+
+    # Mini App data handler
+    application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_mini_app_data))
 
     # Test button handlers
     application.add_handler(CallbackQueryHandler(test_button_handler, pattern="^test_"))
