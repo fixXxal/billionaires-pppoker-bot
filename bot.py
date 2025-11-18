@@ -114,10 +114,8 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         available = user_data.get('available_spins', 0)
 
-        # MINI APP URL - Replace this with your hosted URL
-        # You need to host spin_wheel.html on a public HTTPS server
-        # Options: GitHub Pages, Vercel, Netlify, or your own server
-        mini_app_url = "YOUR_MINI_APP_URL_HERE"  # TODO: Replace with actual URL
+        # MINI APP URL - Railway deployment
+        mini_app_url = "https://billionaires-spins.up.railway.app"
 
         # Create button to open Mini App
         keyboard = [[
