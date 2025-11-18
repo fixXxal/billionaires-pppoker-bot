@@ -31,8 +31,18 @@ TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
 SPREADSHEET_NAME = os.getenv('SPREADSHEET_NAME', 'Billionaires_PPPoker_Bot')
 CREDENTIALS_FILE = os.getenv('GOOGLE_SHEETS_CREDENTIALS_FILE', 'credentials.json')
 
-sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
-spin_bot = SpinBot(sheets, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
+# Don't initialize sheets on startup to avoid rate limits
+# Will be initialized on first request
+sheets = None
+spin_bot = None
+
+def get_sheets_manager():
+    """Lazy load sheets manager"""
+    global sheets, spin_bot
+    if sheets is None:
+        sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
+        spin_bot = SpinBot(sheets, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
+    return sheets, spin_bot
 
 
 @app.route('/')
@@ -50,6 +60,9 @@ def get_spins():
 
         if not user_id:
             return jsonify({'error': 'Missing user_id'}), 400
+
+        # Lazy load sheets manager
+        sheets, _ = get_sheets_manager()
 
         # Get user data from Google Sheets
         user_data = sheets.get_spin_user(user_id)
@@ -82,6 +95,9 @@ def spin():
 
         if not user_id:
             return jsonify({'error': 'Missing user_id'}), 400
+
+        # Lazy load sheets manager
+        sheets, spin_bot = get_sheets_manager()
 
         # Validate Telegram Web App data (optional but recommended)
         init_data = data.get('init_data')
