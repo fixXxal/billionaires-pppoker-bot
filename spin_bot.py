@@ -506,13 +506,17 @@ class SpinBot:
         }
 
         try:
+            logger.info(f"send_wheel_result_image called with result: {result}")
+
             # Check if user won a milestone prize
             if result.get('milestone_prize'):
                 chips = result['milestone_prize']['chips']
                 image_file = chip_images.get(chips)
+                logger.info(f"User won milestone! Chips: {chips}, Image: {image_file}")
 
                 if image_file:
                     image_path = os.path.join(image_dir, image_file)
+                    logger.info(f"Sending winning image from: {image_path}")
 
                     # Send the winning wheel image
                     with open(image_path, 'rb') as photo:
@@ -522,14 +526,21 @@ class SpinBot:
                             photo=photo,
                             caption=f"🎊 Congratulations! You won {chips} chips! 🎊"
                         )
-                    logger.info(f"Sent wheel result image for {chips} chips")
+                    logger.info(f"Successfully sent wheel result image for {chips} chips")
                 else:
                     logger.warning(f"No image found for {chips} chips")
             else:
                 # User didn't win - send random "try again" image
+                logger.info("User didn't win milestone - sending try again image")
                 try_again_images = ["tryagain1.PNG", "tryagain2.PNG", "tryagain3.PNG"]
                 random_image = random.choice(try_again_images)
                 image_path = os.path.join(image_dir, random_image)
+                logger.info(f"Sending try again image from: {image_path}")
+
+                # Check if file exists
+                if not os.path.exists(image_path):
+                    logger.error(f"Try again image not found at: {image_path}")
+                    return
 
                 # Send random try again image
                 with open(image_path, 'rb') as photo:
@@ -539,7 +550,7 @@ class SpinBot:
                         photo=photo,
                         caption="🎰 Try again! Better luck next spin! 🍀"
                     )
-                logger.info(f"Sent try again image: {random_image}")
+                logger.info(f"Successfully sent try again image: {random_image}")
 
         except Exception as e:
             logger.error(f"Error sending wheel result image: {e}")
