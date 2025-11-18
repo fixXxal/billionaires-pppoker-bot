@@ -816,7 +816,9 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
             # List individual rewards
             for reward in user_data['rewards']:
-                message += f"  🎁 {reward['prize']}\n"
+                # Escape prize text for MarkdownV2
+                prize_escaped = reward['prize'].replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
+                message += f"  🎁 {prize_escaped}\n"
 
             message += f"\n💰 *TOTAL: {user_data['total_chips']} chips* \\({len(user_data['rewards'])} rewards\\)\n"
             message += f"━━━━━━━━━━━━━━━━━━\n\n"
