@@ -132,7 +132,7 @@ class SpinBot:
             {"name": "🎧 AirPods Pro", "type": "display", "chips": 0, "weight": 10},
             {"name": "💎 100 Points", "type": "display", "chips": 0, "weight": 15},
             {"name": "💰 50 Points", "type": "display", "chips": 0, "weight": 20},
-            {"name": "🪙 25 Points", "type": "display", "chips": 0, "weight": 15},
+            {"name": "🪙 20 Points", "type": "display", "chips": 0, "weight": 15},
             {"name": "🎯 10 Points", "type": "display", "chips": 0, "weight": 20},
         ]
 
@@ -143,7 +143,7 @@ class SpinBot:
             {"name": "💰 250 Chips", "chips": 250, "weight": 100},    # 1%
             {"name": "💎 100 Chips", "chips": 100, "weight": 200},    # 2%
             {"name": "💵 50 Chips", "chips": 50, "weight": 300},      # 3%
-            {"name": "🪙 25 Chips", "chips": 25, "weight": 400},      # 4%
+            {"name": "🪙 20 Chips", "chips": 20, "weight": 400},      # 4%
             {"name": "🎯 10 Chips", "chips": 10, "weight": 500},      # 5%
         ]
 
@@ -440,7 +440,7 @@ class SpinBot:
                 "🎰 ⬆️ 📱 iPhone 17 Pro Max ⬇️ 🎲",
                 "🎰 ⬆️ 💎 100 Chips ⬇️ 🎲",
                 "🎰 ⬆️ 💻 MacBook Pro ⬇️ 🎲",
-                "🎰 ⬆️ 🪙 25 Chips ⬇️ 🎲",
+                "🎰 ⬆️ 🪙 20 Chips ⬇️ 🎲",
                 "🎰 ⬆️ ⌚ Apple Watch Ultra ⬇️ 🎲",
                 "🎰 ⬆️ 💵 50 Chips ⬇️ 🎲",
                 "🎰 ⬆️ 🎧 AirPods Pro ⬇️ 🎲",
@@ -516,7 +516,7 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 "💰 250 Chips\n"
                 "💎 100 Chips\n"
                 "💵 50 Chips\n"
-                "🪙 25 Chips\n"
+                "🪙 20 Chips\n"
                 "🎯 10 Chips\n"
                 "📱 iPhone 17 Pro Max\n"
                 "💻 MacBook Pro\n"
@@ -571,7 +571,7 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             f"💰 250 Chips\n"
             f"💎 100 Chips\n"
             f"💵 50 Chips\n"
-            f"🪙 25 Chips\n"
+            f"🪙 20 Chips\n"
             f"🎯 10 Chips\n"
             f"📱 iPhone 17 Pro Max\n"
             f"💻 MacBook Pro\n"
