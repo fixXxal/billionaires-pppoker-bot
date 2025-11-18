@@ -434,21 +434,29 @@ class SpinBot:
         async with animation_semaphore:
             logger.info(f"Animation started for user {query.from_user.id} (queue position acquired)")
 
-            # All possible prizes to show during animation (mix of fake and real)
+            # All possible prizes to show during animation (ALL fake + real prizes mixed)
+            # This creates excitement by showing everything users could potentially win
             animation_sequence = [
+                # REAL PRIZES (users can actually win these)
                 "🎰 ⬆️ 🏆 500 Chips ⬇️ 🎲",
-                "🎰 ⬆️ 📱 iPhone 17 Pro Max ⬇️ 🎲",
-                "🎰 ⬆️ 💎 100 Chips ⬇️ 🎲",
-                "🎰 ⬆️ 💻 MacBook Pro ⬇️ 🎲",
-                "🎰 ⬆️ 🪙 20 Chips ⬇️ 🎲",
-                "🎰 ⬆️ ⌚ Apple Watch Ultra ⬇️ 🎲",
-                "🎰 ⬆️ 💵 50 Chips ⬇️ 🎲",
-                "🎰 ⬆️ 🎧 AirPods Pro ⬇️ 🎲",
-                "🎰 ⬆️ 🎯 10 Chips ⬇️ 🎲",
                 "🎰 ⬆️ 💰 250 Chips ⬇️ 🎲",
+                "🎰 ⬆️ 💎 100 Chips ⬇️ 🎲",
+                "🎰 ⬆️ 💵 50 Chips ⬇️ 🎲",
+                "🎰 ⬆️ 🪙 20 Chips ⬇️ 🎲",
+                "🎰 ⬆️ 🎯 10 Chips ⬇️ 🎲",
+
+                # FAKE DISPLAY PRIZES (shown for excitement, give 0 chips)
+                "🎰 ⬆️ 📱 iPhone 17 Pro Max ⬇️ 🎲",
+                "🎰 ⬆️ 💻 MacBook Pro ⬇️ 🎲",
+                "🎰 ⬆️ ⌚ Apple Watch Ultra ⬇️ 🎲",
+                "🎰 ⬆️ 🎧 AirPods Pro ⬇️ 🎲",
+                "🎰 ⬆️ 💎 100 Points ⬇️ 🎲",
+                "🎰 ⬆️ 💰 50 Points ⬇️ 🎲",
+                "🎰 ⬆️ 🪙 20 Points ⬇️ 🎲",
+                "🎰 ⬆️ 🎯 10 Points ⬇️ 🎲",
             ]
 
-            # Randomize the sequence
+            # Randomize the sequence every time (different order each spin)
             random.shuffle(animation_sequence)
 
             # Determine final prize to show
