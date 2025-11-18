@@ -130,10 +130,6 @@ class SpinBot:
             {"name": "💻 MacBook Pro", "type": "display", "chips": 0, "weight": 5},
             {"name": "⌚ Apple Watch Ultra", "type": "display", "chips": 0, "weight": 10},
             {"name": "🎧 AirPods Pro", "type": "display", "chips": 0, "weight": 10},
-            {"name": "💎 100 Points", "type": "display", "chips": 0, "weight": 15},
-            {"name": "💰 50 Points", "type": "display", "chips": 0, "weight": 20},
-            {"name": "🪙 20 Points", "type": "display", "chips": 0, "weight": 15},
-            {"name": "🎯 10 Points", "type": "display", "chips": 0, "weight": 20},
         ]
 
         # REAL prize pool (given at milestones)
@@ -445,15 +441,11 @@ class SpinBot:
                 "🎰 ⬆️ 🪙 20 Chips ⬇️ 🎲",
                 "🎰 ⬆️ 🎯 10 Chips ⬇️ 🎲",
 
-                # FAKE DISPLAY PRIZES (shown for excitement, give 0 chips)
+                # FAKE DISPLAY PRIZES (physical items - shown for excitement, give 0 chips)
                 "🎰 ⬆️ 📱 iPhone 17 Pro Max ⬇️ 🎲",
                 "🎰 ⬆️ 💻 MacBook Pro ⬇️ 🎲",
                 "🎰 ⬆️ ⌚ Apple Watch Ultra ⬇️ 🎲",
                 "🎰 ⬆️ 🎧 AirPods Pro ⬇️ 🎲",
-                "🎰 ⬆️ 💎 100 Points ⬇️ 🎲",
-                "🎰 ⬆️ 💰 50 Points ⬇️ 🎲",
-                "🎰 ⬆️ 🪙 20 Points ⬇️ 🎲",
-                "🎰 ⬆️ 🎯 10 Points ⬇️ 🎲",
             ]
 
             # Randomize the sequence every time (different order each spin)
