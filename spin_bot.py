@@ -496,6 +496,64 @@ class SpinBot:
 
             logger.info(f"Animation completed for user {query.from_user.id} (queue slot released)")
 
+    async def send_wheel_result_image(self, context, chat_id, result):
+        """Send the wheel spin result image based on what the user won"""
+        import os
+
+        # Base path for spin images
+        image_dir = "/mnt/c/billionaires/spinsimg"
+
+        # Map chip amounts to image files
+        chip_images = {
+            500: "500chips.PNG",
+            250: "250chips.PNG",
+            100: "100chips.PNG",
+            50: "50chips.PNG",
+            20: "20chips.PNG",
+            10: "10chips.PNG"
+        }
+
+        try:
+            # Check if user won a milestone prize
+            if result.get('milestone_prize'):
+                chips = result['milestone_prize']['chips']
+                image_file = chip_images.get(chips)
+
+                if image_file:
+                    image_path = os.path.join(image_dir, image_file)
+
+                    # Send the winning wheel image
+                    with open(image_path, 'rb') as photo:
+                        await rate_limiter.wait_for_send()
+                        await context.bot.send_photo(
+                            chat_id=chat_id,
+                            photo=photo,
+                            caption=f"🎊 Congratulations! You won {chips} chips! 🎊"
+                        )
+                    logger.info(f"Sent wheel result image for {chips} chips")
+                else:
+                    logger.warning(f"No image found for {chips} chips")
+            else:
+                # User didn't win - send random "try again" image
+                try_again_images = ["tryagain1.PNG", "tryagain2.PNG", "tryagain3.PNG"]
+                random_image = random.choice(try_again_images)
+                image_path = os.path.join(image_dir, random_image)
+
+                # Send random try again image
+                with open(image_path, 'rb') as photo:
+                    await rate_limiter.wait_for_send()
+                    await context.bot.send_photo(
+                        chat_id=chat_id,
+                        photo=photo,
+                        caption="🎰 Try again! Better luck next spin! 🍀"
+                    )
+                logger.info(f"Sent try again image: {random_image}")
+
+        except Exception as e:
+            logger.error(f"Error sending wheel result image: {e}")
+            import traceback
+            traceback.print_exc()
+
 
 # Command Handlers
 
@@ -629,6 +687,8 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
         # Show spinning animation ONLY for single spins or if milestone prize won
         if spin_count == 1 or result.get('milestone_prize'):
             await spin_bot.show_spin_animation(query, result, spin_count)
+            # Send wheel result image after animation
+            await spin_bot.send_wheel_result_image(context, query.message.chat_id, result)
 
         if not result['success']:
             await rate_limiter.wait_for_edit()
