@@ -21,6 +21,68 @@ logger = logging.getLogger(__name__)
 animation_semaphore = asyncio.Semaphore(5)
 
 
+class TelegramRateLimiter:
+    """
+    Rate limiter to prevent Telegram API bans
+
+    Telegram Limits:
+    - Message sending: ~30 messages/second
+    - Message editing: ~20 edits/second
+    - We use conservative limits to ensure 100% safety
+    """
+
+    def __init__(self):
+        # Conservative limits (lower than Telegram's actual limits for safety)
+        self.edit_delay = 0.06  # ~16 edits/second (safe limit: 20/sec)
+        self.send_delay = 0.04  # ~25 messages/second (safe limit: 30/sec)
+
+        # Locks to ensure sequential operations
+        self.edit_lock = asyncio.Lock()
+        self.send_lock = asyncio.Lock()
+
+        # Tracking for logging
+        self.last_edit_time = 0
+        self.last_send_time = 0
+        self.edit_count = 0
+        self.send_count = 0
+
+    async def wait_for_edit(self):
+        """Wait before performing a message edit"""
+        async with self.edit_lock:
+            current_time = time.time()
+            time_since_last = current_time - self.last_edit_time
+
+            if time_since_last < self.edit_delay:
+                sleep_time = self.edit_delay - time_since_last
+                await asyncio.sleep(sleep_time)
+
+            self.last_edit_time = time.time()
+            self.edit_count += 1
+
+            if self.edit_count % 100 == 0:
+                logger.info(f"Rate limiter: {self.edit_count} edits processed safely")
+
+    async def wait_for_send(self):
+        """Wait before sending a new message"""
+        async with self.send_lock:
+            current_time = time.time()
+            time_since_last = current_time - self.last_send_time
+
+            if time_since_last < self.send_delay:
+                sleep_time = self.send_delay - time_since_last
+                await asyncio.sleep(sleep_time)
+
+            self.last_send_time = time.time()
+            self.send_count += 1
+
+            if self.send_count % 100 == 0:
+                logger.info(f"Rate limiter: {self.send_count} messages sent safely")
+
+
+# Global rate limiter instance
+rate_limiter = TelegramRateLimiter()
+
+
 class SpinBot:
     """Manages spin wheel functionality and rewards"""
 
@@ -396,9 +458,10 @@ class SpinBot:
                 final_prize = "❌ Try Again"
 
             try:
-                # Show spinning animation (6-8 edits)
+                # Show spinning animation (6-8 edits) with rate limiting
                 for i, frame in enumerate(animation_sequence[:7]):
                     try:
+                        await rate_limiter.wait_for_edit()
                         await query.edit_message_text(frame)
                         # Gradually slow down the animation
                         if i < 3:
@@ -413,6 +476,7 @@ class SpinBot:
 
                 # Show final result for a moment before the full message
                 try:
+                    await rate_limiter.wait_for_edit()
                     await query.edit_message_text(f"🎊 {final_prize} 🎊")
                     await asyncio.sleep(1.0)
                 except:
@@ -543,10 +607,12 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
             spin_count = int(data.split('_')[1])
 
         if spin_count == 0:
+            await rate_limiter.wait_for_edit()
             await query.edit_message_text("❌ No spins available!")
             return
 
         # Show processing message
+        await rate_limiter.wait_for_edit()
         await query.edit_message_text(f"🎰 Spinning {spin_count}x... Please wait! 🎲")
 
         # Process spins
@@ -557,6 +623,7 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
             await spin_bot.show_spin_animation(query, result, spin_count)
 
         if not result['success']:
+            await rate_limiter.wait_for_edit()
             await query.edit_message_text(result['message'])
             return
 
@@ -618,6 +685,7 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
         keyboard = [[InlineKeyboardButton("🎰 Spin Again", callback_data="spin_again")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
+        await rate_limiter.wait_for_edit()
         await query.edit_message_text(
             message,
             parse_mode='MarkdownV2',
@@ -742,8 +810,9 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
             if notification_key not in context.bot_data['spin_notification_messages']:
                 context.bot_data['spin_notification_messages'][notification_key] = []
 
-            # Send to super admin
+            # Send to super admin (with rate limiting)
             try:
+                await rate_limiter.wait_for_send()
                 msg = await context.bot.send_message(
                     chat_id=admin_user_id,
                     text=admin_message,
@@ -756,11 +825,12 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
             except Exception as e:
                 logger.error(f"Failed to notify super admin: {e}")
 
-            # Send to all regular admins
+            # Send to all regular admins (with rate limiting)
             try:
                 admins = spin_bot.sheets.get_all_admins()
                 for admin in admins:
                     try:
+                        await rate_limiter.wait_for_send()
                         msg = await context.bot.send_message(
                             chat_id=admin['admin_id'],
                             text=admin_message,
@@ -777,6 +847,7 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
 
     except Exception as e:
         logger.error(f"Error in spin callback: {e}")
+        await rate_limiter.wait_for_edit()
         await query.edit_message_text("❌ Error processing spin. Please try again.")
 
 
@@ -794,6 +865,7 @@ async def spin_again_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_data = spin_bot.sheets.get_spin_user(user.id)
 
         if not user_data or user_data.get('available_spins', 0) == 0:
+            await rate_limiter.wait_for_edit()
             await query.edit_message_text(
                 "❌ You don't have any spins left!\n\n"
                 "Use /deposit to make a deposit and get more free spins!"
@@ -830,6 +902,7 @@ async def spin_again_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             pass
 
         # Send new message with spin options
+        await rate_limiter.wait_for_send()
         await query.message.reply_text(
             f"🎰 FREE SPINS 🎰\n\n"
             f"👤 {user.first_name}\n\n"
@@ -845,8 +918,10 @@ async def spin_again_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         import traceback
         traceback.print_exc()
         try:
+            await rate_limiter.wait_for_edit()
             await query.edit_message_text("❌ Error loading spin data. Please try again.")
         except:
+            await rate_limiter.wait_for_send()
             await query.message.reply_text("❌ Error loading spin data. Please try again.")
 
 
