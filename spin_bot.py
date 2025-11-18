@@ -360,6 +360,67 @@ class SpinBot:
             logger.error(f"Error adding spins from deposit: {e}")
             return 0
 
+    async def show_spin_animation(self, query, result, spin_count):
+        """Show live spinning animation by editing message multiple times"""
+        import asyncio
+
+        # All possible prizes to show during animation (mix of fake and real)
+        animation_sequence = [
+            "🎰 ⬆️ 🏆 500 Chips ⬇️ 🎲",
+            "🎰 ⬆️ 📱 iPhone 17 Pro Max ⬇️ 🎲",
+            "🎰 ⬆️ 💎 100 Chips ⬇️ 🎲",
+            "🎰 ⬆️ 💻 MacBook Pro ⬇️ 🎲",
+            "🎰 ⬆️ 🪙 25 Chips ⬇️ 🎲",
+            "🎰 ⬆️ ⌚ Apple Watch Ultra ⬇️ 🎲",
+            "🎰 ⬆️ 💵 50 Chips ⬇️ 🎲",
+            "🎰 ⬆️ 🎧 AirPods Pro ⬇️ 🎲",
+            "🎰 ⬆️ 🎯 10 Chips ⬇️ 🎲",
+            "🎰 ⬆️ 💰 250 Chips ⬇️ 🎲",
+        ]
+
+        # Randomize the sequence
+        random.shuffle(animation_sequence)
+
+        # Determine final prize to show
+        if result.get('milestone_prize'):
+            final_prize = result['milestone_prize']['name']
+        else:
+            final_prize = "❌ Try Again"
+
+        try:
+            # Show spinning animation (6-8 edits)
+            for i, frame in enumerate(animation_sequence[:7]):
+                try:
+                    await query.edit_message_text(frame)
+                    # Gradually slow down the animation
+                    if i < 3:
+                        await asyncio.sleep(0.4)  # Fast spinning
+                    elif i < 5:
+                        await asyncio.sleep(0.6)  # Slowing down
+                    else:
+                        await asyncio.sleep(0.8)  # Almost stopped
+                except Exception as e:
+                    logger.warning(f"Animation frame {i} failed: {e}")
+                    # Continue even if one frame fails
+
+            # Show "slowing down" message
+            try:
+                await query.edit_message_text(f"🎰 Slowing down... 🎲")
+                await asyncio.sleep(0.7)
+            except:
+                pass
+
+            # Show final result for a moment before the full message
+            try:
+                await query.edit_message_text(f"🎊 {final_prize} 🎊")
+                await asyncio.sleep(1.0)
+            except:
+                pass
+
+        except Exception as e:
+            logger.error(f"Error in spin animation: {e}")
+            # Animation failed, continue to show results
+
 
 # Command Handlers
 
@@ -487,6 +548,10 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
 
         # Process spins
         result = await spin_bot.process_spin(user.id, user.username or user.first_name, spin_count)
+
+        # Show spinning animation ONLY for single spins or if milestone prize won
+        if spin_count == 1 or result.get('milestone_prize'):
+            await spin_bot.show_spin_animation(query, result, spin_count)
 
         if not result['success']:
             await query.edit_message_text(result['message'])
