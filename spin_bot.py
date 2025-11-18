@@ -403,13 +403,6 @@ class SpinBot:
                     logger.warning(f"Animation frame {i} failed: {e}")
                     # Continue even if one frame fails
 
-            # Show "slowing down" message
-            try:
-                await query.edit_message_text(f"🎰 Slowing down... 🎲")
-                await asyncio.sleep(0.7)
-            except:
-                pass
-
             # Show final result for a moment before the full message
             try:
                 await query.edit_message_text(f"🎊 {final_prize} 🎊")
