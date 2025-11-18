@@ -4725,6 +4725,24 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
             except Exception as e2:
                 logger.error(f"Failed to send fallback notification: {e2}")
 
+    # Remove approve buttons from ALL admin notification messages for this user
+    notification_key = f"spin_reward_{target_user_id}"
+    if hasattr(context.bot_data, 'spin_notification_messages') and notification_key in context.bot_data.get('spin_notification_messages', {}):
+        logger.info(f"Removing approve buttons from {len(context.bot_data['spin_notification_messages'][notification_key])} admin messages")
+        for admin_id, message_id in context.bot_data['spin_notification_messages'][notification_key]:
+            try:
+                await context.bot.edit_message_reply_markup(
+                    chat_id=admin_id,
+                    message_id=message_id,
+                    reply_markup=InlineKeyboardMarkup([])
+                )
+                logger.info(f"Removed approve button for admin {admin_id}, message {message_id}")
+            except Exception as e:
+                logger.error(f"Failed to remove button for admin {admin_id}: {e}")
+        # Clean up stored message IDs
+        del context.bot_data['spin_notification_messages'][notification_key]
+        logger.info(f"Cleaned up notification storage for {notification_key}")
+
     # Notify ALL other admins about the batch approval
     if approved_count > 0:
         admin_notification = (
