@@ -6,6 +6,7 @@ Integrates with main Billionaires PPPoker Bot
 
 import random
 import logging
+import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -14,6 +15,10 @@ import hashlib
 import time
 
 logger = logging.getLogger(__name__)
+
+# Global semaphore to limit concurrent animations (prevents Telegram rate limits)
+# Only allows 5 animations to run simultaneously, others wait in queue
+animation_semaphore = asyncio.Semaphore(5)
 
 
 class SpinBot:
@@ -362,57 +367,62 @@ class SpinBot:
 
     async def show_spin_animation(self, query, result, spin_count):
         """Show live spinning animation by editing message multiple times"""
-        import asyncio
+        # Use semaphore to limit concurrent animations (prevents Telegram bans)
+        # Max 5 animations at once, others wait in queue
+        async with animation_semaphore:
+            logger.info(f"Animation started for user {query.from_user.id} (queue position acquired)")
 
-        # All possible prizes to show during animation (mix of fake and real)
-        animation_sequence = [
-            "🎰 ⬆️ 🏆 500 Chips ⬇️ 🎲",
-            "🎰 ⬆️ 📱 iPhone 17 Pro Max ⬇️ 🎲",
-            "🎰 ⬆️ 💎 100 Chips ⬇️ 🎲",
-            "🎰 ⬆️ 💻 MacBook Pro ⬇️ 🎲",
-            "🎰 ⬆️ 🪙 25 Chips ⬇️ 🎲",
-            "🎰 ⬆️ ⌚ Apple Watch Ultra ⬇️ 🎲",
-            "🎰 ⬆️ 💵 50 Chips ⬇️ 🎲",
-            "🎰 ⬆️ 🎧 AirPods Pro ⬇️ 🎲",
-            "🎰 ⬆️ 🎯 10 Chips ⬇️ 🎲",
-            "🎰 ⬆️ 💰 250 Chips ⬇️ 🎲",
-        ]
+            # All possible prizes to show during animation (mix of fake and real)
+            animation_sequence = [
+                "🎰 ⬆️ 🏆 500 Chips ⬇️ 🎲",
+                "🎰 ⬆️ 📱 iPhone 17 Pro Max ⬇️ 🎲",
+                "🎰 ⬆️ 💎 100 Chips ⬇️ 🎲",
+                "🎰 ⬆️ 💻 MacBook Pro ⬇️ 🎲",
+                "🎰 ⬆️ 🪙 25 Chips ⬇️ 🎲",
+                "🎰 ⬆️ ⌚ Apple Watch Ultra ⬇️ 🎲",
+                "🎰 ⬆️ 💵 50 Chips ⬇️ 🎲",
+                "🎰 ⬆️ 🎧 AirPods Pro ⬇️ 🎲",
+                "🎰 ⬆️ 🎯 10 Chips ⬇️ 🎲",
+                "🎰 ⬆️ 💰 250 Chips ⬇️ 🎲",
+            ]
 
-        # Randomize the sequence
-        random.shuffle(animation_sequence)
+            # Randomize the sequence
+            random.shuffle(animation_sequence)
 
-        # Determine final prize to show
-        if result.get('milestone_prize'):
-            final_prize = result['milestone_prize']['name']
-        else:
-            final_prize = "❌ Try Again"
+            # Determine final prize to show
+            if result.get('milestone_prize'):
+                final_prize = result['milestone_prize']['name']
+            else:
+                final_prize = "❌ Try Again"
 
-        try:
-            # Show spinning animation (6-8 edits)
-            for i, frame in enumerate(animation_sequence[:7]):
-                try:
-                    await query.edit_message_text(frame)
-                    # Gradually slow down the animation
-                    if i < 3:
-                        await asyncio.sleep(0.4)  # Fast spinning
-                    elif i < 5:
-                        await asyncio.sleep(0.6)  # Slowing down
-                    else:
-                        await asyncio.sleep(0.8)  # Almost stopped
-                except Exception as e:
-                    logger.warning(f"Animation frame {i} failed: {e}")
-                    # Continue even if one frame fails
-
-            # Show final result for a moment before the full message
             try:
-                await query.edit_message_text(f"🎊 {final_prize} 🎊")
-                await asyncio.sleep(1.0)
-            except:
-                pass
+                # Show spinning animation (6-8 edits)
+                for i, frame in enumerate(animation_sequence[:7]):
+                    try:
+                        await query.edit_message_text(frame)
+                        # Gradually slow down the animation
+                        if i < 3:
+                            await asyncio.sleep(0.4)  # Fast spinning
+                        elif i < 5:
+                            await asyncio.sleep(0.6)  # Slowing down
+                        else:
+                            await asyncio.sleep(0.8)  # Almost stopped
+                    except Exception as e:
+                        logger.warning(f"Animation frame {i} failed: {e}")
+                        # Continue even if one frame fails
 
-        except Exception as e:
-            logger.error(f"Error in spin animation: {e}")
-            # Animation failed, continue to show results
+                # Show final result for a moment before the full message
+                try:
+                    await query.edit_message_text(f"🎊 {final_prize} 🎊")
+                    await asyncio.sleep(1.0)
+                except:
+                    pass
+
+            except Exception as e:
+                logger.error(f"Error in spin animation: {e}")
+                # Animation failed, continue to show results
+
+            logger.info(f"Animation completed for user {query.from_user.id} (queue slot released)")
 
 
 # Command Handlers
