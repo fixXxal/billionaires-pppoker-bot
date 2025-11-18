@@ -642,31 +642,18 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
 
             # Build prize information
             prize_info = ""
-            total_pending = 0
+            new_reward_chips = 0
 
             if result.get('milestone_prize'):
                 prize = result['milestone_prize']
                 prize_info += f"🎁 <b>Milestone:</b> {prize['name']} ({prize['chips']} chips)\n"
-                total_pending += prize['chips']
+                new_reward_chips += prize['chips']
 
             if result.get('got_surprise'):
                 prize_info += f"✨ <b>Surprise:</b> {result['surprise_chips']} chips\n"
-                total_pending += result['surprise_chips']
+                new_reward_chips += result['surprise_chips']
 
-            admin_message = (
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"🎊 <b>NEW PRIZE WON!</b> 🎊\n"
-                f"━━━━━━━━━━━━━━━━━━\n\n"
-                f"👤 <b>User:</b> {user.first_name} (@{user.username if user.username else 'no username'})\n"
-                f"🆔 <b>Telegram ID:</b> <code>{user.id}</code>\n"
-                f"🎮 <b>PPPoker ID:</b> <code>{user_pppoker_id}</code>\n\n"
-                f"{prize_info}\n"
-                f"💰 <b>Total Pending:</b> <b>{total_pending} chips</b>\n\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"⏳ Click button below to approve:"
-            )
-
-            # Get all pending rewards for this user to create approve button
+            # Get all pending rewards for this user to create approve button AND calculate balance
             try:
                 # Small delay to ensure Google Sheets has processed the write
                 import asyncio
@@ -680,6 +667,32 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
                 if user_pending:
                     logger.info(f"User pending rewards: {user_pending}")
 
+                # Calculate cumulative pending balance
+                total_pending_balance = sum(int(r.get('chips', 0)) for r in user_pending)
+                previous_pending = total_pending_balance - new_reward_chips
+
+                # Build pending balance display
+                if previous_pending > 0:
+                    pending_display = f"💰 <b>Total Pending Balance:</b> <b>{total_pending_balance} chips</b>\n"
+                    pending_display += f"   (Previous: {previous_pending} | New: {new_reward_chips})"
+                else:
+                    pending_display = f"💰 <b>Total Pending Balance:</b> <b>{total_pending_balance} chips</b>\n"
+                    pending_display += f"   (New: {new_reward_chips} chips)"
+
+                # Build admin message
+                admin_message = (
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"🎊 <b>NEW PRIZE WON!</b> 🎊\n"
+                    f"━━━━━━━━━━━━━━━━━━\n\n"
+                    f"👤 <b>User:</b> {user.first_name} (@{user.username if user.username else 'no username'})\n"
+                    f"🆔 <b>Telegram ID:</b> <code>{user.id}</code>\n"
+                    f"🎮 <b>PPPoker ID:</b> <code>{user_pppoker_id}</code>\n\n"
+                    f"{prize_info}\n"
+                    f"{pending_display}\n\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"⏳ Click button below to approve:"
+                )
+
                 # Create approve button with all spin IDs for this user
                 keyboard = None
                 if user_pending:
@@ -687,7 +700,7 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
                     spin_ids_str = ','.join(spin_ids)
                     logger.info(f"Creating button with spin IDs: {spin_ids_str}")
                     keyboard = [[InlineKeyboardButton(
-                        f"✅ Approve All ({total_pending} chips)",
+                        f"✅ Approve All ({total_pending_balance} chips)",
                         callback_data=f"approve_user_{user.id}_{spin_ids_str}"
                     )]]
                     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -700,6 +713,22 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
                 logger.error(f"Error getting pending rewards for button: {e}")
                 import traceback
                 traceback.print_exc()
+                # Fallback: show only new reward
+                total_pending_balance = new_reward_chips
+                pending_display = f"💰 <b>Total Pending Balance:</b> <b>{total_pending_balance} chips</b>\n"
+                pending_display += f"   (New: {new_reward_chips} chips)"
+                admin_message = (
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"🎊 <b>NEW PRIZE WON!</b> 🎊\n"
+                    f"━━━━━━━━━━━━━━━━━━\n\n"
+                    f"👤 <b>User:</b> {user.first_name} (@{user.username if user.username else 'no username'})\n"
+                    f"🆔 <b>Telegram ID:</b> <code>{user.id}</code>\n"
+                    f"🎮 <b>PPPoker ID:</b> <code>{user_pppoker_id}</code>\n\n"
+                    f"{prize_info}\n"
+                    f"{pending_display}\n\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"⏳ Click button below to approve:"
+                )
                 reply_markup = None
 
             # Store notification message IDs for button removal later
