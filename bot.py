@@ -178,8 +178,8 @@ Select an option to get started:
         # Regular user menu
         keyboard = [
             [KeyboardButton("💰 Deposit"), KeyboardButton("💸 Withdrawal")],
-            [KeyboardButton("🎲 Free Spins"), KeyboardButton("🎮 Join Club")],
-            [KeyboardButton("🪑 Seat"), KeyboardButton("💬 Live Support")],
+            [KeyboardButton("🪑 Seat"), KeyboardButton("🎮 Join Club")],
+            [KeyboardButton("🎲 Free Spins"), KeyboardButton("💬 Live Support")],
             [KeyboardButton("📊 My Info"), KeyboardButton("❓ Help")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -222,8 +222,8 @@ async def user_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [KeyboardButton("💰 Deposit"), KeyboardButton("💸 Withdrawal")],
-        [KeyboardButton("🎲 Free Spins"), KeyboardButton("🎮 Join Club")],
-        [KeyboardButton("🪑 Seat"), KeyboardButton("💬 Live Support")],
+        [KeyboardButton("🪑 Seat"), KeyboardButton("🎮 Join Club")],
+        [KeyboardButton("🎲 Free Spins"), KeyboardButton("💬 Live Support")],
         [KeyboardButton("📊 My Info"), KeyboardButton("❓ Help")],
         [KeyboardButton("🔙 Back to Admin")]
     ]
