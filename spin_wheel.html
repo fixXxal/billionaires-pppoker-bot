@@ -504,21 +504,26 @@
                 console.log(`   Backend prize: "${prizes[segmentIndex].name}"`);
                 console.log(`   Should show: "${prize.display}"`);
 
-                // Calculate rotation - FIXED VERSION
+                // FINAL FIX - Correct rotation calculation
                 const sliceAngle = 360 / prizes.length;  // 22.5° for 16 segments
 
-                // Wheel is drawn with segment 0 at TOP (pointer position)
-                // Segments are numbered 0-15 going CLOCKWISE
-                // To land on segment N, we rotate the wheel CLOCKWISE (positive rotation)
-                // This brings segment N under the top pointer
+                // Segment drawing starts at -90° (top), so segment 0 center is at -78.75°
+                // To point at segment N, we need to rotate so its center is at top (0°)
+                // Segment N center in drawing: (N * 22.5°) - 78.75°
+                // To move from current position to top: rotate by negative of that angle
+                // BUT we want the wheel to rotate in the direction that makes sense visually
 
-                const targetAngle = (segmentIndex * sliceAngle);  // Clockwise rotation
+                // Initial offset: segment 0 center is 78.75° CCW from top
+                const initialOffset = 78.75;
+
+                // To land on segment N: rotate CW by (N * sliceAngle) then add initial offset
+                const targetAngle = (segmentIndex * sliceAngle) + initialOffset;
+
                 const rotations = results.length === 1 ? 5 : 3;
                 const totalRotation = (360 * rotations) + targetAngle;
                 currentRotation += totalRotation;
 
-                console.log(`   Target segment: ${segmentIndex}`);
-                console.log(`   Slice angle: ${sliceAngle}°`);
+                console.log(`   Initial offset: ${initialOffset}°`);
                 console.log(`   Target angle: ${targetAngle}°`);
                 console.log(`   Total rotation: ${totalRotation}°`);
                 console.log(`   Final rotation: ${currentRotation}°`);
@@ -536,13 +541,14 @@
                 void wheel.offsetHeight;
 
                 requestAnimationFrame(() => {
-                    const duration = results.length === 1 ? 3.5 : 2;
-                    wheel.style.transition = `transform ${duration}s cubic-bezier(0.17, 0.67, 0.35, 0.96)`;
+                    const duration = results.length === 1 ? 4 : 2.5;
+                    // Use ease-out cubic for smooth deceleration - starts fast, ends slow
+                    wheel.style.transition = `transform ${duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
                     wheel.style.transform = `rotate(${currentRotation}deg)`;
                 });
 
-                // Wait for animation
-                const delay = results.length === 1 ? 3500 : 2000;
+                // Wait for animation to complete
+                const delay = results.length === 1 ? 4000 : 2500;
                 await new Promise(resolve => setTimeout(resolve, delay));
 
                 // Remove glow after spin
