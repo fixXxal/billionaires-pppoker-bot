@@ -33,7 +33,15 @@ ADMIN_USER_ID = int(os.getenv('ADMIN_USER_ID'))
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
 SPREADSHEET_NAME = os.getenv('SPREADSHEET_NAME', 'Billionaires_PPPoker_Bot')
 CREDENTIALS_FILE = os.getenv('GOOGLE_SHEETS_CREDENTIALS_FILE', 'credentials.json')
-BOT_TOKEN = os.getenv('BOT_TOKEN')
+BOT_TOKEN = os.getenv('BOT_TOKEN') or os.getenv('TELEGRAM_BOT_TOKEN')
+
+# Verify critical config
+if not BOT_TOKEN:
+    logger.error("❌ BOT_TOKEN not set! Admin notifications will fail!")
+if not ADMIN_USER_ID:
+    logger.error("❌ ADMIN_USER_ID not set! Admin notifications will fail!")
+else:
+    logger.info(f"✅ Admin notifications will be sent to user ID: {ADMIN_USER_ID}")
 
 # Lazy load managers
 sheets = None
@@ -51,6 +59,11 @@ def get_managers():
 async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppoker_id: str):
     """Send notification to admin when user wins chips"""
     try:
+        # Make sure bot is initialized
+        global bot
+        if bot is None:
+            bot = Bot(token=BOT_TOKEN)
+
         message = (
             f"🎰 <b>SPIN WHEEL WIN!</b> 🎰\n\n"
             f"👤 User: {username} (ID: {user_id})\n"
@@ -61,9 +74,11 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
             f"Use /pendingspins to review"
         )
         await bot.send_message(chat_id=ADMIN_USER_ID, text=message, parse_mode='HTML')
-        logger.info(f"Admin notified: {username} won {prize}")
+        logger.info(f"✅ Admin notified: {username} won {prize}")
     except TelegramError as e:
-        logger.error(f"Failed to notify admin: {e}")
+        logger.error(f"❌ Failed to notify admin: {e}")
+    except Exception as e:
+        logger.error(f"❌ Unexpected error in notify_admin: {e}")
 
 
 @app.route('/')
@@ -194,10 +209,15 @@ def spin():
 
             # Notify admin for chip wins
             if chips > 0:
+                logger.info(f"💰 Chip win detected! Notifying admin about {chips} chips for user {username}")
                 try:
                     asyncio.run(notify_admin(user_id, username, prize_display, chips, pppoker_id))
                 except Exception as e:
-                    logger.error(f"Failed to notify admin: {e}")
+                    logger.error(f"❌ Failed to notify admin: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                logger.info(f"🔄 Try Again - no admin notification needed")
 
         # Update user spins
         new_available = available_spins - spin_count

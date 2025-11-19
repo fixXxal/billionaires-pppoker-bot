@@ -283,14 +283,35 @@ class SheetsManager:
             # Check and add to Spin History sheet
             try:
                 headers = self.spin_history_sheet.row_values(1)
-                if len(headers) < 6 or 'PPPoker ID' not in headers:
-                    print("🔄 Adding PPPoker ID column to Spin History sheet...")
-                    # Update header row to add PPPoker ID column
+                print(f"📋 Current Spin History headers: {headers}")
+
+                # Add missing columns
+                if len(headers) < 9:
+                    print(f"🔄 Adding missing columns to Spin History sheet (currently has {len(headers)} columns)...")
+
+                    # Add PPPoker ID if missing (column 6)
                     if len(headers) == 5:
                         self.spin_history_sheet.update_cell(1, 6, 'PPPoker ID')
-                        print("✅ PPPoker ID column added to Milestone Rewards sheet!")
+                        print("✅ Added PPPoker ID column")
+
+                    # Add Status column (column 7)
+                    if len(headers) <= 6 and 'Status' not in headers:
+                        self.spin_history_sheet.update_cell(1, 7, 'Status')
+                        print("✅ Added Status column")
+
+                    # Add Approved By column (column 8)
+                    if len(headers) <= 7 and 'Approved By' not in headers:
+                        self.spin_history_sheet.update_cell(1, 8, 'Approved By')
+                        print("✅ Added Approved By column")
+
+                    # Add Approved At column (column 9)
+                    if len(headers) <= 8 and 'Approved At' not in headers:
+                        self.spin_history_sheet.update_cell(1, 9, 'Approved At')
+                        print("✅ Added Approved At column")
+
+                    print("✅ All approval columns added to Spin History sheet!")
             except Exception as e:
-                print(f"Note: Could not add PPPoker ID to Milestone Rewards: {e}")
+                print(f"Note: Could not add approval columns to Spin History: {e}")
 
         except Exception as e:
             print(f"Migration note: {e}")
