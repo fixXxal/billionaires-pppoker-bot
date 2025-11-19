@@ -335,25 +335,25 @@
         let currentRotation = 0;
 
         function updateSpinButtons() {
-            const buttons = document.querySelectorAll('.spin-option-btn, .spin-all-btn');
-            buttons.forEach(btn => {
-                btn.disabled = spinning || availableSpins === 0;
-            });
-
-            // Update Spin All button text
+            // Update Spin All button text and visibility
             const spinAllBtn = document.getElementById('spinAllBtn');
             if (availableSpins > 0) {
                 spinAllBtn.textContent = `Spin All (${availableSpins}x)`;
+                spinAllBtn.style.display = 'block';
+                spinAllBtn.disabled = spinning;
             } else {
-                spinAllBtn.textContent = 'No Spins';
+                spinAllBtn.style.display = 'none';
             }
 
-            // Disable buttons if not enough spins
+            // Show/hide buttons based on available spins
             const spinOptions = [1, 10, 25, 50, 100];
             document.querySelectorAll('.spin-option-btn').forEach((btn, idx) => {
                 const requiredSpins = spinOptions[idx];
-                if (availableSpins < requiredSpins) {
-                    btn.disabled = true;
+                if (availableSpins >= requiredSpins) {
+                    btn.style.display = 'block';
+                    btn.disabled = spinning;
+                } else {
+                    btn.style.display = 'none';
                 }
             });
         }
