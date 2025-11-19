@@ -600,7 +600,9 @@
                     console.log('Wheel will show:', prizes[winningIndex].display)
 
                     const sliceAngle = 360 / prizes.length;
-                    const targetAngle = -(winningIndex * sliceAngle) + (sliceAngle / 2);
+                    // Correct calculation: rotate to center of winning segment
+                    // Segments start at -90deg (top), rotate counter-clockwise
+                    const targetAngle = -(winningIndex * sliceAngle);
                     const totalRotation = (360 * 5) + targetAngle;
 
                     const wheelWrapper = document.getElementById('wheelWrapper');
