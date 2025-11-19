@@ -84,8 +84,11 @@ async def notify_user_win(user_id: int, username: str, prize: str, chips: int):
 
 
 async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppoker_id: str):
-    """Send notification to admin when user wins chips"""
+    """Send notification to admin when user wins chips - with instant approve button"""
     try:
+        # Import InlineKeyboardButton and InlineKeyboardMarkup
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
         # Make sure bot is initialized
         global bot
         if bot is None:
@@ -99,7 +102,20 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
             f"🎮 PPPoker ID: {pppoker_id or 'Not set'}\n\n"
             f"⏳ <b>Pending Approval</b>"
         )
-        await bot.send_message(chat_id=ADMIN_USER_ID, text=message, parse_mode='HTML')
+
+        # Create instant approve button
+        # We'll use a special callback that approves this specific user's pending spins
+        keyboard = [
+            [InlineKeyboardButton("✅ Approve Now", callback_data=f"approve_instant_{user_id}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await bot.send_message(
+            chat_id=ADMIN_USER_ID,
+            text=message,
+            parse_mode='HTML',
+            reply_markup=reply_markup
+        )
         logger.info(f"✅ Admin notified: {username} won {prize}")
     except TelegramError as e:
         logger.error(f"❌ Failed to notify admin: {e}")

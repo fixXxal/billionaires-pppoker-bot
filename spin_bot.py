@@ -1001,10 +1001,10 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
         # Create inline buttons - ONE button per user to approve ALL their rewards
         keyboard = []
         for user_id, user_data in user_rewards.items():
-            # Create comma-separated list of row numbers
-            row_numbers_str = ','.join(map(str, user_data['row_numbers']))
+            # Just send user_id - handler will fetch all pending spins for this user
+            # This keeps callback_data under Telegram's 64-byte limit
             button_text = f"✅ Approve {user_data['username']} ({user_data['total_chips']} chips)"
-            keyboard.append([InlineKeyboardButton(button_text, callback_data=f"approve_spinhistory_{user_id}_{row_numbers_str}")])
+            keyboard.append([InlineKeyboardButton(button_text, callback_data=f"approve_spinhistory_{user_id}")])
 
         reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
 

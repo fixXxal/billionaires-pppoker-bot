@@ -4904,32 +4904,39 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
         return
 
     try:
-        # Extract data from callback_data
-        # Format: approve_spinhistory_<user_id>_<row2>,<row3>,<row4>
-        data_parts = query.data.replace("approve_spinhistory_", "").split("_", 1)
-        target_user_id = int(data_parts[0])
-        row_numbers = [int(r) for r in data_parts[1].split(",") if r]
+        # Extract user_id from callback_data
+        # Format: approve_spinhistory_<user_id>
+        target_user_id = int(query.data.replace("approve_spinhistory_", ""))
+
+        # Get all pending spins for this user
+        pending = spin_bot.sheets.get_pending_spin_rewards()
+        user_pending = [p for p in pending if str(p.get('user_id')) == str(target_user_id)]
+
+        if not user_pending:
+            await query.edit_message_text(
+                f"✅ All rewards already approved!\n\n"
+                f"No pending spins found for this user.",
+                parse_mode='Markdown'
+            )
+            return
 
         approver_name = user.username or user.first_name
         approved_count = 0
         total_chips = 0
+        username = user_pending[0].get('username', 'Unknown')
 
-        # Get user data first to get current chips
+        # Get user data first
         user_data = spin_bot.sheets.get_spin_user(target_user_id)
 
-        # Approve each row and calculate total chips
-        for row_number in row_numbers:
-            # Get the row data first to know chip amount
-            try:
-                row_data = spin_bot.sheets.spin_history_sheet.row_values(row_number)
-                chips_amount = int(row_data[3]) if len(row_data) > 3 else 0  # Column 4 is Chips Amount
-                total_chips += chips_amount
-            except:
-                pass
+        # Approve each pending spin
+        for reward in user_pending:
+            row_number = reward.get('row_number')
+            chips = reward.get('chips', 0)
 
             success = spin_bot.sheets.approve_spin_reward(row_number, approver_name)
             if success:
                 approved_count += 1
+                total_chips += chips
 
         # Update user's total chips earned
         if user_data:
@@ -4943,9 +4950,11 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
         # Edit the message to show approval success
         await query.edit_message_text(
             f"✅ *APPROVED!*\n\n"
-            f"Approved {approved_count} rewards\n"
+            f"👤 User: {username}\n"
+            f"📦 Approved: {approved_count} rewards\n"
             f"💰 Total: {total_chips} chips\n\n"
-            f"User has been notified!",
+            f"✨ User has been notified!\n"
+            f"👤 Approved by: {approver_name}",
             parse_mode='Markdown'
         )
 
@@ -4980,6 +4989,105 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
 
     except Exception as e:
         logger.error(f"Error in approve_spinhistory_callback: {e}")
+        import traceback
+        traceback.print_exc()
+        await query.edit_message_text(f"❌ Error approving rewards: {str(e)}")
+
+
+async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle instant approve button from win notification - approves ALL pending rewards for a user"""
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user
+
+    if not is_admin(user.id):
+        await query.answer("❌ Admin access required!", show_alert=True)
+        return
+
+    try:
+        # Extract user_id from callback_data
+        # Format: approve_instant_<user_id>
+        target_user_id = int(query.data.replace("approve_instant_", ""))
+
+        # Get all pending spins for this user
+        pending = spin_bot.sheets.get_pending_spin_rewards()
+        user_pending = [p for p in pending if str(p.get('user_id')) == str(target_user_id)]
+
+        if not user_pending:
+            await query.edit_message_text(
+                f"✅ All rewards already approved!\n\n"
+                f"No pending spins found for this user.",
+                parse_mode='Markdown'
+            )
+            return
+
+        approver_name = user.username or user.first_name
+        approved_count = 0
+        total_chips = 0
+        username = user_pending[0].get('username', 'Unknown')
+
+        # Get user data first
+        user_data = spin_bot.sheets.get_spin_user(target_user_id)
+
+        # Approve each pending spin
+        for reward in user_pending:
+            row_number = reward.get('row_number')
+            chips = reward.get('chips', 0)
+
+            success = spin_bot.sheets.approve_spin_reward(row_number, approver_name)
+            if success:
+                approved_count += 1
+                total_chips += chips
+
+        # Update user's total chips earned
+        if user_data:
+            current_chips = user_data.get('total_chips_earned', 0)
+            new_total = current_chips + total_chips
+            spin_bot.sheets.update_spin_user(
+                user_id=target_user_id,
+                total_chips_earned=new_total
+            )
+
+        # Edit the notification message to show approval
+        await query.edit_message_text(
+            f"✅ <b>APPROVED!</b> ✅\n\n"
+            f"👤 User: {username}\n"
+            f"💰 Total: {total_chips} chips\n"
+            f"📦 Rewards: {approved_count}\n\n"
+            f"✨ User has been notified!\n"
+            f"👤 Approved by: {approver_name}",
+            parse_mode='HTML'
+        )
+
+        # Notify the user
+        try:
+            pppoker_id = spin_bot.sheets.get_pppoker_id_from_deposits(target_user_id)
+            pppoker_msg = f"🎮 <b>PPPoker ID:</b> {pppoker_id}\n" if pppoker_id else ""
+
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=f"━━━━━━━━━━━━━━━━━━\n"
+                     f"✅ <b>REWARDS APPROVED!</b> ✅\n"
+                     f"━━━━━━━━━━━━━━━━━━\n\n"
+                     f"🎊 <b>Congratulations!</b>\n\n"
+                     f"💰 <b>Total Chips:</b> {total_chips}\n"
+                     f"📦 <b>Rewards:</b> {approved_count}\n"
+                     f"{pppoker_msg}\n"
+                     f"✨ <b>Your chips have been added to your account!</b>\n\n"
+                     f"🎮 The chips are now available in your PPPoker account.\n"
+                     f"💎 You can use them to play poker right away!\n\n"
+                     f"━━━━━━━━━━━━━━━━━━\n"
+                     f"Thank you for playing! 🎰\n"
+                     f"Good luck at the tables! 🃏",
+                parse_mode='HTML'
+            )
+            logger.info(f"✅ User {target_user_id} notified of instant approval: {total_chips} chips")
+        except Exception as e:
+            logger.error(f"Failed to notify user: {e}")
+
+    except Exception as e:
+        logger.error(f"Error in approve_instant_callback: {e}")
         import traceback
         traceback.print_exc()
         await query.edit_message_text(f"❌ Error approving rewards: {str(e)}")
@@ -5238,6 +5346,7 @@ def main():
     # application.add_handler(CallbackQueryHandler(spin_again_callback, pattern="^spin_again$"))
     application.add_handler(CallbackQueryHandler(approve_spin_callback, pattern="^approve_(spin_|user_)"))
     application.add_handler(CallbackQueryHandler(approve_spinhistory_callback, pattern="^approve_spinhistory_"))
+    application.add_handler(CallbackQueryHandler(approve_instant_callback, pattern="^approve_instant_"))
     # application.add_handler(CallbackQueryHandler(spin_callback, pattern="^spin_"))
     # deposit_button_callback is now in deposit ConversationHandler entry_points (line 4740)
     application.add_handler(CallbackQueryHandler(play_freespins_callback, pattern="^play_freespins$"))
