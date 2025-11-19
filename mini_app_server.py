@@ -312,26 +312,12 @@ def spin():
 
             results.append({
                 'prize': prize_display,
-                'segment_index': segment_index
+                'segment_index': segment_index,
+                'chips': chips  # Store chips for notification later
             })
 
             # Log to Google Sheets
             sheets.log_spin_history(user_id, username, prize_display, chips, pppoker_id)
-
-            # Notify user and admin for chip wins
-            if chips > 0:
-                logger.info(f"💰 Chip win detected! Notifying user and admin about {chips} chips for {username}")
-                try:
-                    # Notify user first
-                    asyncio.run(notify_user_win(user_id, username, prize_display, chips))
-                    # Then notify admin
-                    asyncio.run(notify_admin(user_id, username, prize_display, chips, pppoker_id))
-                except Exception as e:
-                    logger.error(f"❌ Failed to send notifications: {e}")
-                    import traceback
-                    traceback.print_exc()
-            else:
-                logger.info(f"🔄 Try Again - no notifications needed")
 
         # Update user spins
         new_available = available_spins - spin_count
@@ -345,6 +331,22 @@ def spin():
 
         # Invalidate cache after updating user data
         invalidate_user_cache(user_id)
+
+        # Send notifications AFTER all spins are processed
+        # This ensures user sees notification after animation completes
+        total_chips_won = sum(r.get('chips', 0) for r in results if isinstance(r, dict) and r.get('chips', 0) > 0)
+
+        if total_chips_won > 0:
+            logger.info(f"💰 Total chips won: {total_chips_won} - Sending notifications")
+            try:
+                # Notify user about their total winnings
+                asyncio.run(notify_user_win(user_id, username, f"{total_chips_won} Chips", total_chips_won))
+                # Notify admin
+                asyncio.run(notify_admin(user_id, username, f"{total_chips_won} Chips Total", total_chips_won, pppoker_id))
+            except Exception as e:
+                logger.error(f"❌ Failed to send notifications: {e}")
+                import traceback
+                traceback.print_exc()
 
         # Build response
         response = {
