@@ -444,6 +444,16 @@ class SheetsManager:
             self.deposits_sheet.update_cell(row, 12, admin_id)  # Processed By
             self.deposits_sheet.update_cell(row, 13, notes)  # Notes
 
+            # Auto-sync PPPoker ID to Spin Users and Spin History when deposit is approved
+            if status == 'Approved':
+                try:
+                    user_id = deposit.get('user_id')
+                    if user_id:
+                        self.sync_pppoker_id_from_deposits(user_id)
+                        print(f"✅ Auto-synced PPPoker ID for user {user_id} after deposit approval")
+                except Exception as e:
+                    print(f"Error auto-syncing PPPoker ID: {e}")
+
     # Withdrawal Management
     def create_withdrawal_request(self, user_id: int, username: str, pppoker_id: str,
                                  amount: float, payment_method: str, account_name: str,
@@ -1417,6 +1427,53 @@ class SheetsManager:
             return ''
         except Exception as e:
             print(f"Error getting PPPoker ID from deposits: {e}")
+            return ''
+
+    def sync_pppoker_id_from_deposits(self, user_id: int) -> str:
+        """
+        Get latest PPPoker ID from Deposits and update it in Spin Users and Spin History
+        Returns the PPPoker ID
+        """
+        try:
+            # Get latest PPPoker ID from deposits
+            pppoker_id = self.get_pppoker_id_from_deposits(user_id)
+
+            if pppoker_id:
+                print(f"🔄 Syncing PPPoker ID for user {user_id}: {pppoker_id}")
+
+                # Update Spin Users sheet
+                try:
+                    spin_users = self.spin_users_sheet.get_all_records()
+                    for idx, user in enumerate(spin_users, start=2):  # start=2 because row 1 is header
+                        if str(user.get('User ID', '')).strip() == str(user_id).strip():
+                            current_pppoker = user.get('PPPoker ID', '')
+                            if current_pppoker != pppoker_id:
+                                self.spin_users_sheet.update_cell(idx, 9, pppoker_id)  # Column 9 is PPPoker ID
+                                print(f"✅ Updated Spin Users PPPoker ID: {current_pppoker} → {pppoker_id}")
+                            break
+                except Exception as e:
+                    print(f"Error updating Spin Users PPPoker ID: {e}")
+
+                # Update ALL Spin History records for this user
+                try:
+                    history = self.spin_history_sheet.get_all_records()
+                    updated_count = 0
+                    for idx, record in enumerate(history, start=2):  # start=2 because row 1 is header
+                        if str(record.get('User ID', '')).strip() == str(user_id).strip():
+                            current_pppoker = record.get('PPPoker ID', '')
+                            if current_pppoker != pppoker_id:
+                                self.spin_history_sheet.update_cell(idx, 6, pppoker_id)  # Column 6 is PPPoker ID
+                                updated_count += 1
+
+                    if updated_count > 0:
+                        print(f"✅ Updated {updated_count} Spin History records with PPPoker ID: {pppoker_id}")
+                except Exception as e:
+                    print(f"Error updating Spin History PPPoker ID: {e}")
+
+            return pppoker_id
+
+        except Exception as e:
+            print(f"Error syncing PPPoker ID: {e}")
             return ''
 
     def log_milestone_reward(self, user_id: int, username: str, milestone_type: str,

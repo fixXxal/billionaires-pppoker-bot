@@ -143,7 +143,14 @@ def spin():
 
         available_spins = user_data.get('available_spins', 0)
         username = user_data.get('username', 'Unknown')
-        pppoker_id = user_data.get('pppoker_id', '')
+
+        # SYNC PPPOKER ID from Deposits sheet (updates Spin Users and Spin History)
+        pppoker_id = sheets.sync_pppoker_id_from_deposits(user_id)
+        if not pppoker_id:
+            # Fallback to current value if no deposits found
+            pppoker_id = user_data.get('pppoker_id', '')
+
+        logger.info(f"📋 User {username} PPPoker ID: {pppoker_id or 'Not set'}")
 
         if available_spins < spin_count:
             return jsonify({
