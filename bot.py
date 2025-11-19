@@ -141,13 +141,14 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error in freespins command: {e}")
         await update.message.reply_text("❌ Error loading spin wheel\\. Please try again\\.", parse_mode='MarkdownV2')
 
-async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Wrapper for spin bot callback"""
-    await spin_bot_module.spin_callback(update, context, spin_bot, ADMIN_USER_ID)
+# DISABLED: Spinning is now done in Mini App only
+# async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     """Wrapper for spin bot callback"""
+#     await spin_bot_module.spin_callback(update, context, spin_bot, ADMIN_USER_ID)
 
-async def spin_again_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Wrapper for spin again callback"""
-    await spin_bot_module.spin_again_callback(update, context, spin_bot)
+# async def spin_again_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     """Wrapper for spin again callback"""
+#     await spin_bot_module.spin_again_callback(update, context, spin_bot)
 
 async def addspins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Wrapper for add spins command"""
@@ -4947,7 +4948,7 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
 
 # Play freespins button callback handler
 async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle play freespins button click"""
+    """Handle play freespins button click - redirect to mini app"""
     try:
         query = update.callback_query
         await query.answer()
@@ -4960,68 +4961,23 @@ async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_
         except Exception as e:
             logger.warning(f"Could not delete message: {e}")
 
-        # Send freespins using the chat directly
         user = query.from_user
 
         try:
             # Get user's spin data
             user_data = spin_bot.sheets.get_spin_user(user.id)
+            available = user_data.get('available_spins', 0) if user_data else 0
+            total_chips = user_data.get('total_chips_earned', 0) if user_data else 0
 
-            if not user_data or user_data.get('available_spins', 0) == 0:
-                # Create deposit button
-                keyboard = [[InlineKeyboardButton("💰 Make Deposit", callback_data="deposit_start")]]
-                reply_markup = InlineKeyboardMarkup(keyboard)
+            # Mini app URL
+            mini_app_url = "https://billionaires-spins.up.railway.app"
 
-                await context.bot.send_message(
-                    chat_id=query.message.chat_id,
-                    text="━━━━━━━━━━━━━━━━━━\n"
-                        "🎰 *FREE SPINS* 🎰\n"
-                        "━━━━━━━━━━━━━━━━━━\n\n"
-                        "💫 *No spins available right now\\!*\n\n"
-                        "💰 Make a deposit to unlock free spins\\!\n"
-                        "🔥 More deposit → More spins → More prizes\\!\n\n"
-                        "🎁 *Win Amazing Prizes:*\n"
-                        "🏆 500 Chips\n"
-                        "💰 250 Chips\n"
-                        "💎 100 Chips\n"
-                        "💵 50 Chips\n"
-                        "🪙 20 Chips\n"
-                        "🎯 10 Chips\n"
-                        "📱 iPhone 17 Pro Max\n"
-                        "💻 MacBook Pro\n"
-                        "⌚ Apple Watch Ultra\n"
-                        "🎧 AirPods Pro\n"
-                        "✨ Plus Surprise Rewards\\!\n\n"
-                        "━━━━━━━━━━━━━━━━━━\n"
-                        "👉 Click button below to get started\\!\n"
-                        "━━━━━━━━━━━━━━━━━━",
-                    parse_mode='MarkdownV2',
-                    reply_markup=reply_markup
-                )
-                return
+            # Create mini app button
+            keyboard = [[InlineKeyboardButton("🎰 OPEN SPIN WHEEL 🎰", web_app=WebAppInfo(url=mini_app_url))]]
 
-            available = user_data.get('available_spins', 0)
-            total_used = user_data.get('total_spins_used', 0)
-            total_chips = user_data.get('total_chips_earned', 0)
-
-            # Create spin options keyboard
-            keyboard = []
-
-            # Single spin
-            keyboard.append([InlineKeyboardButton("🎯 Spin 1x", callback_data="spin_1")])
-
-            # Multi-spin options
-            if available >= 10:
-                keyboard.append([InlineKeyboardButton("🎰 Spin 10x", callback_data="spin_10")])
-
-            if available >= 50:
-                keyboard.append([InlineKeyboardButton("🔥 Spin 50x", callback_data="spin_50")])
-
-            if available >= 100:
-                keyboard.append([InlineKeyboardButton("💥 Spin 100x", callback_data="spin_100")])
-
-            if available > 1:
-                keyboard.append([InlineKeyboardButton(f"⚡ Spin ALL ({available}x)", callback_data=f"spin_all")])
+            # Add deposit button if no spins
+            if available == 0:
+                keyboard.append([InlineKeyboardButton("💰 Make Deposit", callback_data="deposit_start")])
 
             reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -5031,12 +4987,12 @@ async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=f"━━━━━━━━━━━━━━━━━━\n"
-                    f"🎰 *FREE SPINS* 🎰\n"
+                    f"🎰 *FREE SPINS WHEEL* 🎰\n"
                     f"━━━━━━━━━━━━━━━━━━\n\n"
                     f"👤 *{username_escaped}*\n\n"
                     f"🎯 Available Spins: *{available}*\n"
-                    f"💎 Total Chips: *{total_chips}*\n\n"
-                    f"🎁 *Prize Wheel:*\n"
+                    f"💎 Total Chips Earned: *{total_chips}*\n\n"
+                    f"🎁 *Win Amazing Prizes:*\n"
                     f"🏆 500 Chips\n"
                     f"💰 250 Chips\n"
                     f"💎 100 Chips\n"
@@ -5046,10 +5002,9 @@ async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_
                     f"📱 iPhone 17 Pro Max\n"
                     f"💻 MacBook Pro\n"
                     f"⌚ Apple Watch Ultra\n"
-                    f"🎧 AirPods Pro\n"
-                    f"✨ Plus Surprise Rewards\\!\n\n"
+                    f"🎧 AirPods Pro\n\n"
                     f"━━━━━━━━━━━━━━━━━━\n"
-                    f"⚡ *Choose Your Spins:* ⚡\n"
+                    f"👇 Click button to spin the wheel\\!\n"
                     f"━━━━━━━━━━━━━━━━━━",
                 parse_mode='MarkdownV2',
                 reply_markup=reply_markup
@@ -5061,20 +5016,13 @@ async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_
             traceback.print_exc()
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
-                text="❌ Error loading spin data. Please try /freespins command."
+                text="❌ Error loading spin data. Please try again."
             )
 
     except Exception as e:
         logger.error(f"Error in play_freespins_callback: {e}")
         import traceback
         traceback.print_exc()
-        try:
-            await context.bot.send_message(
-                chat_id=update.callback_query.message.chat_id,
-                text="❌ Error starting free spins. Please try /freespins command."
-            )
-        except:
-            pass
 
 
 # Message router
@@ -5193,9 +5141,10 @@ def main():
     # Spin bot callback handlers
     # IMPORTANT: Register more specific patterns FIRST before generic ones
     application.add_handler(CallbackQueryHandler(spin_admin_callback, pattern="^spin_admin_"))
-    application.add_handler(CallbackQueryHandler(spin_again_callback, pattern="^spin_again$"))
+    # DISABLED: Spinning is now done in Mini App only
+    # application.add_handler(CallbackQueryHandler(spin_again_callback, pattern="^spin_again$"))
     application.add_handler(CallbackQueryHandler(approve_spin_callback, pattern="^approve_(spin_|user_)"))
-    application.add_handler(CallbackQueryHandler(spin_callback, pattern="^spin_"))
+    # application.add_handler(CallbackQueryHandler(spin_callback, pattern="^spin_"))
     # deposit_button_callback is now in deposit ConversationHandler entry_points (line 4740)
     application.add_handler(CallbackQueryHandler(play_freespins_callback, pattern="^play_freespins$"))
 
