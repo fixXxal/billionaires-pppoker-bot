@@ -253,13 +253,13 @@ class SheetsManager:
                 'Total Chips Earned', 'Total Deposit (MVR)', 'Created At', 'Last Spin At', 'PPPoker ID'
             ])
 
-        # Spin History worksheet - NEW for mini app
+        # Spin History worksheet - NEW for mini app with approval system
         try:
             self.spin_history_sheet = self.spreadsheet.worksheet('Spin History')
         except gspread.WorksheetNotFound:
-            self.spin_history_sheet = self.spreadsheet.add_worksheet(title='Spin History', rows=5000, cols=6)
+            self.spin_history_sheet = self.spreadsheet.add_worksheet(title='Spin History', rows=5000, cols=9)
             self.spin_history_sheet.append_row([
-                'User ID', 'Username', 'Prize Won', 'Chips Amount', 'Timestamp', 'PPPoker ID'
+                'User ID', 'Username', 'Prize Won', 'Chips Amount', 'Timestamp', 'PPPoker ID', 'Status', 'Approved By', 'Approved At'
             ])
 
         # Run migration to add PPPoker ID columns if they don't exist
@@ -1328,19 +1328,46 @@ class SheetsManager:
     # Removed log_spin method - no longer needed (display prizes not tracked)
 
     def log_spin_history(self, user_id: int, username: str, prize: str, chips: int, pppoker_id: str = ''):
-        """Log each spin to Spin History sheet"""
+        """Log each spin to Spin History sheet with approval status"""
         try:
+            # Only chips wins need approval, "Try Again" is auto-approved
+            status = "Auto" if chips == 0 else "Pending"
+
             self.spin_history_sheet.append_row([
                 user_id,
                 username,
                 prize,
                 chips,
                 self._get_timestamp(),
-                pppoker_id
+                pppoker_id,
+                status,  # Status: Pending, Approved, Auto
+                '',      # Approved By
+                ''       # Approved At
             ])
             return True
         except Exception as e:
             print(f"Error logging spin history: {e}")
+            return False
+
+    def get_pending_spin_rewards(self):
+        """Get all pending spin rewards from Spin History"""
+        try:
+            records = self.spin_history_sheet.get_all_records()
+            pending = [r for r in records if r.get('Status') == 'Pending' and r.get('Chips Amount', 0) > 0]
+            return pending
+        except Exception as e:
+            print(f"Error getting pending spin rewards: {e}")
+            return []
+
+    def approve_spin_reward(self, row_number: int, approved_by: str):
+        """Approve a spin reward in Spin History"""
+        try:
+            self.spin_history_sheet.update_cell(row_number, 7, 'Approved')  # Status
+            self.spin_history_sheet.update_cell(row_number, 8, approved_by)  # Approved By
+            self.spin_history_sheet.update_cell(row_number, 9, self._get_timestamp())  # Approved At
+            return True
+        except Exception as e:
+            print(f"Error approving spin reward: {e}")
             return False
 
     def get_pppoker_id_from_deposits(self, user_id: int) -> str:

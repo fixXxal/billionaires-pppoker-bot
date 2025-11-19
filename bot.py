@@ -4892,6 +4892,83 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 # Deposit button callback handler (from no spins message)
+async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle NEW spin history approval - approves ALL pending rewards for a user"""
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user
+
+    if not is_admin(user.id):
+        await query.edit_message_text("❌ Admin access required!")
+        return
+
+    try:
+        # Extract data from callback_data
+        # Format: approve_spinhistory_<user_id>_<row2>,<row3>,<row4>
+        data_parts = query.data.replace("approve_spinhistory_", "").split("_", 1)
+        target_user_id = int(data_parts[0])
+        row_numbers = [int(r) for r in data_parts[1].split(",") if r]
+
+        approver_name = user.username or user.first_name
+        approved_count = 0
+        total_chips = 0
+
+        # Get user data first to get current chips
+        user_data = spin_bot.sheets.get_spin_user(target_user_id)
+
+        # Approve each row and calculate total chips
+        for row_number in row_numbers:
+            # Get the row data first to know chip amount
+            try:
+                row_data = spin_bot.sheets.spin_history_sheet.row_values(row_number)
+                chips_amount = int(row_data[3]) if len(row_data) > 3 else 0  # Column 4 is Chips Amount
+                total_chips += chips_amount
+            except:
+                pass
+
+            success = spin_bot.sheets.approve_spin_reward(row_number, approver_name)
+            if success:
+                approved_count += 1
+
+        # Update user's total chips earned
+        if user_data:
+            current_chips = user_data.get('total_chips_earned', 0)
+            new_total = current_chips + total_chips
+            spin_bot.sheets.update_spin_user(
+                user_id=target_user_id,
+                total_chips_earned=new_total
+            )
+
+        # Edit the message to show approval success
+        await query.edit_message_text(
+            f"✅ *APPROVED!*\n\n"
+            f"Approved {approved_count} rewards\n"
+            f"💰 Total: {total_chips} chips\n\n"
+            f"User has been notified!",
+            parse_mode='Markdown'
+        )
+
+        # Notify the user
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=f"🎊 *SPIN REWARDS APPROVED!* 🎊\n\n"
+                     f"💰 {total_chips} chips have been credited!\n\n"
+                     f"Your chips are now in your PPPoker account\\.\n"
+                     f"Thank you for playing\\! 🎰",
+                parse_mode='MarkdownV2'
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify user: {e}")
+
+    except Exception as e:
+        logger.error(f"Error in approve_spinhistory_callback: {e}")
+        import traceback
+        traceback.print_exc()
+        await query.edit_message_text(f"❌ Error approving rewards: {str(e)}")
+
+
 async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle deposit button click from free spins no-spins message"""
     query = update.callback_query
@@ -5144,6 +5221,7 @@ def main():
     # DISABLED: Spinning is now done in Mini App only
     # application.add_handler(CallbackQueryHandler(spin_again_callback, pattern="^spin_again$"))
     application.add_handler(CallbackQueryHandler(approve_spin_callback, pattern="^approve_(spin_|user_)"))
+    application.add_handler(CallbackQueryHandler(approve_spinhistory_callback, pattern="^approve_spinhistory_"))
     # application.add_handler(CallbackQueryHandler(spin_callback, pattern="^spin_"))
     # deposit_button_callback is now in deposit ConversationHandler entry_points (line 4740)
     application.add_handler(CallbackQueryHandler(play_freespins_callback, pattern="^play_freespins$"))

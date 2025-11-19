@@ -52,10 +52,10 @@ def get_sheets_manager():
 
 
 async def send_admin_notification(user_id: int, username: str, prize_name: str, chips: int, pppoker_id: str = ""):
-    """Send notification to admin when user wins a milestone prize"""
+    """Send notification to admin when user wins chips"""
     try:
         message = (
-            f"🎊 <b>MILESTONE PRIZE WON!</b> 🎊\n\n"
+            f"🎰 <b>SPIN WHEEL WIN!</b> 🎰\n\n"
             f"👤 User: {username} (ID: {user_id})\n"
             f"🎁 Prize: {prize_name}\n"
             f"💰 Chips: {chips}\n"
@@ -213,6 +213,19 @@ def spin():
                 chips=chips_amount,
                 pppoker_id=pppoker_id
             )
+
+            # Send admin notification for chip wins (not "Try Again")
+            if chips_amount > 0:
+                try:
+                    asyncio.run(send_admin_notification(
+                        user_id=user_id,
+                        username=username,
+                        prize_name=prize_display,
+                        chips=chips_amount,
+                        pppoker_id=pppoker_id
+                    ))
+                except Exception as e:
+                    logger.error(f"Failed to send admin notification: {e}")
 
         # Update user spins
         new_available = available_spins - spin_count

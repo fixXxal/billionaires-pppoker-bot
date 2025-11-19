@@ -949,32 +949,32 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
                 await update.message.reply_text("✅ No pending spin rewards!")
             return
 
-        # Group rewards by user
+        # Group rewards by user (NEW: from Spin History sheet)
         user_rewards = {}
-        for reward in pending:
-            user_id = reward['user_id']
+        for idx, reward in enumerate(pending, start=2):  # start=2 because row 1 is header
+            user_id = reward.get('User ID')
             if user_id not in user_rewards:
                 user_rewards[user_id] = {
-                    'username': reward['username'],
+                    'username': reward.get('Username', 'Unknown'),
                     'user_id': user_id,
+                    'pppoker_id': reward.get('PPPoker ID', ''),
                     'rewards': [],
                     'total_chips': 0,
-                    'spin_ids': []
+                    'row_numbers': []
                 }
             user_rewards[user_id]['rewards'].append(reward)
-            user_rewards[user_id]['total_chips'] += int(reward['chips'])
-            user_rewards[user_id]['spin_ids'].append(reward['spin_id'])
+            user_rewards[user_id]['total_chips'] += int(reward.get('Chips Amount', 0))
+            user_rewards[user_id]['row_numbers'].append(idx)  # Track row number for approval
 
         message = "━━━━━━━━━━━━━━━━━━\n"
         message += "🎰 *PENDING SPIN REWARDS* 🎰\n"
         message += "━━━━━━━━━━━━━━━━━━\n\n"
 
         for idx, (user_id, user_data) in enumerate(user_rewards.items(), 1):
-            # Get PPPoker ID from the reward data (already stored in milestone rewards sheet)
-            # Use the PPPoker ID from the first reward (they should all be the same for one user)
-            user_pppoker_id = user_data['rewards'][0].get('pppoker_id', '') if user_data['rewards'] else ''
+            # Get PPPoker ID from user data
+            user_pppoker_id = user_data['pppoker_id']
 
-            # If PPPoker ID is not in reward data, try to get it from Deposits
+            # If PPPoker ID is not set, try to get it from Deposits
             if not user_pppoker_id:
                 user_pppoker_id = spin_bot.sheets.get_pppoker_id_from_deposits(int(user_id))
 
@@ -989,7 +989,8 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
             # List individual rewards
             for reward in user_data['rewards']:
                 # Escape prize text for MarkdownV2
-                prize_escaped = reward['prize'].replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
+                prize_text = reward.get('Prize Won', 'Unknown')
+                prize_escaped = prize_text.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
                 message += f"  🎁 {prize_escaped}\n"
 
             message += f"\n💰 *TOTAL: {user_data['total_chips']} chips* \\({len(user_data['rewards'])} rewards\\)\n"
@@ -1000,10 +1001,10 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
         # Create inline buttons - ONE button per user to approve ALL their rewards
         keyboard = []
         for user_id, user_data in user_rewards.items():
-            # Create comma-separated list of spin IDs
-            spin_ids_str = ','.join(user_data['spin_ids'])
+            # Create comma-separated list of row numbers
+            row_numbers_str = ','.join(map(str, user_data['row_numbers']))
             button_text = f"✅ Approve {user_data['username']} ({user_data['total_chips']} chips)"
-            keyboard.append([InlineKeyboardButton(button_text, callback_data=f"approve_user_{user_id}_{spin_ids_str}")])
+            keyboard.append([InlineKeyboardButton(button_text, callback_data=f"approve_spinhistory_{user_id}_{row_numbers_str}")])
 
         reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
 
