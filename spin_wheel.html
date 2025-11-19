@@ -2,303 +2,182 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Free Spins</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Spin Wheel</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 15px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            position: relative;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 20% 50%, rgba(255, 215, 0, 0.2) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 80%, rgba(76, 209, 55, 0.2) 0%, transparent 50%);
-            pointer-events: none;
-            z-index: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
         }
 
         .container {
-            position: relative;
-            z-index: 1;
-            text-align: center;
-            max-width: 400px;
-            margin: 0 auto;
-            padding-bottom: 50px;
+            max-width: 500px;
+            width: 100%;
         }
 
         h1 {
+            text-align: center;
             color: white;
-            font-size: 1.8em;
-            margin: 15px 0;
+            margin-bottom: 20px;
+            font-size: 2em;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
-        .spins-info {
-            background: rgba(255, 255, 255, 0.25);
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 20px;
+        #spinsInfo {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
             color: white;
-            font-size: 1.1em;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
         }
 
         .wheel-container {
             position: relative;
-            width: 340px;
-            height: 340px;
-            margin: 20px auto;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 30px;
         }
 
-        .wheel-wrapper {
-            position: relative;
+        #wheelWrapper {
             width: 100%;
-            height: 100%;
+            aspect-ratio: 1;
             transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
-            will-change: transform;
         }
 
-        #wheelCanvas {
+        canvas {
             width: 100%;
             height: 100%;
-            border-radius: 50%;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.4),
-                        0 0 60px rgba(255, 215, 0, 0.3),
-                        0 0 100px rgba(255, 107, 107, 0.2);
+            filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
         }
 
         .pointer {
             position: absolute;
-            top: -15px;
+            top: -10px;
             left: 50%;
             transform: translateX(-50%);
             width: 0;
             height: 0;
-            border-left: 18px solid transparent;
-            border-right: 18px solid transparent;
-            border-top: 35px solid #FFD700;
-            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #FF6B6B;
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.3));
             z-index: 10;
         }
 
-        .center-circle {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 50%;
-            border: 5px solid #FFD700;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5),
-                        0 0 20px rgba(255, 215, 0, 0.5);
-            z-index: 5;
+        .spin-buttons {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.9em;
-            font-weight: bold;
-            color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
         }
 
-        .spin-controls {
-            display: flex;
-            gap: 8px;
-            margin-top: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .spin-option-btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 12px 20px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            transition: all 0.2s;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            touch-action: manipulation;
-            min-width: 60px;
-        }
-
-        .spin-option-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0,0,0,0.4);
-        }
-
-        .spin-option-btn:active {
-            transform: scale(0.95);
-        }
-
-        .spin-option-btn:disabled {
-            background: #999;
-            cursor: not-allowed;
-            opacity: 0.5;
-        }
-
-        .spin-all-btn {
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            color: #333;
-            border: none;
-            border-radius: 12px;
-            padding: 12px 24px;
+        .spin-btn {
+            padding: 15px 30px;
             font-size: 1.1em;
             font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3),
-                        0 0 30px rgba(255, 215, 0, 0.4);
-            transition: all 0.2s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            touch-action: manipulation;
-            flex: 1;
-            min-width: 150px;
-        }
-
-        .spin-all-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 7px 20px rgba(0,0,0,0.4),
-                        0 0 40px rgba(255, 215, 0, 0.6);
-        }
-
-        .spin-all-btn:active {
-            transform: scale(0.95);
-        }
-
-        .spin-all-btn:disabled {
-            background: #999;
-            cursor: not-allowed;
-            opacity: 0.5;
-        }
-
-        .result {
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.95);
+            border: none;
             border-radius: 12px;
-            font-size: 1.1em;
-            font-weight: bold;
-            color: #333;
-            min-height: 60px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .spin-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .spin-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .spin-1x { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .spin-10x { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
+        .spin-25x { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+        .spin-50x { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; }
+        .spin-100x { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; }
+        .spin-all { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: white; }
+
+        #result {
             display: none;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-        }
-
-        .prize-list {
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 12px;
-            padding: 12px;
-            margin-top: 20px;
-            color: white;
-            font-size: 0.85em;
-            text-align: left;
-        }
-
-        .prize-list h3 {
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 15px;
             text-align: center;
-            margin-bottom: 8px;
-            font-size: 1em;
+            font-size: 1.2em;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: slideIn 0.5s;
         }
 
-        .prize-item {
-            padding: 4px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .prize-item:last-child {
-            border-bottom: none;
-        }
-
-        @media (max-width: 360px) {
-            .wheel-container {
-                width: 300px;
-                height: 300px;
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
             }
-            h1 {
-                font-size: 1.5em;
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
+        }
+
+        .loading {
+            color: white;
+            text-align: center;
+            padding: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎰 FREE SPINS 🎰</h1>
+        <h1>🎰 Spin Wheel 🎰</h1>
 
-        <div class="spins-info" id="spinsInfo">
-            Loading...
-        </div>
+        <div id="spinsInfo" class="loading">Loading...</div>
 
         <div class="wheel-container">
             <div class="pointer"></div>
-            <div class="wheel-wrapper" id="wheelWrapper">
+            <div id="wheelWrapper">
                 <canvas id="wheelCanvas"></canvas>
             </div>
-            <div class="center-circle">SPIN</div>
         </div>
 
-        <div class="spin-controls">
-            <button class="spin-option-btn" onclick="spinWheel(1)">1x</button>
-            <button class="spin-option-btn" onclick="spinWheel(10)">10x</button>
-            <button class="spin-option-btn" onclick="spinWheel(25)">25x</button>
-            <button class="spin-option-btn" onclick="spinWheel(50)">50x</button>
-            <button class="spin-option-btn" onclick="spinWheel(100)">100x</button>
-            <button class="spin-all-btn" id="spinAllBtn" onclick="spinAll()">Spin All</button>
+        <div class="spin-buttons">
+            <button class="spin-btn spin-1x" onclick="spinWheel(1)">🎯 Spin 1x</button>
+            <button class="spin-btn spin-10x" onclick="spinWheel(10)" id="btn10x">🔥 Spin 10x</button>
+            <button class="spin-btn spin-25x" onclick="spinWheel(25)" id="btn25x">⚡ Spin 25x</button>
+            <button class="spin-btn spin-50x" onclick="spinWheel(50)" id="btn50x">💫 Spin 50x</button>
+            <button class="spin-btn spin-100x" onclick="spinWheel(100)" id="btn100x">🌟 Spin 100x</button>
+            <button class="spin-btn spin-all" onclick="spinAll()" id="btnAll">🚀 Spin All</button>
         </div>
 
-        <div class="result" id="result"></div>
-
-        <div class="prize-list">
-            <h3>🎁 Possible Prizes</h3>
-            <div class="prize-item">🏆 500 Chips</div>
-            <div class="prize-item">💰 250 Chips</div>
-            <div class="prize-item">💎 100 Chips</div>
-            <div class="prize-item">💵 50 Chips</div>
-            <div class="prize-item">🪙 20 Chips</div>
-            <div class="prize-item">🎯 10 Chips</div>
-            <div class="prize-item">📱 iPhone 17 Pro Max</div>
-            <div class="prize-item">💻 MacBook Pro</div>
-            <div class="prize-item">⌚ Apple Watch</div>
-            <div class="prize-item">🎧 AirPods Pro</div>
-            <div class="prize-item">🔄 Try Again</div>
-        </div>
+        <div id="result"></div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand();
         tg.ready();
+        tg.expand();
 
         const user = tg.initDataUnsafe.user;
         const userId = user ? user.id : null;
 
-        // 16 segments - perfectly balanced and reordered
+        // 16 segments - MUST match backend exactly!
         const prizes = [
             { name: "500", display: "500 Chips", color: "#FFD700", textColor: "#000" },
             { name: "Try Again!", display: "Try Again!", color: "#FF6B6B", textColor: "#fff" },
@@ -320,249 +199,146 @@
 
         // Preload images
         const images = {};
-        function preloadImages() {
-            prizes.forEach(prize => {
-                if (prize.isImage && prize.imgSrc) {
-                    const img = new Image();
-                    img.src = prize.imgSrc;
-                    img.onload = function() {
-                        console.log('✅ Image loaded:', prize.imgSrc);
-                    };
-                    img.onerror = function() {
-                        console.error('❌ Image failed to load:', prize.imgSrc);
-                    };
-                    images[prize.name] = img;
-                }
-            });
-        }
+        prizes.forEach(prize => {
+            if (prize.isImage) {
+                const img = new Image();
+                img.src = prize.imgSrc;
+                images[prize.name] = img;
+            }
+        });
 
         let spinning = false;
         let availableSpins = 0;
         let currentRotation = 0;
 
-        function updateSpinButtons() {
-            // Update Spin All button text and visibility
-            const spinAllBtn = document.getElementById('spinAllBtn');
-            if (availableSpins > 0) {
-                spinAllBtn.textContent = `Spin All (${availableSpins}x)`;
-                spinAllBtn.style.display = 'block';
-                spinAllBtn.disabled = spinning;
-            } else {
-                spinAllBtn.style.display = 'none';
-            }
-
-            // Show/hide buttons based on available spins
-            const spinOptions = [1, 10, 25, 50, 100];
-            document.querySelectorAll('.spin-option-btn').forEach((btn, idx) => {
-                const requiredSpins = spinOptions[idx];
-                if (availableSpins >= requiredSpins) {
-                    btn.style.display = 'block';
-                    btn.disabled = spinning;
-                } else {
-                    btn.style.display = 'none';
-                }
-            });
-        }
-
-        function spinAll() {
-            if (availableSpins > 0) {
-                spinWheel(availableSpins);
-            }
-        }
-
-        function drawPokerChip(ctx, x, y, size) {
-            // Draw poker chip icon
-            ctx.beginPath();
-            ctx.arc(x, y, size, 0, 2 * Math.PI);
-            ctx.fillStyle = '#2c3e50';
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-
-            // Draw inner circle
-            ctx.beginPath();
-            ctx.arc(x, y, size * 0.6, 0, 2 * Math.PI);
-            ctx.fillStyle = '#fff';
-            ctx.fill();
-
-            // Draw segments on edge
-            for (let i = 0; i < 8; i++) {
-                const angle = (i * Math.PI) / 4;
-                ctx.beginPath();
-                ctx.arc(x, y, size * 0.85, angle - 0.15, angle + 0.15);
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 4;
-                ctx.stroke();
-            }
-        }
-
+        // Draw the wheel
         function drawWheel() {
             const canvas = document.getElementById('wheelCanvas');
             const ctx = canvas.getContext('2d');
 
-            // Use higher resolution for sharp rendering
+            const size = 400;
             const dpi = window.devicePixelRatio || 2;
-            const size = 340;
-
-            // Set canvas size with DPI scaling for crisp display
             canvas.width = size * dpi;
             canvas.height = size * dpi;
             canvas.style.width = size + 'px';
             canvas.style.height = size + 'px';
-
-            // Scale context to match DPI
             ctx.scale(dpi, dpi);
-
-            // Enable crisp image rendering
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
 
             const centerX = size / 2;
             const centerY = size / 2;
-            const radius = size / 2;
+            const radius = size / 2 - 10;
             const sliceAngle = (2 * Math.PI) / prizes.length;
 
-            // Draw each slice
-            prizes.forEach((prize, index) => {
-                const startAngle = index * sliceAngle - Math.PI / 2;
+            prizes.forEach((prize, i) => {
+                const startAngle = i * sliceAngle - Math.PI / 2;
                 const endAngle = startAngle + sliceAngle;
 
                 // Draw slice
                 ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
                 ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-                ctx.lineTo(centerX, centerY);
+                ctx.closePath();
                 ctx.fillStyle = prize.color;
                 ctx.fill();
                 ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 3;
                 ctx.stroke();
 
-                // Calculate text position
+                // Draw text or image
                 ctx.save();
                 ctx.translate(centerX, centerY);
                 ctx.rotate(startAngle + sliceAngle / 2);
 
-                if (prize.name === "Try Again!") {
-                    // Draw "Try Again!" text
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillStyle = prize.textColor;
-                    ctx.font = 'bold 18px Arial';
-                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
-                    ctx.shadowBlur = 2;
-                    ctx.fillText("Try Again!", radius * 0.6, 0);
-                } else if (prize.isImage) {
-                    // Draw actual product image if loaded
+                if (prize.isImage && images[prize.name]) {
                     const img = images[prize.name];
-                    if (img && img.complete && img.naturalWidth > 0) {
-                        const imgSize = 55;
-                        const imgX = radius * 0.65 - imgSize / 2;
-                        const imgY = -imgSize / 2;
-
-                        // Clip to circle and draw image (no white background)
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.arc(radius * 0.65, 0, imgSize / 2, 0, 2 * Math.PI);
-                        ctx.clip();
-                        ctx.drawImage(img, imgX, imgY, imgSize, imgSize);
-                        ctx.restore();
-                    } else {
-                        // Fallback: draw colored circle with product emoji/text
-                        ctx.beginPath();
-                        ctx.arc(radius * 0.65, 0, 25, 0, 2 * Math.PI);
-                        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                        ctx.fill();
-
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillStyle = prize.textColor;
-                        ctx.font = 'bold 12px Arial';
-
-                        // Show product icon
-                        const displayText = prize.name === 'iphone' ? '📱' :
-                                          prize.name === 'macbook' ? '💻' :
-                                          prize.name === 'airpods' ? '🎧' :
-                                          prize.name === 'watch' ? '⌚' : '?';
-                        ctx.font = '28px Arial';
-                        ctx.fillText(displayText, radius * 0.65, 0);
-                    }
+                    const imgSize = 50;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(radius * 0.7, 0, imgSize / 2, 0, Math.PI * 2);
+                    ctx.clip();
+                    ctx.drawImage(img, radius * 0.7 - imgSize / 2, -imgSize / 2, imgSize, imgSize);
+                    ctx.restore();
                 } else {
-                    // Draw poker chip + number
-                    drawPokerChip(ctx, radius * 0.7, 0, 15);
-
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
                     ctx.fillStyle = prize.textColor;
-                    ctx.font = 'bold 20px Arial';
-                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
-                    ctx.shadowBlur = 2;
-                    ctx.fillText(prize.name, radius * 0.45, 0);
+                    ctx.font = 'bold 16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(prize.display, radius * 0.7, 5);
                 }
 
                 ctx.restore();
             });
 
-            // Draw outer golden border
+            // Center circle
             ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-            const gradient = ctx.createLinearGradient(0, 0, size, size);
-            gradient.addColorStop(0, '#FFD700');
-            gradient.addColorStop(0.5, '#FFA500');
-            gradient.addColorStop(1, '#FFD700');
-            ctx.strokeStyle = gradient;
-            ctx.lineWidth = 10;
-            ctx.stroke();
-
-            // Add inner white border
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius - 5, 0, 2 * Math.PI);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
+            ctx.arc(centerX, centerY, 30, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
             ctx.stroke();
         }
 
-        async function loadSpinData() {
+        // Load user spins
+        async function loadSpins() {
             try {
-                console.log('Loading spin data for user:', userId);
-
-                if (!userId) {
-                    console.error('No user ID available!');
-                    document.getElementById('spinsInfo').innerHTML = '❌ No user ID';
-                    return;
-                }
-
                 const response = await fetch('https://billionaires-spins.up.railway.app/api/get_spins', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user_id: userId,
-                        init_data: tg.initData
-                    })
+                    body: JSON.stringify({ user_id: userId })
                 });
 
-                console.log('Response status:', response.status);
                 const data = await response.json();
-                console.log('Spin data received:', data);
-
                 availableSpins = data.available_spins || 0;
 
                 document.getElementById('spinsInfo').innerHTML = `
                     🎯 Available: <strong>${availableSpins}</strong> spins
                 `;
 
-                updateSpinButtons();
+                updateButtons();
             } catch (error) {
                 console.error('Error loading spins:', error);
                 document.getElementById('spinsInfo').innerHTML = `❌ Error loading spins`;
             }
         }
 
+        // Update button states
+        function updateButtons() {
+            const buttons = [
+                { id: 'btn10x', count: 10 },
+                { id: 'btn25x', count: 25 },
+                { id: 'btn50x', count: 50 },
+                { id: 'btn100x', count: 100 }
+            ];
+
+            buttons.forEach(btn => {
+                const element = document.getElementById(btn.id);
+                element.disabled = availableSpins < btn.count || spinning;
+                element.style.display = availableSpins >= btn.count ? 'block' : 'none';
+            });
+
+            const allBtn = document.getElementById('btnAll');
+            allBtn.disabled = availableSpins === 0 || spinning;
+            allBtn.textContent = `🚀 Spin All (${availableSpins}x)`;
+            allBtn.style.display = availableSpins > 0 ? 'block' : 'none';
+
+            document.querySelectorAll('.spin-1x').forEach(btn => {
+                btn.disabled = availableSpins < 1 || spinning;
+            });
+        }
+
+        // Spin All
+        function spinAll() {
+            if (availableSpins > 0) {
+                spinWheel(availableSpins);
+            }
+        }
+
+        // Main spin function
         async function spinWheel(spinCount = 1) {
             if (spinning || availableSpins === 0 || spinCount > availableSpins) return;
 
             spinning = true;
-            updateSpinButtons();
+            updateButtons();
             document.getElementById('result').style.display = 'none';
 
             try {
@@ -571,243 +347,128 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         user_id: userId,
-                        init_data: tg.initData,
                         spin_count: spinCount
                     })
                 });
 
                 const result = await response.json();
 
-                // Debug: Log what backend returns
-                console.log('Backend result:', result);
-                console.log('Display prize:', result.display_prize);
-
                 if (!result.success) {
                     alert(result.message || 'Error');
                     spinning = false;
-                    updateSpinButtons();
+                    updateButtons();
                     return;
                 }
 
-                // Handle spins - now all spins animate separately!
+                // Animate spins
                 if (result.results && result.results.length > 0) {
-                    // Animate each spin one by one
-                    animateMultipleSpins(result.results, result);
-                } else {
-                    // Fallback for single spin (backward compatibility)
-                    const winningIndex = result.segment_index || 0;
-                    const winningPrize = result.display_prize || prizes[0].display;
-
-                    console.log('Backend selected segment:', winningIndex);
-                    console.log('Prize:', winningPrize);
-                    console.log('Wheel will show:', prizes[winningIndex].display)
-
-                    const sliceAngle = 360 / prizes.length;
-                    const targetAngle = -(winningIndex * sliceAngle);
-                    const totalRotation = (360 * 5) + targetAngle;
-
-                    const wheelWrapper = document.getElementById('wheelWrapper');
-                    wheelWrapper.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
-                    currentRotation += totalRotation;
-                    wheelWrapper.style.transform = `rotate(${currentRotation}deg)`;
-
-                    setTimeout(() => {
-                        showSingleResult(result, winningPrize, winningIndex);
-                    }, 4000);
+                    await animateSpins(result.results);
+                    showResults(result);
                 }
 
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error. Try again.');
+                // Update available spins
+                availableSpins = result.available_spins;
+                document.getElementById('spinsInfo').innerHTML = `
+                    🎯 Available: <strong>${availableSpins}</strong> spins
+                `;
+
                 spinning = false;
-                updateSpinButtons();
+                updateButtons();
+
+            } catch (error) {
+                console.error('Spin error:', error);
+                alert('Error spinning!');
+                spinning = false;
+                updateButtons();
             }
         }
 
-        async function animateMultipleSpins(spinResults, finalResult) {
+        // Animate multiple spins
+        async function animateSpins(results) {
             const resultDiv = document.getElementById('result');
-            let totalChips = 0;
-            const spinDelay = spinResults.length === 1 ? 4000 : 2000; // 4s for single, 2s for multi
+            const spinDelay = results.length === 1 ? 4000 : 2000;
 
-            for (let i = 0; i < spinResults.length; i++) {
-                const spin = spinResults[i];
-                const winningIndex = spin.segment_index;
-                const actualPrize = prizes[winningIndex];
+            for (let i = 0; i < results.length; i++) {
+                const spin = results[i];
+                const segmentIndex = spin.segment_index;
+                const prize = prizes[segmentIndex];
 
-                console.log(`Spin ${i + 1}/${spinResults.length}: Segment ${winningIndex} - ${actualPrize.display}`);
+                console.log(`Spin ${i + 1}: Segment ${segmentIndex} - ${prize.display}`);
 
-                // Animate wheel to this segment
+                // Animate wheel
                 const sliceAngle = 360 / prizes.length;
-                const targetAngle = -(winningIndex * sliceAngle);
-                const totalRotation = (360 * 3) + targetAngle; // 3 rotations for multi-spin (faster)
+                const targetAngle = -(segmentIndex * sliceAngle);
+                const totalRotation = (360 * (results.length === 1 ? 5 : 3)) + targetAngle;
 
                 const wheelWrapper = document.getElementById('wheelWrapper');
                 wheelWrapper.style.transition = `transform ${spinDelay / 1000}s cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
                 currentRotation += totalRotation;
                 wheelWrapper.style.transform = `rotate(${currentRotation}deg)`;
 
-                // Show running result
-                if (actualPrize.name !== "Try Again!") {
-                    const match = spin.prize.match(/(\d+)/);
-                    if (match) {
-                        totalChips += parseInt(match[1]);
-                    }
+                // Show current spin result
+                if (results.length > 1) {
+                    resultDiv.style.display = 'flex';
+                    resultDiv.innerHTML = `
+                        <div style="text-align: center; width: 100%;">
+                            <strong>Spin ${i + 1}/${results.length}</strong><br>
+                            ${prize.name === "Try Again!" ? '🔄 Try Again!' : `🎉 ${prize.display}`}
+                        </div>
+                    `;
                 }
 
-                resultDiv.innerHTML = `
-                    <div style="text-align: center;">
-                        <strong>Spin ${i + 1}/${spinResults.length}</strong><br>
-                        ${actualPrize.name === "Try Again!" ? '🔄 Try Again!' : `🎉 ${actualPrize.display}`}<br>
-                        <div style="font-size: 0.9em; margin-top: 5px; color: #FFD700;">
-                            💰 Total: ${totalChips} chips
-                        </div>
-                    </div>
-                `;
-                resultDiv.style.display = 'flex';
-
-                // Wait for animation to complete
                 await new Promise(resolve => setTimeout(resolve, spinDelay));
             }
-
-            // Show final summary
-            setTimeout(() => {
-                resultDiv.innerHTML = `
-                    <div style="text-align: center;">
-                        <strong style="font-size: 1.3em;">✅ ${spinResults.length} SPINS COMPLETE!</strong><br>
-                        <div style="font-size: 1.5em; margin: 10px 0; color: #FFD700;">
-                            💰 ${totalChips} Total Chips
-                        </div>
-                        <div style="font-size: 0.9em;">
-                            Keep spinning for more prizes!
-                        </div>
-                    </div>
-                `;
-
-                availableSpins = finalResult.available_spins;
-                document.getElementById('spinsInfo').innerHTML = `
-                    🎯 Available: <strong>${availableSpins}</strong> spins
-                `;
-
-                spinning = false;
-                updateSpinButtons();
-
-                tg.sendData(JSON.stringify(finalResult));
-            }, 1000);
         }
 
-        function showSingleResult(result, winningPrize, winningIndex) {
+        // Show final results
+        function showResults(result) {
             const resultDiv = document.getElementById('result');
+            const results = result.results;
 
-            // Get the ACTUAL prize from the wheel segment
-            const actualPrize = prizes[winningIndex];
-            const displayText = actualPrize.display;
-
-            console.log('Showing result for segment:', winningIndex, 'Prize:', displayText);
-
-            if (result.milestone_prize) {
-                resultDiv.innerHTML = `
-                    🎊 <strong>WINNER!</strong> 🎊<br>
-                    ${result.milestone_prize.name}<br>
-                    💰 ${result.milestone_prize.chips} CHIPS!<br>
-                    <small>⏳ Pending approval</small>
-                `;
-            } else if (actualPrize.name === "Try Again!") {
-                resultDiv.innerHTML = `
-                    🔄 <strong>Try Again!</strong><br>
-                    <small>Better luck next spin!</small>
-                `;
+            if (results.length === 1) {
+                // Single spin
+                const prize = prizes[results[0].segment_index];
+                if (prize.name === "Try Again!") {
+                    resultDiv.innerHTML = `
+                        🔄 <strong>Try Again!</strong><br>
+                        <small>Better luck next spin!</small>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        🎉 You won: <strong>${prize.display}</strong><br>
+                        <small>Keep spinning!</small>
+                    `;
+                }
             } else {
-                resultDiv.innerHTML = `
-                    🎉 You won: <strong>${displayText}</strong><br>
-                    <small>Keep spinning!</small>
-                `;
-            }
-
-            resultDiv.style.display = 'flex';
-
-            availableSpins = result.available_spins;
-            document.getElementById('spinsInfo').innerHTML = `
-                🎯 Available: <strong>${availableSpins}</strong> spins
-            `;
-
-            spinning = false;
-            updateSpinButtons();
-
-            tg.sendData(JSON.stringify(result));
-        }
-
-        function showBulkResults(result, spinCount) {
-            const resultDiv = document.getElementById('result');
-
-            // Calculate total chips won
-            let totalChips = 0;
-            let breakdown = {};
-
-            if (result.results && Array.isArray(result.results)) {
-                result.results.forEach(r => {
-                    const prize = r.display_prize || r.prize;
-                    breakdown[prize] = (breakdown[prize] || 0) + 1;
-
-                    // Extract chip amount
-                    const match = prize.match(/(\d+)/);
-                    if (match) {
-                        totalChips += parseInt(match[1]);
+                // Multi-spin summary
+                let totalChips = 0;
+                results.forEach(r => {
+                    const prize = prizes[r.segment_index];
+                    if (prize.name !== "Try Again!") {
+                        totalChips += parseInt(prize.name);
                     }
                 });
-            }
 
-            // Build results HTML
-            let resultsHTML = `
-                <div style="text-align: center;">
-                    <strong style="font-size: 1.3em;">🎰 ${spinCount} SPINS COMPLETE! 🎰</strong><br>
-                    <div style="font-size: 1.5em; margin: 10px 0; color: #FFD700;">
-                        💰 ${totalChips.toLocaleString()} Total Chips
+                resultDiv.innerHTML = `
+                    <div style="text-align: center;">
+                        <strong style="font-size: 1.3em;">✅ ${results.length} SPINS COMPLETE!</strong><br>
+                        <div style="font-size: 1.5em; margin: 10px 0; color: #FFD700;">
+                            💰 Total: ${totalChips} Chips
+                        </div>
+                        <small>Check pending approvals!</small>
                     </div>
-                    <div style="font-size: 0.9em; text-align: left; margin-top: 10px;">
-            `;
-
-            for (const [prize, count] of Object.entries(breakdown)) {
-                resultsHTML += `<div>• ${prize}: ${count}x</div>`;
+                `;
             }
 
-            resultsHTML += `</div></div>`;
-
-            resultDiv.innerHTML = resultsHTML;
             resultDiv.style.display = 'flex';
-
-            availableSpins = result.available_spins;
-            document.getElementById('spinsInfo').innerHTML = `
-                🎯 Available: <strong>${availableSpins}</strong> spins
-            `;
-
-            spinning = false;
-            updateSpinButtons();
-
-            tg.sendData(JSON.stringify(result));
         }
 
         // Initialize
-        preloadImages();
-
-        // Draw wheel initially
         drawWheel();
-
-        // Redraw when images are loaded
-        let loadedImages = 0;
-        const totalImages = Object.keys(images).length;
-        Object.values(images).forEach(img => {
-            img.onload = () => {
-                loadedImages++;
-                if (loadedImages === totalImages) {
-                    drawWheel(); // Redraw with images
-                }
-            };
-        });
-
-        loadSpinData();
-
-        if (tg.colorScheme === 'dark') {
-            document.body.style.background = 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)';
+        if (userId) {
+            loadSpins();
+        } else {
+            document.getElementById('spinsInfo').innerHTML = '❌ No user ID';
         }
     </script>
 </body>
