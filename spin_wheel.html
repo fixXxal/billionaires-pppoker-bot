@@ -499,34 +499,47 @@
                 const segmentIndex = spin.segment_index;
                 const prize = prizes[segmentIndex];
 
-                console.log(`🎲 Spin ${i + 1}/${results.length}:`);
-                console.log(`   Backend segment index: ${segmentIndex}`);
-                console.log(`   Backend prize: "${prizes[segmentIndex].name}"`);
-                console.log(`   Should show: "${prize.display}"`);
+                console.log(`\n🎲 Spin ${i + 1}/${results.length}:`);
+                console.log(`   Backend says: segment ${segmentIndex}`);
+                console.log(`   Prize array[${segmentIndex}]: "${prizes[segmentIndex].name}"`);
+                console.log(`   Should display: "${prizes[segmentIndex].display}"`);
 
-                // FINAL FIX - Correct rotation calculation
+                // DEBUG: Print all segments for verification
+                if (i === 0) {
+                    console.log('\n📋 SEGMENT MAP:');
+                    prizes.forEach((p, idx) => {
+                        console.log(`   ${idx}: ${p.name}`);
+                    });
+                }
+
+                // ROTATION CALCULATION - COMPLETELY REWRITTEN
                 const sliceAngle = 360 / prizes.length;  // 22.5° for 16 segments
 
-                // Segment drawing starts at -90° (top), so segment 0 center is at -78.75°
-                // To point at segment N, we need to rotate so its center is at top (0°)
-                // Segment N center in drawing: (N * 22.5°) - 78.75°
-                // To move from current position to top: rotate by negative of that angle
-                // BUT we want the wheel to rotate in the direction that makes sense visually
+                // The wheel is drawn with:
+                // - Segment i starts at angle: (i * sliceAngle - 90°)
+                // - Segment i center at angle: (i * sliceAngle - 90° + sliceAngle/2) = (i * sliceAngle - 78.75°)
 
-                // Initial offset: segment 0 center is 78.75° CCW from top
-                const initialOffset = 78.75;
+                // Example: Segment 0 center is at -78.75°, Segment 1 center is at -56.25°, etc.
 
-                // To land on segment N: rotate CW by (N * sliceAngle) then add initial offset
-                const targetAngle = (segmentIndex * sliceAngle) + initialOffset;
+                // The pointer is at the TOP (angle 0° in our coordinate system)
+                // To make segment N appear under the pointer, we need to rotate the wheel
+                // so that segment N's center moves to 0°
+
+                // Current segment N center: (N * 22.5° - 78.75°)
+                // Target: 0°
+                // Rotation needed: 0° - (N * 22.5° - 78.75°) = 78.75° - (N * 22.5°)
+
+                const segmentCenterOriginal = (segmentIndex * sliceAngle) - 78.75;
+                const targetAngle = -segmentCenterOriginal;  // Negative to rotate wheel opposite direction
 
                 const rotations = results.length === 1 ? 5 : 3;
                 const totalRotation = (360 * rotations) + targetAngle;
                 currentRotation += totalRotation;
 
-                console.log(`   Initial offset: ${initialOffset}°`);
-                console.log(`   Target angle: ${targetAngle}°`);
+                console.log(`   Segment ${segmentIndex} center originally at: ${segmentCenterOriginal}°`);
+                console.log(`   Need to rotate by: ${targetAngle}°`);
                 console.log(`   Total rotation: ${totalRotation}°`);
-                console.log(`   Final rotation: ${currentRotation}°`);
+                console.log(`   Current rotation: ${currentRotation}°\n`);
 
                 // Show suspense with glow effect
                 resultDiv.style.display = 'flex';
