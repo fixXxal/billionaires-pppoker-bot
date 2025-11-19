@@ -253,14 +253,13 @@ class SheetsManager:
                 'Total Chips Earned', 'Total Deposit (MVR)', 'Created At', 'Last Spin At', 'PPPoker ID'
             ])
 
-        # Milestone Rewards worksheet
+        # Spin History worksheet - NEW for mini app
         try:
-            self.milestone_rewards_sheet = self.spreadsheet.worksheet('Milestone Rewards')
+            self.spin_history_sheet = self.spreadsheet.worksheet('Spin History')
         except gspread.WorksheetNotFound:
-            self.milestone_rewards_sheet = self.spreadsheet.add_worksheet(title='Milestone Rewards', rows=1000, cols=10)
-            self.milestone_rewards_sheet.append_row([
-                'User ID', 'Username', 'Milestone Type', 'Milestone Count',
-                'Chips Awarded', 'Triggered At Spin Count', 'Created At', 'Approved', 'Approved By', 'PPPoker ID'
+            self.spin_history_sheet = self.spreadsheet.add_worksheet(title='Spin History', rows=5000, cols=6)
+            self.spin_history_sheet.append_row([
+                'User ID', 'Username', 'Prize Won', 'Chips Amount', 'Timestamp', 'PPPoker ID'
             ])
 
         # Run migration to add PPPoker ID columns if they don't exist
@@ -281,14 +280,14 @@ class SheetsManager:
             except Exception as e:
                 print(f"Note: Could not add PPPoker ID to Spin Users: {e}")
 
-            # Check and add to Milestone Rewards sheet
+            # Check and add to Spin History sheet
             try:
-                headers = self.milestone_rewards_sheet.row_values(1)
-                if len(headers) < 10 or 'PPPoker ID' not in headers:
-                    print("🔄 Adding PPPoker ID column to Milestone Rewards sheet...")
+                headers = self.spin_history_sheet.row_values(1)
+                if len(headers) < 6 or 'PPPoker ID' not in headers:
+                    print("🔄 Adding PPPoker ID column to Spin History sheet...")
                     # Update header row to add PPPoker ID column
-                    if len(headers) == 9:
-                        self.milestone_rewards_sheet.update_cell(1, 10, 'PPPoker ID')
+                    if len(headers) == 5:
+                        self.spin_history_sheet.update_cell(1, 6, 'PPPoker ID')
                         print("✅ PPPoker ID column added to Milestone Rewards sheet!")
             except Exception as e:
                 print(f"Note: Could not add PPPoker ID to Milestone Rewards: {e}")
@@ -1327,6 +1326,22 @@ class SheetsManager:
             return False
 
     # Removed log_spin method - no longer needed (display prizes not tracked)
+
+    def log_spin_history(self, user_id: int, username: str, prize: str, chips: int, pppoker_id: str = ''):
+        """Log each spin to Spin History sheet"""
+        try:
+            self.spin_history_sheet.append_row([
+                user_id,
+                username,
+                prize,
+                chips,
+                self._get_timestamp(),
+                pppoker_id
+            ])
+            return True
+        except Exception as e:
+            print(f"Error logging spin history: {e}")
+            return False
 
     def get_pppoker_id_from_deposits(self, user_id: int) -> str:
         """Get user's PPPoker ID from their last deposit"""

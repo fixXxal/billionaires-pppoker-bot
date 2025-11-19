@@ -589,9 +589,12 @@
                     return;
                 }
 
-                // Handle single spin with animation
-                if (spinCount === 1) {
-                    // Backend now tells us EXACTLY which segment to land on!
+                // Handle spins - now all spins animate separately!
+                if (result.results && result.results.length > 0) {
+                    // Animate each spin one by one
+                    animateMultipleSpins(result.results, result);
+                } else {
+                    // Fallback for single spin (backward compatibility)
                     const winningIndex = result.segment_index || 0;
                     const winningPrize = result.display_prize || prizes[0].display;
 
@@ -600,8 +603,6 @@
                     console.log('Wheel will show:', prizes[winningIndex].display)
 
                     const sliceAngle = 360 / prizes.length;
-                    // Correct calculation: rotate to center of winning segment
-                    // Segments start at -90deg (top), rotate counter-clockwise
                     const targetAngle = -(winningIndex * sliceAngle);
                     const totalRotation = (360 * 5) + targetAngle;
 
@@ -613,16 +614,6 @@
                     setTimeout(() => {
                         showSingleResult(result, winningPrize, winningIndex);
                     }, 4000);
-                } else {
-                    // Handle bulk spins with fast animation
-                    const wheelWrapper = document.getElementById('wheelWrapper');
-                    wheelWrapper.style.transition = 'transform 2s linear';
-                    currentRotation += 360 * spinCount;
-                    wheelWrapper.style.transform = `rotate(${currentRotation}deg)`;
-
-                    setTimeout(() => {
-                        showBulkResults(result, spinCount);
-                    }, 2000);
                 }
 
             } catch (error) {
@@ -631,6 +622,77 @@
                 spinning = false;
                 updateSpinButtons();
             }
+        }
+
+        async function animateMultipleSpins(spinResults, finalResult) {
+            const resultDiv = document.getElementById('result');
+            let totalChips = 0;
+            const spinDelay = spinResults.length === 1 ? 4000 : 2000; // 4s for single, 2s for multi
+
+            for (let i = 0; i < spinResults.length; i++) {
+                const spin = spinResults[i];
+                const winningIndex = spin.segment_index;
+                const actualPrize = prizes[winningIndex];
+
+                console.log(`Spin ${i + 1}/${spinResults.length}: Segment ${winningIndex} - ${actualPrize.display}`);
+
+                // Animate wheel to this segment
+                const sliceAngle = 360 / prizes.length;
+                const targetAngle = -(winningIndex * sliceAngle);
+                const totalRotation = (360 * 3) + targetAngle; // 3 rotations for multi-spin (faster)
+
+                const wheelWrapper = document.getElementById('wheelWrapper');
+                wheelWrapper.style.transition = `transform ${spinDelay / 1000}s cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
+                currentRotation += totalRotation;
+                wheelWrapper.style.transform = `rotate(${currentRotation}deg)`;
+
+                // Show running result
+                if (actualPrize.name !== "Try Again!") {
+                    const match = spin.prize.match(/(\d+)/);
+                    if (match) {
+                        totalChips += parseInt(match[1]);
+                    }
+                }
+
+                resultDiv.innerHTML = `
+                    <div style="text-align: center;">
+                        <strong>Spin ${i + 1}/${spinResults.length}</strong><br>
+                        ${actualPrize.name === "Try Again!" ? '🔄 Try Again!' : `🎉 ${actualPrize.display}`}<br>
+                        <div style="font-size: 0.9em; margin-top: 5px; color: #FFD700;">
+                            💰 Total: ${totalChips} chips
+                        </div>
+                    </div>
+                `;
+                resultDiv.style.display = 'flex';
+
+                // Wait for animation to complete
+                await new Promise(resolve => setTimeout(resolve, spinDelay));
+            }
+
+            // Show final summary
+            setTimeout(() => {
+                resultDiv.innerHTML = `
+                    <div style="text-align: center;">
+                        <strong style="font-size: 1.3em;">✅ ${spinResults.length} SPINS COMPLETE!</strong><br>
+                        <div style="font-size: 1.5em; margin: 10px 0; color: #FFD700;">
+                            💰 ${totalChips} Total Chips
+                        </div>
+                        <div style="font-size: 0.9em;">
+                            Keep spinning for more prizes!
+                        </div>
+                    </div>
+                `;
+
+                availableSpins = finalResult.available_spins;
+                document.getElementById('spinsInfo').innerHTML = `
+                    🎯 Available: <strong>${availableSpins}</strong> spins
+                `;
+
+                spinning = false;
+                updateSpinButtons();
+
+                tg.sendData(JSON.stringify(finalResult));
+            }, 1000);
         }
 
         function showSingleResult(result, winningPrize, winningIndex) {

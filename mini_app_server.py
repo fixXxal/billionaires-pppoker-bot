@@ -197,10 +197,22 @@ def spin():
             weights = list(prize_pool.values())
             won_prize = random.choices(choices, weights=weights, k=1)[0]
 
+            prize_display = won_prize if won_prize == "Try Again" else f"{won_prize} Chips"
+            chips_amount = 0 if won_prize == "Try Again" else int(won_prize)
+
             results.append({
-                'prize': won_prize if won_prize == "Try Again" else f"{won_prize} Chips",
+                'prize': prize_display,
                 'segment_index': get_segment_for_prize(won_prize, wheel_prizes)
             })
+
+            # Log each spin to Google Sheets history
+            sheets.log_spin_history(
+                user_id=user_id,
+                username=username,
+                prize=prize_display,
+                chips=chips_amount,
+                pppoker_id=pppoker_id
+            )
 
         # Update user spins
         new_available = available_spins - spin_count
