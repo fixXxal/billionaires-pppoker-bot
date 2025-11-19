@@ -6,24 +6,19 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Spin Wheel</title>
+    <title>Spin Wheel - Billionaires</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            /* Prevent text selection and touch callouts in Telegram */
             -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
-            -webkit-touch-callout: none;
         }
 
         html {
-            /* Fix for Telegram Mini App */
             position: fixed;
             width: 100%;
             height: 100%;
@@ -31,24 +26,17 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
             height: 100%;
             width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 20px;
-            overflow-x: hidden;
             overflow-y: auto;
-            /* Fix iOS Safari bounce and improve rendering */
             -webkit-overflow-scrolling: touch;
-            -webkit-transform: translateZ(0);
-            -webkit-font-smoothing: antialiased;
-            /* Prevent pull-to-refresh in Telegram */
             overscroll-behavior: contain;
-            position: relative;
         }
 
         .container {
@@ -59,18 +47,18 @@
         h1 {
             text-align: center;
             color: white;
-            margin-bottom: 20px;
-            font-size: 2em;
+            margin-bottom: 15px;
+            font-size: 1.8em;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
         #spinsInfo {
             background: rgba(255,255,255,0.2);
-            padding: 15px;
-            border-radius: 15px;
+            padding: 12px;
+            border-radius: 12px;
             text-align: center;
             color: white;
-            font-size: 1.2em;
+            font-size: 1.1em;
             margin-bottom: 20px;
             backdrop-filter: blur(10px);
         }
@@ -78,82 +66,60 @@
         .wheel-container {
             position: relative;
             width: 100%;
-            max-width: 400px;
-            margin: 0 auto 30px;
-            /* Fix shaking on all devices */
-            -webkit-perspective: 1000px;
+            max-width: 380px;
+            margin: 0 auto 25px;
             perspective: 1000px;
-            /* Telegram Mini App specific fixes */
             transform: translate3d(0, 0, 0);
-            -webkit-transform: translate3d(0, 0, 0);
-            isolation: isolate;
-            contain: layout style paint;
+        }
+
+        .pointer {
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%) translateZ(0);
+            width: 0;
+            height: 0;
+            border-left: 14px solid transparent;
+            border-right: 14px solid transparent;
+            border-top: 28px solid #FF6B6B;
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+            z-index: 10;
         }
 
         #wheelWrapper {
             width: 100%;
             aspect-ratio: 1;
-            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
-            /* Hardware acceleration - smooth on all devices */
             transform: translateZ(0);
-            -webkit-transform: translateZ(0);
             will-change: transform;
             backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            -webkit-font-smoothing: antialiased;
-            transform-origin: center center;
         }
 
         canvas {
             width: 100%;
             height: 100%;
-            filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
-            /* Prevent canvas blurring/shaking */
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-        }
-
-        .pointer {
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%) translateZ(0);
-            -webkit-transform: translateX(-50%) translateZ(0);
-            width: 0;
-            height: 0;
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
-            border-top: 30px solid #FF6B6B;
-            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.3));
-            z-index: 10;
-            /* Prevent pointer from shaking */
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
+            filter: drop-shadow(0 8px 25px rgba(0,0,0,0.3));
         }
 
         .spin-buttons {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             margin-bottom: 20px;
         }
 
         .spin-btn {
-            padding: 15px 30px;
-            font-size: 1.1em;
+            padding: 14px 28px;
+            font-size: 1.05em;
             font-weight: bold;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
-        .spin-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        .spin-btn:active {
+            transform: scale(0.98);
         }
 
         .spin-btn:disabled {
@@ -171,29 +137,24 @@
         #result {
             display: none;
             background: rgba(255,255,255,0.95);
-            padding: 20px;
-            border-radius: 15px;
+            padding: 18px;
+            border-radius: 12px;
             text-align: center;
-            font-size: 1.2em;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            animation: slideIn 0.5s;
+            font-size: 1.15em;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            animation: slideIn 0.4s;
+            margin-top: 10px;
         }
 
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .loading {
-            color: white;
-            text-align: center;
-            padding: 20px;
+        .suspense {
+            font-size: 1.3em;
+            color: #FFD700;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -201,7 +162,7 @@
     <div class="container">
         <h1>🎰 Spin Wheel 🎰</h1>
 
-        <div id="spinsInfo" class="loading">Loading...</div>
+        <div id="spinsInfo">Loading...</div>
 
         <div class="wheel-container">
             <div class="pointer"></div>
@@ -211,47 +172,35 @@
         </div>
 
         <div class="spin-buttons">
-            <button class="spin-btn spin-1x" onclick="spinWheel(1)">🎯 Spin 1x</button>
-            <button class="spin-btn spin-10x" onclick="spinWheel(10)" id="btn10x">🔥 Spin 10x</button>
-            <button class="spin-btn spin-25x" onclick="spinWheel(25)" id="btn25x">⚡ Spin 25x</button>
-            <button class="spin-btn spin-50x" onclick="spinWheel(50)" id="btn50x">💫 Spin 50x</button>
-            <button class="spin-btn spin-100x" onclick="spinWheel(100)" id="btn100x">🌟 Spin 100x</button>
-            <button class="spin-btn spin-all" onclick="spinAll()" id="btnAll">🚀 Spin All</button>
+            <button class="spin-btn spin-1x" onclick="doSpin(1)">🎯 Spin 1x</button>
+            <button class="spin-btn spin-10x" onclick="doSpin(10)" id="btn10x">🔥 Spin 10x</button>
+            <button class="spin-btn spin-25x" onclick="doSpin(25)" id="btn25x">⚡ Spin 25x</button>
+            <button class="spin-btn spin-50x" onclick="doSpin(50)" id="btn50x">💫 Spin 50x</button>
+            <button class="spin-btn spin-100x" onclick="doSpin(100)" id="btn100x">🌟 Spin 100x</button>
+            <button class="spin-btn spin-all" onclick="doSpin('all')" id="btnAll">🚀 Spin All</button>
         </div>
 
         <div id="result"></div>
     </div>
 
     <script>
+        // ========== TELEGRAM WEBAPP SETUP ==========
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
-
-        // Telegram Mini App optimizations
         tg.enableClosingConfirmation();
         tg.disableVerticalSwipes();
-
-        // Set theme colors
-        if (tg.themeParams) {
-            document.body.style.background = tg.themeParams.bg_color || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        }
 
         const user = tg.initDataUnsafe.user;
         const userId = user ? user.id : null;
 
-        // Prevent scroll bounce during spin (Telegram WebView)
-        let touchStartY = 0;
-        document.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-        }, { passive: false });
-
+        // Prevent scroll during spin
+        let spinning = false;
         document.addEventListener('touchmove', (e) => {
-            if (spinning) {
-                e.preventDefault(); // Prevent scroll during spin
-            }
+            if (spinning) e.preventDefault();
         }, { passive: false });
 
-        // 16 segments - MUST match backend exactly!
+        // ========== PRIZE CONFIGURATION ==========
         const prizes = [
             { name: "500", display: "500 Chips", color: "#FFD700", textColor: "#000" },
             { name: "Try Again!", display: "Try Again!", color: "#FF6B6B", textColor: "#fff" },
@@ -271,51 +220,32 @@
             { name: "Watch", display: "Apple Watch", color: "#E63946", textColor: "#fff", isImage: true, imgSrc: "spinnsimgss/applewatchultra.jpeg" }
         ];
 
-        // Preload images and wait for them to load
+        // ========== IMAGE PRELOADING ==========
         const images = {};
         let imagesLoaded = false;
 
-        function preloadImages() {
-            return new Promise((resolve) => {
-                const imagePromises = [];
+        async function preloadImages() {
+            const promises = prizes
+                .filter(p => p.isImage)
+                .map(p => new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve();
+                    img.src = p.imgSrc;
+                    images[p.name] = img;
+                }));
 
-                prizes.forEach(prize => {
-                    if (prize.isImage) {
-                        const promise = new Promise((imgResolve) => {
-                            const img = new Image();
-                            img.onload = () => {
-                                console.log('✅ Loaded:', prize.imgSrc);
-                                imgResolve();
-                            };
-                            img.onerror = () => {
-                                console.error('❌ Failed to load:', prize.imgSrc);
-                                imgResolve(); // Still resolve to not block
-                            };
-                            img.src = prize.imgSrc;
-                            images[prize.name] = img;
-                        });
-                        imagePromises.push(promise);
-                    }
-                });
-
-                Promise.all(imagePromises).then(() => {
-                    imagesLoaded = true;
-                    console.log('✅ All images loaded!');
-                    resolve();
-                });
-            });
+            await Promise.all(promises);
+            imagesLoaded = true;
+            console.log('✅ All images loaded');
         }
 
-        let spinning = false;
-        let availableSpins = 0;
-        let currentRotation = 0;
-
-        // Draw the wheel
+        // ========== DRAW WHEEL ==========
         function drawWheel() {
             const canvas = document.getElementById('wheelCanvas');
             const ctx = canvas.getContext('2d');
 
-            const size = 400;
+            const size = 380;
             const dpi = window.devicePixelRatio || 2;
             canvas.width = size * dpi;
             canvas.height = size * dpi;
@@ -325,7 +255,7 @@
 
             const centerX = size / 2;
             const centerY = size / 2;
-            const radius = size / 2 - 10;
+            const radius = size / 2 - 8;
             const sliceAngle = (2 * Math.PI) / prizes.length;
 
             prizes.forEach((prize, i) => {
@@ -340,28 +270,28 @@
                 ctx.fillStyle = prize.color;
                 ctx.fill();
                 ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 2.5;
                 ctx.stroke();
 
-                // Draw text or image
+                // Draw content
                 ctx.save();
                 ctx.translate(centerX, centerY);
                 ctx.rotate(startAngle + sliceAngle / 2);
 
                 if (prize.isImage && images[prize.name]) {
                     const img = images[prize.name];
-                    const imgSize = 50;
+                    const imgSize = 48;
                     ctx.save();
                     ctx.beginPath();
-                    ctx.arc(radius * 0.7, 0, imgSize / 2, 0, Math.PI * 2);
+                    ctx.arc(radius * 0.68, 0, imgSize / 2, 0, Math.PI * 2);
                     ctx.clip();
-                    ctx.drawImage(img, radius * 0.7 - imgSize / 2, -imgSize / 2, imgSize, imgSize);
+                    ctx.drawImage(img, radius * 0.68 - imgSize / 2, -imgSize / 2, imgSize, imgSize);
                     ctx.restore();
                 } else {
                     ctx.fillStyle = prize.textColor;
-                    ctx.font = 'bold 16px Arial';
+                    ctx.font = 'bold 15px Arial';
                     ctx.textAlign = 'center';
-                    ctx.fillText(prize.display, radius * 0.7, 5);
+                    ctx.fillText(prize.display, radius * 0.68, 5);
                 }
 
                 ctx.restore();
@@ -369,15 +299,19 @@
 
             // Center circle
             ctx.beginPath();
-            ctx.arc(centerX, centerY, 30, 0, 2 * Math.PI);
+            ctx.arc(centerX, centerY, 28, 0, 2 * Math.PI);
             ctx.fillStyle = '#fff';
             ctx.fill();
             ctx.strokeStyle = '#333';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2.5;
             ctx.stroke();
         }
 
-        // Load user spins
+        // ========== STATE ==========
+        let availableSpins = 0;
+        let currentRotation = 0;
+
+        // ========== LOAD USER SPINS ==========
         async function loadSpins() {
             try {
                 const response = await fetch('https://billionaires-spins.up.railway.app/api/get_spins', {
@@ -389,18 +323,15 @@
                 const data = await response.json();
                 availableSpins = data.available_spins || 0;
 
-                document.getElementById('spinsInfo').innerHTML = `
-                    🎯 Available: <strong>${availableSpins}</strong> spins
-                `;
-
+                document.getElementById('spinsInfo').innerHTML = `🎯 Available: <strong>${availableSpins}</strong> spins`;
                 updateButtons();
             } catch (error) {
                 console.error('Error loading spins:', error);
-                document.getElementById('spinsInfo').innerHTML = `❌ Error loading spins`;
+                document.getElementById('spinsInfo').innerHTML = '❌ Error loading spins';
             }
         }
 
-        // Update button states
+        // ========== UPDATE BUTTONS ==========
         function updateButtons() {
             const buttons = [
                 { id: 'btn10x', count: 10 },
@@ -410,9 +341,9 @@
             ];
 
             buttons.forEach(btn => {
-                const element = document.getElementById(btn.id);
-                element.disabled = availableSpins < btn.count || spinning;
-                element.style.display = availableSpins >= btn.count ? 'block' : 'none';
+                const el = document.getElementById(btn.id);
+                el.disabled = availableSpins < btn.count || spinning;
+                el.style.display = availableSpins >= btn.count ? 'block' : 'none';
             });
 
             const allBtn = document.getElementById('btnAll');
@@ -425,16 +356,12 @@
             });
         }
 
-        // Spin All
-        function spinAll() {
-            if (availableSpins > 0) {
-                spinWheel(availableSpins);
-            }
-        }
+        // ========== DO SPIN ==========
+        async function doSpin(count) {
+            if (spinning || availableSpins === 0) return;
 
-        // Main spin function
-        async function spinWheel(spinCount = 1) {
-            if (spinning || availableSpins === 0 || spinCount > availableSpins) return;
+            const spinCount = count === 'all' ? availableSpins : count;
+            if (spinCount > availableSpins) return;
 
             spinning = true;
             updateButtons();
@@ -452,8 +379,6 @@
 
                 const result = await response.json();
 
-                console.log('📦 Backend Response:', result);
-
                 if (!result.success) {
                     alert(result.message || 'Error');
                     spinning = false;
@@ -462,17 +387,14 @@
                 }
 
                 // Animate spins
-                if (result.results && result.results.length > 0) {
-                    console.log('🎯 Results to animate:', result.results);
-                    await animateSpins(result.results);
-                    showResults(result);
-                }
+                await animateSpins(result.results);
 
-                // Update available spins
+                // Update spins
                 availableSpins = result.available_spins;
-                document.getElementById('spinsInfo').innerHTML = `
-                    🎯 Available: <strong>${availableSpins}</strong> spins
-                `;
+                document.getElementById('spinsInfo').innerHTML = `🎯 Available: <strong>${availableSpins}</strong> spins`;
+
+                // Show final result
+                showFinalResult(result.results);
 
                 spinning = false;
                 updateButtons();
@@ -485,86 +407,56 @@
             }
         }
 
-        // Animate multiple spins
+        // ========== ANIMATE SPINS ==========
         async function animateSpins(results) {
+            const wheel = document.getElementById('wheelWrapper');
             const resultDiv = document.getElementById('result');
-            const spinDelay = results.length === 1 ? 4000 : 2000;
 
             for (let i = 0; i < results.length; i++) {
                 const spin = results[i];
                 const segmentIndex = spin.segment_index;
                 const prize = prizes[segmentIndex];
 
-                console.log(`🎲 Spin ${i + 1}/${results.length}:`);
-                console.log(`  Backend said: prize="${spin.prize}", segment_index=${segmentIndex}`);
-                console.log(`  Frontend prizes[${segmentIndex}] =`, prize);
-                console.log(`  Will show: ${prize.display}`);
+                console.log(`🎲 Spin ${i + 1}/${results.length}: ${prize.display}`);
 
-                // Animate wheel with hardware acceleration
+                // Calculate rotation
                 const sliceAngle = 360 / prizes.length;
                 const targetAngle = -(segmentIndex * sliceAngle);
-                const totalRotation = (360 * (results.length === 1 ? 5 : 3)) + targetAngle;
+                const rotations = results.length === 1 ? 5 : 3;
+                const totalRotation = (360 * rotations) + targetAngle;
+                currentRotation += totalRotation;
 
-                const wheelWrapper = document.getElementById('wheelWrapper');
+                // Show suspense
+                resultDiv.style.display = 'flex';
+                resultDiv.innerHTML = `<div class="suspense">🎰 Spinning... ${i + 1}/${results.length}</div>`;
 
-                // Reset transition temporarily for smooth start
-                wheelWrapper.style.transition = 'none';
+                // Apply rotation with requestAnimationFrame
+                wheel.style.transition = 'none';
+                void wheel.offsetHeight;
 
-                // Force reflow to ensure transition reset takes effect
-                void wheelWrapper.offsetHeight;
-
-                // Use requestAnimationFrame for smooth start (Telegram WebView optimization)
                 requestAnimationFrame(() => {
-                    // Apply smooth transition with better easing for all devices
-                    // Using ease-out for natural deceleration
-                    const easingFunction = results.length === 1
-                        ? 'cubic-bezier(0.25, 0.1, 0.25, 1.0)' // Smoother for single spin
-                        : 'cubic-bezier(0.33, 0.0, 0.2, 1.0)'; // Faster for multi-spin
-
-                    wheelWrapper.style.transition = `transform ${spinDelay / 1000}s ${easingFunction}`;
-                    currentRotation += totalRotation;
-
-                    // Use translate3d for better performance on all devices
-                    wheelWrapper.style.transform = `rotate(${currentRotation}deg) translateZ(0)`;
-                    wheelWrapper.style.webkitTransform = `rotate(${currentRotation}deg) translateZ(0)`;
+                    const duration = results.length === 1 ? 3.5 : 2;
+                    wheel.style.transition = `transform ${duration}s cubic-bezier(0.25, 0.1, 0.25, 1.0)`;
+                    wheel.style.transform = `rotate(${currentRotation}deg) translateZ(0)`;
                 });
 
-                // Show current spin result
-                if (results.length > 1) {
-                    resultDiv.style.display = 'flex';
-                    resultDiv.innerHTML = `
-                        <div style="text-align: center; width: 100%;">
-                            <strong>Spin ${i + 1}/${results.length}</strong><br>
-                            ${prize.name === "Try Again!" ? '🔄 Try Again!' : `🎉 ${prize.display}`}
-                        </div>
-                    `;
-                }
-
-                await new Promise(resolve => setTimeout(resolve, spinDelay));
+                // Wait for animation
+                await new Promise(resolve => setTimeout(resolve, (results.length === 1 ? 3500 : 2000)));
             }
         }
 
-        // Show final results
-        function showResults(result) {
+        // ========== SHOW FINAL RESULT ==========
+        function showFinalResult(results) {
             const resultDiv = document.getElementById('result');
-            const results = result.results;
 
             if (results.length === 1) {
-                // Single spin
                 const prize = prizes[results[0].segment_index];
                 if (prize.name === "Try Again!") {
-                    resultDiv.innerHTML = `
-                        🔄 <strong>Try Again!</strong><br>
-                        <small>Better luck next spin!</small>
-                    `;
+                    resultDiv.innerHTML = `🔄 <strong>Try Again!</strong><br><small>Better luck next spin!</small>`;
                 } else {
-                    resultDiv.innerHTML = `
-                        🎉 You won: <strong>${prize.display}</strong><br>
-                        <small>Keep spinning!</small>
-                    `;
+                    resultDiv.innerHTML = `🎉 You won: <strong>${prize.display}</strong><br><small>Pending approval!</small>`;
                 }
             } else {
-                // Multi-spin summary
                 let totalChips = 0;
                 results.forEach(r => {
                     const prize = prizes[r.segment_index];
@@ -574,30 +466,21 @@
                 });
 
                 resultDiv.innerHTML = `
-                    <div style="text-align: center;">
-                        <strong style="font-size: 1.3em;">✅ ${results.length} SPINS COMPLETE!</strong><br>
-                        <div style="font-size: 1.5em; margin: 10px 0; color: #FFD700;">
-                            💰 Total: ${totalChips} Chips
-                        </div>
-                        <small>Check pending approvals!</small>
-                    </div>
+                    <strong style="font-size: 1.25em;">✅ ${results.length} SPINS COMPLETE!</strong><br>
+                    <div style="font-size: 1.4em; margin: 8px 0; color: #FFD700;">💰 Total: ${totalChips} Chips</div>
+                    <small>Check pending approvals!</small>
                 `;
             }
 
             resultDiv.style.display = 'flex';
         }
 
-        // Initialize - WAIT for images first!
+        // ========== INITIALIZATION ==========
         async function init() {
-            console.log('🎰 Initializing spin wheel...');
-
-            // Load images first
+            console.log('🎰 Initializing Spin Wheel...');
             await preloadImages();
-
-            // Draw wheel with loaded images
             drawWheel();
 
-            // Load user spins
             if (userId) {
                 loadSpins();
             } else {
@@ -605,14 +488,7 @@
             }
         }
 
-        // Start initialization
         init();
-
-        // DEBUG: Print prize order (remove this later)
-        console.log('📋 PRIZE ORDER (Frontend):');
-        prizes.forEach((p, i) => {
-            console.log(`  ${i}: ${p.name} (${p.display})`);
-        });
     </script>
 </body>
 </html>
