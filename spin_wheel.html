@@ -47,8 +47,8 @@
 
         .wheel-container {
             position: relative;
-            width: 320px;
-            height: 320px;
+            width: 340px;
+            height: 340px;
             margin: 20px auto;
         }
 
@@ -64,7 +64,7 @@
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
         }
 
         .pointer {
@@ -74,10 +74,10 @@
             transform: translateX(-50%);
             width: 0;
             height: 0;
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
-            border-top: 30px solid #FFD700;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 35px solid #FFD700;
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
             z-index: 10;
         }
 
@@ -86,17 +86,19 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #FFD700, #FFA500);
+            width: 80px;
+            height: 80px;
+            background: #2c3e50;
             border-radius: 50%;
-            border: 4px solid white;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+            border: 5px solid white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             z-index: 5;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5em;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: white;
         }
 
         .spin-button {
@@ -168,8 +170,8 @@
 
         @media (max-width: 360px) {
             .wheel-container {
-                width: 280px;
-                height: 280px;
+                width: 300px;
+                height: 300px;
             }
             h1 {
                 font-size: 1.5em;
@@ -190,7 +192,7 @@
             <div class="wheel-wrapper" id="wheelWrapper">
                 <canvas id="wheelCanvas"></canvas>
             </div>
-            <div class="center-circle">🎲</div>
+            <div class="center-circle">SPIN</div>
         </div>
 
         <button class="spin-button" id="spinBtn" onclick="spinWheel()">SPIN NOW!</button>
@@ -198,7 +200,7 @@
         <div class="result" id="result"></div>
 
         <div class="prize-list">
-            <h3>🎁 Prizes</h3>
+            <h3>🎁 Possible Prizes</h3>
             <div class="prize-item">🏆 500 Chips</div>
             <div class="prize-item">💰 250 Chips</div>
             <div class="prize-item">💎 100 Chips</div>
@@ -209,6 +211,7 @@
             <div class="prize-item">💻 MacBook Pro</div>
             <div class="prize-item">⌚ Apple Watch</div>
             <div class="prize-item">🎧 AirPods Pro</div>
+            <div class="prize-item">🔄 Try Again</div>
         </div>
     </div>
 
@@ -220,29 +223,59 @@
         const user = tg.initDataUnsafe.user;
         const userId = user ? user.id : null;
 
+        // 13 segments total - matching the reference wheel
         const prizes = [
-            { name: "🎁 iPhone 17", color: "#FF6B6B" },
-            { name: "💻 MacBook", color: "#4ECDC4" },
-            { name: "⌚ Watch", color: "#45B7D1" },
-            { name: "🎧 AirPods", color: "#96CEB4" },
-            { name: "🏆 500", color: "#FFD700" },
-            { name: "💰 250", color: "#FFA500" },
-            { name: "💎 100", color: "#87CEEB" },
-            { name: "💵 50", color: "#90EE90" },
-            { name: "🪙 20", color: "#DDA0DD" },
-            { name: "🎯 10", color: "#F0E68C" }
+            { name: "500", display: "500 Chips", color: "#E8D97B", textColor: "#000" },
+            { name: "Try Again!", display: "Try Again", color: "#F5A623", textColor: "#000" },
+            { name: "100", display: "100 Chips", color: "#9AB973", textColor: "#fff" },
+            { name: "🎧", display: "AirPods Pro", color: "#E8D97B", textColor: "#000", isImage: true },
+            { name: "20", display: "20 Chips", color: "#2F5233", textColor: "#fff" },
+            { name: "Try Again!", display: "Try Again", color: "#F5A623", textColor: "#000" },
+            { name: "50", display: "50 Chips", color: "#2F5233", textColor: "#fff" },
+            { name: "📱", display: "iPhone 17", color: "#E8D97B", textColor: "#000", isImage: true },
+            { name: "250", display: "250 Chips", color: "#9AB973", textColor: "#000" },
+            { name: "10", display: "10 Chips", color: "#9AB973", textColor: "#000" },
+            { name: "Try Again!", display: "Try Again", color: "#F5A623", textColor: "#000" },
+            { name: "💻", display: "MacBook Pro", color: "#2F5233", textColor: "#fff", isImage: true },
+            { name: "⌚", display: "Apple Watch", color: "#E8D97B", textColor: "#000", isImage: true }
         ];
 
         let spinning = false;
         let availableSpins = 0;
         let currentRotation = 0;
 
+        function drawPokerChip(ctx, x, y, size) {
+            // Draw poker chip icon
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, 2 * Math.PI);
+            ctx.fillStyle = '#2c3e50';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Draw inner circle
+            ctx.beginPath();
+            ctx.arc(x, y, size * 0.6, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+
+            // Draw segments on edge
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * Math.PI) / 4;
+                ctx.beginPath();
+                ctx.arc(x, y, size * 0.85, angle - 0.15, angle + 0.15);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            }
+        }
+
         function drawWheel() {
             const canvas = document.getElementById('wheelCanvas');
             const ctx = canvas.getContext('2d');
 
-            // Set canvas size
-            const size = 320;
+            const size = 340;
             canvas.width = size;
             canvas.height = size;
 
@@ -263,27 +296,50 @@
                 ctx.fillStyle = prize.color;
                 ctx.fill();
                 ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 2;
                 ctx.stroke();
 
-                // Draw text
+                // Calculate text position
                 ctx.save();
                 ctx.translate(centerX, centerY);
                 ctx.rotate(startAngle + sliceAngle / 2);
-                ctx.textAlign = 'right';
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 16px Arial';
-                ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                ctx.shadowBlur = 3;
-                ctx.fillText(prize.name, radius - 20, 5);
+
+                if (prize.name === "Try Again!") {
+                    // Draw "Try Again!" text
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = prize.textColor;
+                    ctx.font = 'bold 18px Arial';
+                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                    ctx.shadowBlur = 2;
+                    ctx.fillText("Try Again!", radius * 0.6, 0);
+                } else if (prize.isImage) {
+                    // Draw emoji for product images
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = '32px Arial';
+                    ctx.fillText(prize.name, radius * 0.65, 0);
+                } else {
+                    // Draw poker chip + number
+                    drawPokerChip(ctx, radius * 0.7, 0, 15);
+
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = prize.textColor;
+                    ctx.font = 'bold 20px Arial';
+                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                    ctx.shadowBlur = 2;
+                    ctx.fillText(prize.name, radius * 0.45, 0);
+                }
+
                 ctx.restore();
             });
 
-            // Draw white border
+            // Draw outer white border
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
             ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 6;
+            ctx.lineWidth = 8;
             ctx.stroke();
         }
 
@@ -342,13 +398,25 @@
                     return;
                 }
 
-                const winningPrize = result.display_prize || prizes[0].name;
-                const winningIndex = prizes.findIndex(p => p.name.includes(winningPrize.split(' ')[0]));
-                const sliceAngle = 360 / prizes.length;
+                const winningPrize = result.display_prize || prizes[0].display;
 
-                // Calculate target angle (pointing to top)
+                // Map the prize to segment index
+                let winningIndex = 0;
+                if (winningPrize.includes("500")) winningIndex = 0;
+                else if (winningPrize.includes("100")) winningIndex = 2;
+                else if (winningPrize.includes("AirPods")) winningIndex = 3;
+                else if (winningPrize.includes("20")) winningIndex = 4;
+                else if (winningPrize.includes("50")) winningIndex = 6;
+                else if (winningPrize.includes("iPhone")) winningIndex = 7;
+                else if (winningPrize.includes("250")) winningIndex = 8;
+                else if (winningPrize.includes("10")) winningIndex = 9;
+                else if (winningPrize.includes("MacBook")) winningIndex = 11;
+                else if (winningPrize.includes("Watch")) winningIndex = 12;
+                else winningIndex = 1; // Try Again
+
+                const sliceAngle = 360 / prizes.length;
                 const targetAngle = -(winningIndex * sliceAngle) + (sliceAngle / 2);
-                const totalRotation = (360 * 5) + targetAngle; // 5 full rotations + target
+                const totalRotation = (360 * 5) + targetAngle;
 
                 const wheelWrapper = document.getElementById('wheelWrapper');
                 currentRotation += totalRotation;
@@ -364,9 +432,14 @@
                             💰 ${result.milestone_prize.chips} CHIPS!<br>
                             <small>⏳ Pending approval</small>
                         `;
+                    } else if (winningPrize === "Try Again") {
+                        resultDiv.innerHTML = `
+                            🔄 <strong>Try Again!</strong><br>
+                            <small>Better luck next spin!</small>
+                        `;
                     } else {
                         resultDiv.innerHTML = `
-                            ${winningPrize}<br>
+                            🎉 You won: <strong>${winningPrize}</strong><br>
                             <small>Keep spinning!</small>
                         `;
                     }
