@@ -56,6 +56,33 @@ def get_managers():
     return sheets, bot
 
 
+async def notify_user_win(user_id: int, username: str, prize: str, chips: int):
+    """Send notification to user when they win chips"""
+    try:
+        # Make sure bot is initialized
+        global bot
+        if bot is None:
+            bot = Bot(token=BOT_TOKEN)
+
+        message = (
+            f"🎊 <b>CONGRATULATIONS!</b> 🎊\n\n"
+            f"🎰 <b>You won:</b> {prize}\n"
+            f"💰 <b>Chips:</b> {chips}\n\n"
+            f"⏳ <b>Your reward is pending approval</b>\n\n"
+            f"✅ Our admin team will review and approve your chips shortly.\n"
+            f"📬 You'll receive a notification once approved!\n\n"
+            f"🎮 Your chips will be added to your PPPoker account.\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"Thank you for playing! 🎲"
+        )
+        await bot.send_message(chat_id=user_id, text=message, parse_mode='HTML')
+        logger.info(f"✅ User notified: {username} won {prize}")
+    except TelegramError as e:
+        logger.error(f"❌ Failed to notify user: {e}")
+    except Exception as e:
+        logger.error(f"❌ Unexpected error in notify_user_win: {e}")
+
+
 async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppoker_id: str):
     """Send notification to admin when user wins chips"""
     try:
@@ -70,8 +97,7 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
             f"🎁 Prize: {prize}\n"
             f"💰 Chips: {chips}\n"
             f"🎮 PPPoker ID: {pppoker_id or 'Not set'}\n\n"
-            f"⏳ <b>Pending Approval</b>\n"
-            f"Use /pendingspins to review"
+            f"⏳ <b>Pending Approval</b>"
         )
         await bot.send_message(chat_id=ADMIN_USER_ID, text=message, parse_mode='HTML')
         logger.info(f"✅ Admin notified: {username} won {prize}")
@@ -218,17 +244,20 @@ def spin():
             # Log to Google Sheets
             sheets.log_spin_history(user_id, username, prize_display, chips, pppoker_id)
 
-            # Notify admin for chip wins
+            # Notify user and admin for chip wins
             if chips > 0:
-                logger.info(f"💰 Chip win detected! Notifying admin about {chips} chips for user {username}")
+                logger.info(f"💰 Chip win detected! Notifying user and admin about {chips} chips for {username}")
                 try:
+                    # Notify user first
+                    asyncio.run(notify_user_win(user_id, username, prize_display, chips))
+                    # Then notify admin
                     asyncio.run(notify_admin(user_id, username, prize_display, chips, pppoker_id))
                 except Exception as e:
-                    logger.error(f"❌ Failed to notify admin: {e}")
+                    logger.error(f"❌ Failed to send notifications: {e}")
                     import traceback
                     traceback.print_exc()
             else:
-                logger.info(f"🔄 Try Again - no admin notification needed")
+                logger.info(f"🔄 Try Again - no notifications needed")
 
         # Update user spins
         new_available = available_spins - spin_count

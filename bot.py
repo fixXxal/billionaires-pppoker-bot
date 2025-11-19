@@ -4949,18 +4949,34 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
             parse_mode='Markdown'
         )
 
-        # Notify the user
+        # Notify the user with detailed message
         try:
+            # Get PPPoker ID for the message
+            pppoker_id = spin_bot.sheets.get_pppoker_id_from_deposits(target_user_id)
+            pppoker_msg = f"🎮 <b>PPPoker ID:</b> {pppoker_id}\n" if pppoker_id else ""
+
             await context.bot.send_message(
                 chat_id=target_user_id,
-                text=f"🎊 *SPIN REWARDS APPROVED!* 🎊\n\n"
-                     f"💰 {total_chips} chips have been credited!\n\n"
-                     f"Your chips are now in your PPPoker account\\.\n"
-                     f"Thank you for playing\\! 🎰",
-                parse_mode='MarkdownV2'
+                text=f"━━━━━━━━━━━━━━━━━━\n"
+                     f"✅ <b>REWARDS APPROVED!</b> ✅\n"
+                     f"━━━━━━━━━━━━━━━━━━\n\n"
+                     f"🎊 <b>Congratulations!</b>\n\n"
+                     f"💰 <b>Total Chips:</b> {total_chips}\n"
+                     f"📦 <b>Rewards:</b> {approved_count}\n"
+                     f"{pppoker_msg}\n"
+                     f"✨ <b>Your chips have been added to your account!</b>\n\n"
+                     f"🎮 The chips are now available in your PPPoker account.\n"
+                     f"💎 You can use them to play poker right away!\n\n"
+                     f"━━━━━━━━━━━━━━━━━━\n"
+                     f"Thank you for playing! 🎰\n"
+                     f"Good luck at the tables! 🃏",
+                parse_mode='HTML'
             )
+            logger.info(f"✅ User {target_user_id} notified of approval: {total_chips} chips")
         except Exception as e:
             logger.error(f"Failed to notify user: {e}")
+            import traceback
+            traceback.print_exc()
 
     except Exception as e:
         logger.error(f"Error in approve_spinhistory_callback: {e}")
