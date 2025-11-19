@@ -512,34 +512,38 @@
                     });
                 }
 
-                // ROTATION CALCULATION - COMPLETELY REWRITTEN
+                // SIMPLE AND CORRECT ROTATION
                 const sliceAngle = 360 / prizes.length;  // 22.5° for 16 segments
 
-                // The wheel is drawn with:
-                // - Segment i starts at angle: (i * sliceAngle - 90°)
-                // - Segment i center at angle: (i * sliceAngle - 90° + sliceAngle/2) = (i * sliceAngle - 78.75°)
+                // Let's think simply:
+                // 1. Segments are drawn starting from -90° (top)
+                // 2. Segment 0 starts at -90°, segment 1 starts at -67.5°, etc.
+                // 3. Each segment's CENTER is at: start + (sliceAngle/2)
+                // 4. So segment N center is at: (N * sliceAngle - 90°) + sliceAngle/2
 
-                // Example: Segment 0 center is at -78.75°, Segment 1 center is at -56.25°, etc.
+                // Convert to simpler math:
+                // Segment N center = (N * sliceAngle) - 90° + 11.25°
+                //                  = (N * sliceAngle) - 78.75°
 
-                // The pointer is at the TOP (angle 0° in our coordinate system)
-                // To make segment N appear under the pointer, we need to rotate the wheel
-                // so that segment N's center moves to 0°
+                // To point at segment N, rotate the wheel by NEGATIVE of its center angle
+                // This brings that segment's center to 0° (top)
 
-                // Current segment N center: (N * 22.5° - 78.75°)
-                // Target: 0°
-                // Rotation needed: 0° - (N * 22.5° - 78.75°) = 78.75° - (N * 22.5°)
-
-                const segmentCenterOriginal = (segmentIndex * sliceAngle) - 78.75;
-                const targetAngle = -segmentCenterOriginal;  // Negative to rotate wheel opposite direction
+                const segmentCenter = (segmentIndex * sliceAngle) - 78.75;
+                const targetAngle = -segmentCenter;
 
                 const rotations = results.length === 1 ? 5 : 3;
                 const totalRotation = (360 * rotations) + targetAngle;
                 currentRotation += totalRotation;
 
-                console.log(`   Segment ${segmentIndex} center originally at: ${segmentCenterOriginal}°`);
-                console.log(`   Need to rotate by: ${targetAngle}°`);
-                console.log(`   Total rotation: ${totalRotation}°`);
-                console.log(`   Current rotation: ${currentRotation}°\n`);
+                console.log(`   Segment ${segmentIndex} natural center: ${segmentCenter.toFixed(2)}°`);
+                console.log(`   Rotate wheel by: ${targetAngle.toFixed(2)}°`);
+                console.log(`   With ${rotations} full rotations: ${totalRotation.toFixed(2)}°`);
+                console.log(`   Final cumulative rotation: ${currentRotation.toFixed(2)}°`);
+
+                // VERIFICATION: Where will the pointer land?
+                const finalAngle = currentRotation % 360;
+                const pointerLandsOnSegment = Math.round((finalAngle + 78.75) / sliceAngle) % prizes.length;
+                console.log(`   🎯 VERIFY: Pointer should land on segment ${segmentIndex}, calculation says segment ${pointerLandsOnSegment}\n`);
 
                 // Show suspense with glow effect
                 resultDiv.style.display = 'flex';
