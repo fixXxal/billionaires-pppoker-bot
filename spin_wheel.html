@@ -501,9 +501,13 @@
 
                 console.log(`🎲 Spin ${i + 1}/${results.length}: ${prize.display}`);
 
-                // Calculate rotation
+                // Calculate rotation to CENTER of winning segment
                 const sliceAngle = 360 / prizes.length;
-                const targetAngle = -(segmentIndex * sliceAngle);
+
+                // Point to the CENTER of the segment (add half slice angle)
+                const centerOffset = sliceAngle / 2;
+                const targetAngle = -(segmentIndex * sliceAngle) - centerOffset;
+
                 const rotations = results.length === 1 ? 5 : 3;
                 const totalRotation = (360 * rotations) + targetAngle;
                 currentRotation += totalRotation;
