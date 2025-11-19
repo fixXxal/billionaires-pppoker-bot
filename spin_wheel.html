@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Spin Wheel</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -10,17 +13,42 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            /* Prevent text selection and touch callouts in Telegram */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+
+        html {
+            /* Fix for Telegram Mini App */
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
         }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            height: 100%;
+            width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 20px;
             overflow-x: hidden;
+            overflow-y: auto;
+            /* Fix iOS Safari bounce and improve rendering */
+            -webkit-overflow-scrolling: touch;
+            -webkit-transform: translateZ(0);
+            -webkit-font-smoothing: antialiased;
+            /* Prevent pull-to-refresh in Telegram */
+            overscroll-behavior: contain;
+            position: relative;
         }
 
         .container {
@@ -52,25 +80,47 @@
             width: 100%;
             max-width: 400px;
             margin: 0 auto 30px;
+            /* Fix shaking on all devices */
+            -webkit-perspective: 1000px;
+            perspective: 1000px;
+            /* Telegram Mini App specific fixes */
+            transform: translate3d(0, 0, 0);
+            -webkit-transform: translate3d(0, 0, 0);
+            isolation: isolate;
+            contain: layout style paint;
         }
 
         #wheelWrapper {
             width: 100%;
             aspect-ratio: 1;
             transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+            /* Hardware acceleration - smooth on all devices */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            -webkit-font-smoothing: antialiased;
+            transform-origin: center center;
         }
 
         canvas {
             width: 100%;
             height: 100%;
             filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
+            /* Prevent canvas blurring/shaking */
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
         }
 
         .pointer {
             position: absolute;
             top: -10px;
             left: 50%;
-            transform: translateX(-50%);
+            transform: translateX(-50%) translateZ(0);
+            -webkit-transform: translateX(-50%) translateZ(0);
             width: 0;
             height: 0;
             border-left: 15px solid transparent;
@@ -78,6 +128,9 @@
             border-top: 30px solid #FF6B6B;
             filter: drop-shadow(0 3px 6px rgba(0,0,0,0.3));
             z-index: 10;
+            /* Prevent pointer from shaking */
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
         }
 
         .spin-buttons {
@@ -174,8 +227,29 @@
         tg.ready();
         tg.expand();
 
+        // Telegram Mini App optimizations
+        tg.enableClosingConfirmation();
+        tg.disableVerticalSwipes();
+
+        // Set theme colors
+        if (tg.themeParams) {
+            document.body.style.background = tg.themeParams.bg_color || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        }
+
         const user = tg.initDataUnsafe.user;
         const userId = user ? user.id : null;
+
+        // Prevent scroll bounce during spin (Telegram WebView)
+        let touchStartY = 0;
+        document.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (spinning) {
+                e.preventDefault(); // Prevent scroll during spin
+            }
+        }, { passive: false });
 
         // 16 segments - MUST match backend exactly!
         const prizes = [
@@ -426,15 +500,34 @@
                 console.log(`  Frontend prizes[${segmentIndex}] =`, prize);
                 console.log(`  Will show: ${prize.display}`);
 
-                // Animate wheel
+                // Animate wheel with hardware acceleration
                 const sliceAngle = 360 / prizes.length;
                 const targetAngle = -(segmentIndex * sliceAngle);
                 const totalRotation = (360 * (results.length === 1 ? 5 : 3)) + targetAngle;
 
                 const wheelWrapper = document.getElementById('wheelWrapper');
-                wheelWrapper.style.transition = `transform ${spinDelay / 1000}s cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
-                currentRotation += totalRotation;
-                wheelWrapper.style.transform = `rotate(${currentRotation}deg)`;
+
+                // Reset transition temporarily for smooth start
+                wheelWrapper.style.transition = 'none';
+
+                // Force reflow to ensure transition reset takes effect
+                void wheelWrapper.offsetHeight;
+
+                // Use requestAnimationFrame for smooth start (Telegram WebView optimization)
+                requestAnimationFrame(() => {
+                    // Apply smooth transition with better easing for all devices
+                    // Using ease-out for natural deceleration
+                    const easingFunction = results.length === 1
+                        ? 'cubic-bezier(0.25, 0.1, 0.25, 1.0)' // Smoother for single spin
+                        : 'cubic-bezier(0.33, 0.0, 0.2, 1.0)'; // Faster for multi-spin
+
+                    wheelWrapper.style.transition = `transform ${spinDelay / 1000}s ${easingFunction}`;
+                    currentRotation += totalRotation;
+
+                    // Use translate3d for better performance on all devices
+                    wheelWrapper.style.transform = `rotate(${currentRotation}deg) translateZ(0)`;
+                    wheelWrapper.style.webkitTransform = `rotate(${currentRotation}deg) translateZ(0)`;
+                });
 
                 // Show current spin result
                 if (results.length > 1) {
