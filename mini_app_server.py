@@ -143,6 +143,11 @@ def spin():
             "20", "Try Again!", "50", "Watch"
         ]
 
+        # DEBUG: Log prize order
+        logger.info("📋 PRIZE ORDER (Backend):")
+        for idx, p in enumerate(wheel_prizes):
+            logger.info(f"  {idx}: {p}")
+
         # PRIZE WEIGHTS - Only chips and Try Again can be won
         prize_weights = {
             "Try Again!": 60,
@@ -175,6 +180,9 @@ def spin():
             else:
                 prize_display = f"{prize} Chips"
                 chips = int(prize)
+
+            logger.info(f"🎲 Spin {i+1}: prize={prize}, matching_indices={matching_indices}, chosen_segment={segment_index}")
+            logger.info(f"   wheel_prizes[{segment_index}] = {wheel_prizes[segment_index]}")
 
             results.append({
                 'prize': prize_display,

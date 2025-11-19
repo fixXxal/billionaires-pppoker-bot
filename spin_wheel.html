@@ -197,15 +197,40 @@
             { name: "Watch", display: "Apple Watch", color: "#E63946", textColor: "#fff", isImage: true, imgSrc: "spinnsimgss/applewatchultra.jpeg" }
         ];
 
-        // Preload images
+        // Preload images and wait for them to load
         const images = {};
-        prizes.forEach(prize => {
-            if (prize.isImage) {
-                const img = new Image();
-                img.src = prize.imgSrc;
-                images[prize.name] = img;
-            }
-        });
+        let imagesLoaded = false;
+
+        function preloadImages() {
+            return new Promise((resolve) => {
+                const imagePromises = [];
+
+                prizes.forEach(prize => {
+                    if (prize.isImage) {
+                        const promise = new Promise((imgResolve) => {
+                            const img = new Image();
+                            img.onload = () => {
+                                console.log('✅ Loaded:', prize.imgSrc);
+                                imgResolve();
+                            };
+                            img.onerror = () => {
+                                console.error('❌ Failed to load:', prize.imgSrc);
+                                imgResolve(); // Still resolve to not block
+                            };
+                            img.src = prize.imgSrc;
+                            images[prize.name] = img;
+                        });
+                        imagePromises.push(promise);
+                    }
+                });
+
+                Promise.all(imagePromises).then(() => {
+                    imagesLoaded = true;
+                    console.log('✅ All images loaded!');
+                    resolve();
+                });
+            });
+        }
 
         let spinning = false;
         let availableSpins = 0;
@@ -353,6 +378,8 @@
 
                 const result = await response.json();
 
+                console.log('📦 Backend Response:', result);
+
                 if (!result.success) {
                     alert(result.message || 'Error');
                     spinning = false;
@@ -362,6 +389,7 @@
 
                 // Animate spins
                 if (result.results && result.results.length > 0) {
+                    console.log('🎯 Results to animate:', result.results);
                     await animateSpins(result.results);
                     showResults(result);
                 }
@@ -393,7 +421,10 @@
                 const segmentIndex = spin.segment_index;
                 const prize = prizes[segmentIndex];
 
-                console.log(`Spin ${i + 1}: Segment ${segmentIndex} - ${prize.display}`);
+                console.log(`🎲 Spin ${i + 1}/${results.length}:`);
+                console.log(`  Backend said: prize="${spin.prize}", segment_index=${segmentIndex}`);
+                console.log(`  Frontend prizes[${segmentIndex}] =`, prize);
+                console.log(`  Will show: ${prize.display}`);
 
                 // Animate wheel
                 const sliceAngle = 360 / prizes.length;
@@ -463,13 +494,32 @@
             resultDiv.style.display = 'flex';
         }
 
-        // Initialize
-        drawWheel();
-        if (userId) {
-            loadSpins();
-        } else {
-            document.getElementById('spinsInfo').innerHTML = '❌ No user ID';
+        // Initialize - WAIT for images first!
+        async function init() {
+            console.log('🎰 Initializing spin wheel...');
+
+            // Load images first
+            await preloadImages();
+
+            // Draw wheel with loaded images
+            drawWheel();
+
+            // Load user spins
+            if (userId) {
+                loadSpins();
+            } else {
+                document.getElementById('spinsInfo').innerHTML = '❌ No user ID';
+            }
         }
+
+        // Start initialization
+        init();
+
+        // DEBUG: Print prize order (remove this later)
+        console.log('📋 PRIZE ORDER (Frontend):');
+        prizes.forEach((p, i) => {
+            console.log(`  ${i}: ${p.name} (${p.display})`);
+        });
     </script>
 </body>
 </html>
