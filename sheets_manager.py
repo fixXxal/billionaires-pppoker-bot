@@ -1383,11 +1383,38 @@ class SheetsManager:
     def get_pending_spin_rewards(self):
         """Get all pending spin rewards from Spin History"""
         try:
-            records = self.spin_history_sheet.get_all_records()
-            pending = [r for r in records if r.get('Status') == 'Pending' and r.get('Chips Amount', 0) > 0]
+            all_rows = self.spin_history_sheet.get_all_values()[1:]  # Skip header
+            pending = []
+
+            for idx, row in enumerate(all_rows, start=2):  # Start from row 2 (row 1 is header)
+                if len(row) >= 7:
+                    try:
+                        status = row[6] if len(row) > 6 else ''  # Status column
+                        chips = int(row[3]) if len(row) > 3 and str(row[3]).strip() else 0  # Chips Amount column
+
+                        # Only show pending chip wins
+                        if status == 'Pending' and chips > 0:
+                            pending.append({
+                                'spin_id': str(idx),  # Use row number as ID
+                                'user_id': str(row[0]) if len(row) > 0 else '',
+                                'username': str(row[1]) if len(row) > 1 else '',
+                                'prize': str(row[2]) if len(row) > 2 else '',
+                                'chips': chips,
+                                'timestamp': str(row[4]) if len(row) > 4 else '',
+                                'pppoker_id': str(row[5]) if len(row) > 5 else '',
+                                'status': status,
+                                'row_number': idx
+                            })
+                    except (ValueError, IndexError) as e:
+                        print(f"Error parsing row {idx}: {e}")
+                        continue
+
+            print(f"📋 Found {len(pending)} pending spin rewards")
             return pending
         except Exception as e:
             print(f"Error getting pending spin rewards: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     def approve_spin_reward(self, row_number: int, approved_by: str):
@@ -1405,14 +1432,18 @@ class SheetsManager:
         """Get user's PPPoker ID from their last deposit"""
         try:
             deposits = self.deposits_sheet.get_all_records()
+            print(f"🔍 Searching {len(deposits)} deposits for user {user_id}")
 
             # Filter deposits for this user (with proper string handling)
             user_deposits = [d for d in deposits
                            if str(d.get('User ID', '')).strip() == str(user_id).strip()]
 
+            print(f"📊 Found {len(user_deposits)} deposits for user {user_id}")
+
             if user_deposits:
                 # Get the most recent deposit (last in list)
                 last_deposit = user_deposits[-1]
+                print(f"📝 Last deposit data: {last_deposit}")
 
                 # Try multiple possible column names
                 pppoker_id = (last_deposit.get('PPPoker ID') or
@@ -1421,12 +1452,17 @@ class SheetsManager:
                             last_deposit.get('pppoker_id') or
                             last_deposit.get('PPPoker Id'))
 
+                print(f"🎮 PPPoker ID found: {pppoker_id}")
+
                 if pppoker_id and str(pppoker_id).strip():
                     return str(pppoker_id).strip()
 
+            print(f"❌ No PPPoker ID found for user {user_id}")
             return ''
         except Exception as e:
             print(f"Error getting PPPoker ID from deposits: {e}")
+            import traceback
+            traceback.print_exc()
             return ''
 
     def sync_pppoker_id_from_deposits(self, user_id: int) -> str:
@@ -1515,7 +1551,7 @@ class SheetsManager:
             traceback.print_exc()
             return False
 
-    def get_pending_spin_rewards(self) -> List[Dict]:
+    def get_pending_milestone_rewards(self) -> List[Dict]:
         """Get all pending milestone/surprise rewards"""
         try:
             all_rows = self.milestone_rewards_sheet.get_all_values()[1:]  # Skip header
