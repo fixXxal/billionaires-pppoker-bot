@@ -14,6 +14,8 @@ import asyncio
 from telegram import Bot
 from telegram.error import TelegramError
 import random
+import time
+from collections import defaultdict
 
 # Load environment variables
 load_dotenv()
@@ -54,6 +56,46 @@ def get_managers():
         sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
         bot = Bot(token=BOT_TOKEN)
     return sheets, bot
+
+
+# Rate limiting - max 1 spin per second per user
+user_last_spin = defaultdict(float)
+SPIN_COOLDOWN = 1.0  # seconds
+
+# Simple cache for user data (1 minute TTL)
+user_data_cache = {}
+cache_timestamps = {}
+CACHE_TTL = 60  # seconds
+
+
+def get_cached_user_data(user_id):
+    """Get user data from cache or fetch fresh"""
+    current_time = time.time()
+
+    # Check if cache is valid
+    if user_id in user_data_cache:
+        if current_time - cache_timestamps.get(user_id, 0) < CACHE_TTL:
+            logger.info(f"📦 Cache hit for user {user_id}")
+            return user_data_cache[user_id]
+
+    # Fetch fresh data
+    logger.info(f"🔄 Cache miss for user {user_id}, fetching from sheets")
+    sheets, _ = get_managers()
+    user_data = sheets.get_spin_user(user_id)
+
+    # Update cache
+    user_data_cache[user_id] = user_data
+    cache_timestamps[user_id] = current_time
+
+    return user_data
+
+
+def invalidate_user_cache(user_id):
+    """Invalidate cache for a user after their data changes"""
+    if user_id in user_data_cache:
+        del user_data_cache[user_id]
+    if user_id in cache_timestamps:
+        del cache_timestamps[user_id]
 
 
 async def notify_user_win(user_id: int, username: str, prize: str, chips: int):
@@ -137,7 +179,7 @@ def serve_images(filename):
 
 @app.route('/api/get_spins', methods=['POST'])
 def get_spins():
-    """Get user's available spins"""
+    """Get user's available spins - FAST with caching"""
     try:
         data = request.json
         user_id = data.get('user_id')
@@ -145,8 +187,8 @@ def get_spins():
         if not user_id:
             return jsonify({'error': 'Missing user_id'}), 400
 
-        sheets, _ = get_managers()
-        user_data = sheets.get_spin_user(user_id)
+        # Use cached data for fast response
+        user_data = get_cached_user_data(user_id)
 
         if not user_data:
             return jsonify({
@@ -168,7 +210,7 @@ def get_spins():
 
 @app.route('/api/spin', methods=['POST'])
 def spin():
-    """Process spin - CLEAN VERSION"""
+    """Process spin - OPTIMIZED with rate limiting and caching"""
     try:
         data = request.json
         user_id = data.get('user_id')
@@ -177,8 +219,23 @@ def spin():
         if not user_id:
             return jsonify({'error': 'Missing user_id'}), 400
 
+        # Rate limiting - prevent spam
+        current_time = time.time()
+        last_spin = user_last_spin.get(user_id, 0)
+
+        if current_time - last_spin < SPIN_COOLDOWN:
+            remaining = SPIN_COOLDOWN - (current_time - last_spin)
+            return jsonify({
+                'success': False,
+                'message': f'Please wait {remaining:.1f}s before spinning again'
+            }), 429
+
+        # Update last spin time
+        user_last_spin[user_id] = current_time
+
         sheets, _ = get_managers()
-        user_data = sheets.get_spin_user(user_id)
+        # Use cached data for faster response
+        user_data = get_cached_user_data(user_id)
 
         if not user_data:
             return jsonify({'success': False, 'message': "No spins available!"}), 400
@@ -186,17 +243,18 @@ def spin():
         available_spins = user_data.get('available_spins', 0)
         username = user_data.get('username', 'Unknown')
 
-        # SYNC PPPOKER ID from Deposits sheet (updates Spin Users and Spin History)
-        logger.info(f"🔄 Attempting to sync PPPoker ID for user {user_id} ({username})")
-        pppoker_id = sheets.sync_pppoker_id_from_deposits(user_id)
-        if not pppoker_id:
-            # Fallback to current value if no deposits found
-            pppoker_id = user_data.get('pppoker_id', '')
-            logger.warning(f"⚠️ No PPPoker ID found in deposits for user {user_id}, using fallback: {pppoker_id or 'None'}")
-        else:
-            logger.info(f"✅ PPPoker ID synced successfully: {pppoker_id}")
+        # Get PPPoker ID quickly without blocking
+        # Don't sync during spin - it's too slow and not critical for the spin itself
+        pppoker_id = user_data.get('pppoker_id', '')
 
-        logger.info(f"📋 Final PPPoker ID for {username}: {pppoker_id or 'Not set'}")
+        # Try to get from deposits only if empty (fast lookup, no updates)
+        if not pppoker_id:
+            try:
+                pppoker_id = sheets.get_pppoker_id_from_deposits(user_id)
+            except:
+                pppoker_id = ''
+
+        logger.info(f"📋 User {username} spinning with PPPoker ID: {pppoker_id or 'Not set'}")
 
         if available_spins < spin_count:
             return jsonify({
@@ -284,6 +342,9 @@ def spin():
             available_spins=new_available,
             total_spins_used=total_used
         )
+
+        # Invalidate cache after updating user data
+        invalidate_user_cache(user_id)
 
         # Build response
         response = {
