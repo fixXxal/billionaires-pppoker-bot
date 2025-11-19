@@ -524,6 +524,14 @@
 
         async function loadSpinData() {
             try {
+                console.log('Loading spin data for user:', userId);
+
+                if (!userId) {
+                    console.error('No user ID available!');
+                    document.getElementById('spinsInfo').innerHTML = '❌ No user ID';
+                    return;
+                }
+
                 const response = await fetch('https://billionaires-spins.up.railway.app/api/get_spins', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -533,7 +541,10 @@
                     })
                 });
 
+                console.log('Response status:', response.status);
                 const data = await response.json();
+                console.log('Spin data received:', data);
+
                 availableSpins = data.available_spins || 0;
 
                 document.getElementById('spinsInfo').innerHTML = `
@@ -542,8 +553,8 @@
 
                 updateSpinButtons();
             } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('spinsInfo').innerHTML = '❌ Error loading';
+                console.error('Error loading spins:', error);
+                document.getElementById('spinsInfo').innerHTML = `❌ Error loading spins`;
             }
         }
 
