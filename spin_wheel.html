@@ -627,7 +627,7 @@
                     wheelWrapper.style.transform = `rotate(${currentRotation}deg)`;
 
                     setTimeout(() => {
-                        showSingleResult(result, winningPrize);
+                        showSingleResult(result, winningPrize, winningIndex);
                     }, 4000);
                 } else {
                     // Handle bulk spins with fast animation
@@ -649,8 +649,14 @@
             }
         }
 
-        function showSingleResult(result, winningPrize) {
+        function showSingleResult(result, winningPrize, winningIndex) {
             const resultDiv = document.getElementById('result');
+
+            // Get the ACTUAL prize from the wheel segment
+            const actualPrize = prizes[winningIndex];
+            const displayText = actualPrize.display;
+
+            console.log('Showing result for segment:', winningIndex, 'Prize:', displayText);
 
             if (result.milestone_prize) {
                 resultDiv.innerHTML = `
@@ -659,14 +665,14 @@
                     💰 ${result.milestone_prize.chips} CHIPS!<br>
                     <small>⏳ Pending approval</small>
                 `;
-            } else if (winningPrize === "Try Again") {
+            } else if (actualPrize.name === "Try Again!") {
                 resultDiv.innerHTML = `
                     🔄 <strong>Try Again!</strong><br>
                     <small>Better luck next spin!</small>
                 `;
             } else {
                 resultDiv.innerHTML = `
-                    🎉 You won: <strong>${winningPrize}</strong><br>
+                    🎉 You won: <strong>${displayText}</strong><br>
                     <small>Keep spinning!</small>
                 `;
             }
