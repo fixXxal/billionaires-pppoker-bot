@@ -316,37 +316,46 @@ def spin():
                 'chips': chips  # Store chips for notification later
             })
 
-            # Log to Google Sheets
-            sheets.log_spin_history(user_id, username, prize_display, chips, pppoker_id)
+            # Log to Google Sheets (in background to not block response)
+            import threading
+            threading.Thread(
+                target=sheets.log_spin_history,
+                args=(user_id, username, prize_display, chips, pppoker_id),
+                daemon=True
+            ).start()
 
         # Update user spins
         new_available = available_spins - spin_count
         total_used = user_data.get('total_spins_used', 0) + spin_count
 
-        sheets.update_spin_user(
-            user_id=user_id,
-            available_spins=new_available,
-            total_spins_used=total_used
-        )
+        # Update in background thread (Google Sheets is slow)
+        def update_user_data():
+            sheets.update_spin_user(
+                user_id=user_id,
+                available_spins=new_available,
+                total_spins_used=total_used
+            )
+            # Invalidate cache after update completes
+            invalidate_user_cache(user_id)
 
-        # Invalidate cache after updating user data
-        invalidate_user_cache(user_id)
+        threading.Thread(target=update_user_data, daemon=True).start()
 
-        # Send notifications AFTER all spins are processed
-        # This ensures user sees notification after animation completes
+        # Send notifications AFTER all spins are processed (in background - non-blocking)
         total_chips_won = sum(r.get('chips', 0) for r in results if isinstance(r, dict) and r.get('chips', 0) > 0)
 
         if total_chips_won > 0:
-            logger.info(f"💰 Total chips won: {total_chips_won} - Sending notifications")
-            try:
-                # Notify user about their total winnings
-                asyncio.run(notify_user_win(user_id, username, f"{total_chips_won} Chips", total_chips_won))
-                # Notify admin
-                asyncio.run(notify_admin(user_id, username, f"{total_chips_won} Chips Total", total_chips_won, pppoker_id))
-            except Exception as e:
-                logger.error(f"❌ Failed to send notifications: {e}")
-                import traceback
-                traceback.print_exc()
+            logger.info(f"💰 Total chips won: {total_chips_won} - Queuing notifications")
+            # Run notifications in background thread to not block the response
+            import threading
+            def send_notifications():
+                try:
+                    asyncio.run(notify_user_win(user_id, username, f"{total_chips_won} Chips", total_chips_won))
+                    asyncio.run(notify_admin(user_id, username, f"{total_chips_won} Chips Total", total_chips_won, pppoker_id))
+                except Exception as e:
+                    logger.error(f"❌ Failed to send notifications: {e}")
+
+            threading.Thread(target=send_notifications, daemon=True).start()
+            logger.info(f"✅ Notifications queued in background")
 
         # Build response
         response = {
