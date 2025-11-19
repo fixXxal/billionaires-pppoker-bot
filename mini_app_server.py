@@ -123,7 +123,7 @@ def get_spins():
 
 @app.route('/api/spin', methods=['POST'])
 def spin():
-    """Process a spin request"""
+    """Process a spin request - NEW CLEAN VERSION FOR MINI APP"""
     try:
         data = request.json
         user_id = data.get('user_id')
@@ -133,78 +133,84 @@ def spin():
             return jsonify({'error': 'Missing user_id'}), 400
 
         # Lazy load sheets manager
-        sheets, spin_bot = get_sheets_manager()
+        sheets, _ = get_sheets_manager()
 
-        # Validate Telegram Web App data (optional but recommended)
-        init_data = data.get('init_data')
-        # TODO: Validate init_data using Telegram's validation method
+        # Get user data
+        user_data = sheets.get_spin_user(user_id)
 
-        # Get username from Telegram (fallback to Unknown)
-        username = "Unknown"
-        try:
-            # In a real implementation, extract from init_data
-            user_data = sheets.get_spin_user(user_id)
-            if user_data:
-                username = user_data.get('username', 'Unknown')
-        except:
-            pass
+        if not user_data:
+            return jsonify({
+                'success': False,
+                'message': "You don't have any spins available!"
+            }), 400
 
-        # Process the spin using existing spin_bot logic
-        import asyncio
-        result = asyncio.run(spin_bot.process_spin(user_id, username, spin_count))
+        available_spins = user_data.get('available_spins', 0)
+        username = user_data.get('username', 'Unknown')
+        pppoker_id = user_data.get('pppoker_id', '')
 
-        if not result['success']:
-            return jsonify(result), 400
+        if available_spins < spin_count:
+            return jsonify({
+                'success': False,
+                'message': f"You only have {available_spins} spin(s) available!"
+            }), 400
 
-        # Format response for Mini App
-        response = {
-            'success': True,
-            'available_spins': result['available_spins'],
-            'total_spins_used': result['total_spins_used'],
-            'total_chips_earned': result['total_chips_earned']
+        # NEW CLEAN SPIN LOGIC
+        import random
+
+        # Define wheel prizes matching frontend exactly
+        wheel_prizes = [
+            "500", "Try Again", "50", "iPhone", "20", "Try Again",
+            "100", "MacBook", "10", "Try Again", "250", "AirPods",
+            "20", "Try Again", "50", "Watch"
+        ]
+
+        # Prize pool with weights (only chips and Try Again - no Apple products)
+        prize_pool = {
+            "Try Again": 60,  # 60% chance
+            "10": 15,         # 15%
+            "20": 12,         # 12%
+            "50": 8,          # 8%
+            "100": 3,         # 3%
+            "250": 1.5,       # 1.5%
+            "500": 0.5        # 0.5%
         }
 
-        # Add display prize (for animation)
-        if result.get('results') and len(result['results']) > 0:
-            response['display_prize'] = result['results'][0]['prize']
+        results = []
 
-        # Add milestone prize if won
-        if result.get('milestone_prize'):
-            response['milestone_prize'] = result['milestone_prize']
+        for i in range(spin_count):
+            # Pick prize based on weights
+            choices = list(prize_pool.keys())
+            weights = list(prize_pool.values())
+            won_prize = random.choices(choices, weights=weights, k=1)[0]
 
-            # Send instant notification to admin
-            try:
-                user_data = sheets.get_spin_user(user_id)
-                pppoker_id = user_data.get('pppoker_id', '') if user_data else ''
+            results.append({
+                'prize': won_prize if won_prize == "Try Again" else f"{won_prize} Chips",
+                'segment_index': get_segment_for_prize(won_prize, wheel_prizes)
+            })
 
-                asyncio.run(send_admin_notification(
-                    user_id=user_id,
-                    username=username,
-                    prize_name=result['milestone_prize']['name'],
-                    chips=result['milestone_prize']['chips'],
-                    pppoker_id=pppoker_id
-                ))
-            except Exception as e:
-                logger.error(f"Failed to send admin notification: {e}")
+        # Update user spins
+        new_available = available_spins - spin_count
+        total_spins_used = user_data.get('total_spins_used', 0) + spin_count
 
-        # Add surprise chips if won
-        if result.get('got_surprise'):
-            response['surprise_chips'] = result['surprise_chips']
+        sheets.update_spin_user(
+            user_id=user_id,
+            available_spins=new_available,
+            total_spins_used=total_spins_used
+        )
 
-            # Send notification for surprise reward too
-            try:
-                user_data = sheets.get_spin_user(user_id)
-                pppoker_id = user_data.get('pppoker_id', '') if user_data else ''
+        # Build response
+        response = {
+            'success': True,
+            'available_spins': new_available,
+            'total_spins_used': total_spins_used,
+            'total_chips_earned': user_data.get('total_chips_earned', 0),
+            'results': results
+        }
 
-                asyncio.run(send_admin_notification(
-                    user_id=user_id,
-                    username=username,
-                    prize_name="Surprise Reward",
-                    chips=result['surprise_chips'],
-                    pppoker_id=pppoker_id
-                ))
-            except Exception as e:
-                logger.error(f"Failed to send admin notification: {e}")
+        # For single spin, return display_prize
+        if spin_count == 1:
+            response['display_prize'] = results[0]['prize']
+            response['segment_index'] = results[0]['segment_index']
 
         logger.info(f"Spin successful for user {user_id}: {response}")
         return jsonify(response)
@@ -214,6 +220,13 @@ def spin():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e), 'success': False}), 500
+
+
+def get_segment_for_prize(prize, wheel_prizes):
+    """Get random segment index for a prize (handles duplicates)"""
+    import random
+    matching_indices = [i for i, p in enumerate(wheel_prizes) if p == prize]
+    return random.choice(matching_indices) if matching_indices else 0
 
 
 if __name__ == '__main__':
