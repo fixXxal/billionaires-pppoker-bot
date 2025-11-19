@@ -560,19 +560,24 @@
                 if (spinCount === 1) {
                     const winningPrize = result.display_prize || prizes[0].display;
 
-                    // Map the prize to segment index
-                    let winningIndex = 0;
+                    // Map the prize to segment index (based on prizes array order)
+                    let winningIndex = 1; // Default to Try Again
+
                     if (winningPrize.includes("500")) winningIndex = 0;
-                    else if (winningPrize.includes("100")) winningIndex = 6;
-                    else if (winningPrize.includes("AirPods")) winningIndex = 11;
-                    else if (winningPrize.includes("20")) winningIndex = 4;
-                    else if (winningPrize.includes("50")) winningIndex = 2;
+                    else if (winningPrize.includes("50")) winningIndex = 2; // or 14
                     else if (winningPrize.includes("iPhone")) winningIndex = 3;
-                    else if (winningPrize.includes("250")) winningIndex = 10;
-                    else if (winningPrize.includes("10")) winningIndex = 8;
+                    else if (winningPrize.includes("20")) winningIndex = 4; // or 12
+                    else if (winningPrize.includes("100")) winningIndex = 6;
                     else if (winningPrize.includes("MacBook")) winningIndex = 7;
+                    else if (winningPrize.includes("10")) winningIndex = 8;
+                    else if (winningPrize.includes("250")) winningIndex = 10;
+                    else if (winningPrize.includes("AirPods")) winningIndex = 11;
                     else if (winningPrize.includes("Watch")) winningIndex = 15;
-                    else winningIndex = 1; // Try Again
+                    else if (winningPrize.includes("Try Again")) {
+                        // Randomly pick one of the Try Again segments
+                        const tryAgainIndices = [1, 5, 9, 13];
+                        winningIndex = tryAgainIndices[Math.floor(Math.random() * tryAgainIndices.length)];
+                    }
 
                     const sliceAngle = 360 / prizes.length;
                     const targetAngle = -(winningIndex * sliceAngle) + (sliceAngle / 2);
