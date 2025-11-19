@@ -19,7 +19,8 @@
       "Bash(command -v:*)",
       "Bash(chmod:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

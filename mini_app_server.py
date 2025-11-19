@@ -11,6 +11,9 @@ from dotenv import load_dotenv
 from sheets_manager import SheetsManager
 from spin_bot import SpinBot
 import pytz
+import asyncio
+from telegram import Bot
+from telegram.error import TelegramError
 
 # Load environment variables
 load_dotenv()
@@ -30,19 +33,46 @@ ADMIN_USER_ID = int(os.getenv('ADMIN_USER_ID'))
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
 SPREADSHEET_NAME = os.getenv('SPREADSHEET_NAME', 'Billionaires_PPPoker_Bot')
 CREDENTIALS_FILE = os.getenv('GOOGLE_SHEETS_CREDENTIALS_FILE', 'credentials.json')
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 # Don't initialize sheets on startup to avoid rate limits
 # Will be initialized on first request
 sheets = None
 spin_bot = None
+bot = None
 
 def get_sheets_manager():
     """Lazy load sheets manager"""
-    global sheets, spin_bot
+    global sheets, spin_bot, bot
     if sheets is None:
         sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
         spin_bot = SpinBot(sheets, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
+        bot = Bot(token=BOT_TOKEN)
     return sheets, spin_bot
+
+
+async def send_admin_notification(user_id: int, username: str, prize_name: str, chips: int, pppoker_id: str = ""):
+    """Send notification to admin when user wins a milestone prize"""
+    try:
+        message = (
+            f"🎊 <b>MILESTONE PRIZE WON!</b> 🎊\n\n"
+            f"👤 User: {username} (ID: {user_id})\n"
+            f"🎁 Prize: {prize_name}\n"
+            f"💰 Chips: {chips}\n"
+            f"🎮 PPPoker ID: {pppoker_id or 'Not set'}\n\n"
+            f"⏳ <b>Pending Approval</b>\n"
+            f"Use /pendingspins to review and approve"
+        )
+
+        await bot.send_message(
+            chat_id=ADMIN_USER_ID,
+            text=message,
+            parse_mode='HTML'
+        )
+        logger.info(f"Admin notification sent for user {user_id} winning {prize_name}")
+
+    except TelegramError as e:
+        logger.error(f"Failed to send admin notification: {e}")
 
 
 @app.route('/')
@@ -142,9 +172,39 @@ def spin():
         if result.get('milestone_prize'):
             response['milestone_prize'] = result['milestone_prize']
 
+            # Send instant notification to admin
+            try:
+                user_data = sheets.get_spin_user(user_id)
+                pppoker_id = user_data.get('pppoker_id', '') if user_data else ''
+
+                asyncio.run(send_admin_notification(
+                    user_id=user_id,
+                    username=username,
+                    prize_name=result['milestone_prize']['name'],
+                    chips=result['milestone_prize']['chips'],
+                    pppoker_id=pppoker_id
+                ))
+            except Exception as e:
+                logger.error(f"Failed to send admin notification: {e}")
+
         # Add surprise chips if won
         if result.get('got_surprise'):
             response['surprise_chips'] = result['surprise_chips']
+
+            # Send notification for surprise reward too
+            try:
+                user_data = sheets.get_spin_user(user_id)
+                pppoker_id = user_data.get('pppoker_id', '') if user_data else ''
+
+                asyncio.run(send_admin_notification(
+                    user_id=user_id,
+                    username=username,
+                    prize_name="Surprise Reward",
+                    chips=result['surprise_chips'],
+                    pppoker_id=pppoker_id
+                ))
+            except Exception as e:
+                logger.error(f"Failed to send admin notification: {e}")
 
         logger.info(f"Spin successful for user {user_id}: {response}")
         return jsonify(response)
