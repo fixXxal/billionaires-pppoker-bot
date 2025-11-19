@@ -158,35 +158,35 @@ def spin():
         import random
 
         # Define wheel prizes matching frontend EXACTLY (must be same order as frontend prizes array!)
-        # Frontend: 500, Try Again, 50, iPhone, 20, Try Again, 100, MacBook, 10, Try Again, 250, AirPods, 20, Try Again, 50, Watch
+        # Frontend: 500, Try Again!, 50, iPhone, 20, Try Again!, 100, MacBook, 10, Try Again!, 250, AirPods, 20, Try Again!, 50, Watch
         wheel_prizes = [
-            "500",        # 0
-            "Try Again",  # 1
-            "50",         # 2
-            "iPhone",     # 3
-            "20",         # 4
-            "Try Again",  # 5
-            "100",        # 6
-            "MacBook",    # 7
-            "10",         # 8
-            "Try Again",  # 9
-            "250",        # 10
-            "AirPods",    # 11
-            "20",         # 12
-            "Try Again",  # 13
-            "50",         # 14
-            "Watch"       # 15
+            "500",         # 0
+            "Try Again!",  # 1
+            "50",          # 2
+            "iPhone",      # 3
+            "20",          # 4
+            "Try Again!",  # 5
+            "100",         # 6
+            "MacBook",     # 7
+            "10",          # 8
+            "Try Again!",  # 9
+            "250",         # 10
+            "AirPods",     # 11
+            "20",          # 12
+            "Try Again!",  # 13
+            "50",          # 14
+            "Watch"        # 15
         ]
 
-        # Prize pool with weights (only chips and Try Again - no Apple products)
+        # Prize pool with weights (only chips and Try Again! - no Apple products)
         prize_pool = {
-            "Try Again": 60,  # 60% chance
-            "10": 15,         # 15%
-            "20": 12,         # 12%
-            "50": 8,          # 8%
-            "100": 3,         # 3%
-            "250": 1.5,       # 1.5%
-            "500": 0.5        # 0.5%
+            "Try Again!": 60,  # 60% chance
+            "10": 15,          # 15%
+            "20": 12,          # 12%
+            "50": 8,           # 8%
+            "100": 3,          # 3%
+            "250": 1.5,        # 1.5%
+            "500": 0.5         # 0.5%
         }
 
         results = []
@@ -197,8 +197,8 @@ def spin():
             weights = list(prize_pool.values())
             won_prize = random.choices(choices, weights=weights, k=1)[0]
 
-            prize_display = won_prize if won_prize == "Try Again" else f"{won_prize} Chips"
-            chips_amount = 0 if won_prize == "Try Again" else int(won_prize)
+            prize_display = won_prize if won_prize == "Try Again!" else f"{won_prize} Chips"
+            chips_amount = 0 if won_prize == "Try Again!" else int(won_prize)
 
             results.append({
                 'prize': prize_display,
