@@ -564,31 +564,40 @@
                 if (spinCount === 1) {
                     const winningPrize = result.display_prize || prizes[0].display;
 
-                    // Map the prize to segment index
-                    // Wheel order: [500, Try, 50, iPhone, 20, Try, 100, MacBook, 10, Try, 250, AirPods, 20, Try, 50, Watch]
-                    let winningIndex = 1; // Default to Try Again
+                    console.log('Searching for prize:', winningPrize);
 
-                    // Check for exact chip amounts (order matters - check 500 before 50, 250 before 50, etc)
-                    if (winningPrize.includes("500")) {
-                        winningIndex = 0;
-                    } else if (winningPrize.includes("250")) {
-                        winningIndex = 10;
-                    } else if (winningPrize.includes("100")) {
-                        winningIndex = 6;
-                    } else if (winningPrize.includes("50")) {
-                        // Randomly choose between two 50 segments
-                        winningIndex = Math.random() < 0.5 ? 2 : 14;
-                    } else if (winningPrize.includes("20")) {
-                        // Randomly choose between two 20 segments
-                        winningIndex = Math.random() < 0.5 ? 4 : 12;
-                    } else if (winningPrize.includes("10")) {
-                        winningIndex = 8;
-                    } else if (winningPrize.includes("Try Again")) {
-                        // Randomly pick one of the Try Again segments
-                        const tryAgainIndices = [1, 5, 9, 13];
-                        winningIndex = tryAgainIndices[Math.floor(Math.random() * tryAgainIndices.length)];
+                    // Find ALL matching segments
+                    const matchingIndices = [];
+
+                    for (let i = 0; i < prizes.length; i++) {
+                        const prize = prizes[i];
+
+                        // Exact matching logic
+                        if (winningPrize.includes("Try Again") && prize.name === "Try Again!") {
+                            matchingIndices.push(i);
+                        } else if (winningPrize.includes("500") && prize.name === "500") {
+                            matchingIndices.push(i);
+                        } else if (winningPrize.includes("250") && prize.name === "250") {
+                            matchingIndices.push(i);
+                        } else if (winningPrize.includes("100") && prize.name === "100") {
+                            matchingIndices.push(i);
+                        } else if (winningPrize.includes("50") && prize.name === "50") {
+                            matchingIndices.push(i);
+                        } else if (winningPrize.includes("20") && prize.name === "20") {
+                            matchingIndices.push(i);
+                        } else if (winningPrize.includes("10") && prize.name === "10") {
+                            matchingIndices.push(i);
+                        }
                     }
-                    // Note: Apple products (iPhone, MacBook, AirPods, Watch) will never be returned by backend
+
+                    // Pick random index from matches, or default to first Try Again
+                    let winningIndex = matchingIndices.length > 0
+                        ? matchingIndices[Math.floor(Math.random() * matchingIndices.length)]
+                        : 1;
+
+                    console.log('Matching indices:', matchingIndices);
+                    console.log('Selected index:', winningIndex);
+                    console.log('Will show prize:', prizes[winningIndex].display)
 
                     const sliceAngle = 360 / prizes.length;
                     const targetAngle = -(winningIndex * sliceAngle) + (sliceAngle / 2);
