@@ -51,6 +51,12 @@ def serve_mini_app():
     return send_from_directory('.', 'spin_wheel.html')
 
 
+@app.route('/spinnsimgss/<path:filename>')
+def serve_images(filename):
+    """Serve product images"""
+    return send_from_directory('spinnsimgss', filename)
+
+
 @app.route('/api/get_spins', methods=['POST'])
 def get_spins():
     """Get user's available spins"""

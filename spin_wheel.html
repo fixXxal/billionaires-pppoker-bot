@@ -325,6 +325,12 @@
                 if (prize.isImage && prize.imgSrc) {
                     const img = new Image();
                     img.src = prize.imgSrc;
+                    img.onload = function() {
+                        console.log('✅ Image loaded:', prize.imgSrc);
+                    };
+                    img.onerror = function() {
+                        console.error('❌ Image failed to load:', prize.imgSrc);
+                    };
                     images[prize.name] = img;
                 }
             });
@@ -449,7 +455,7 @@
                 } else if (prize.isImage) {
                     // Draw actual product image if loaded
                     const img = images[prize.name];
-                    if (img && img.complete) {
+                    if (img && img.complete && img.naturalWidth > 0) {
                         const imgSize = 55;
                         const imgX = radius * 0.65 - imgSize / 2;
                         const imgY = -imgSize / 2;
@@ -462,12 +468,24 @@
                         ctx.drawImage(img, imgX, imgY, imgSize, imgSize);
                         ctx.restore();
                     } else {
-                        // Fallback to text if image not loaded
+                        // Fallback: draw colored circle with product emoji/text
+                        ctx.beginPath();
+                        ctx.arc(radius * 0.65, 0, 25, 0, 2 * Math.PI);
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                        ctx.fill();
+
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillStyle = prize.textColor;
-                        ctx.font = 'bold 14px Arial';
-                        ctx.fillText(prize.display.split(' ')[0], radius * 0.65, 0);
+                        ctx.font = 'bold 12px Arial';
+
+                        // Show product icon
+                        const displayText = prize.name === 'iphone' ? '📱' :
+                                          prize.name === 'macbook' ? '💻' :
+                                          prize.name === 'airpods' ? '🎧' :
+                                          prize.name === 'watch' ? '⌚' : '?';
+                        ctx.font = '28px Arial';
+                        ctx.fillText(displayText, radius * 0.65, 0);
                     }
                 } else {
                     // Draw poker chip + number
