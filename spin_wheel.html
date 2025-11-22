@@ -469,6 +469,9 @@
                     return;
                 }
 
+                // DEBUG: Log complete backend response
+                console.log('📨 BACKEND RESPONSE:', JSON.stringify(result, null, 2));
+
                 // Animate spins
                 await animateSpins(result.results);
 
@@ -501,16 +504,18 @@
                 const prize = prizes[segmentIndex];
 
                 console.log(`\n🎲 Spin ${i + 1}/${results.length}:`);
-                console.log(`   Backend says: segment ${segmentIndex}`);
-                console.log(`   Prize array[${segmentIndex}]: "${prizes[segmentIndex].name}"`);
-                console.log(`   Should display: "${prizes[segmentIndex].display}"`);
+                console.log(`   ⚠️ BACKEND SELECTED: segment ${segmentIndex}`);
+                console.log(`   ⚠️ BACKEND PRIZE: "${prizes[segmentIndex].name}"`);
+                console.log(`   ⚠️ SHOULD DISPLAY: "${prizes[segmentIndex].display}"`);
+                console.log(`   ⚠️ WATCH THE WHEEL - Does it stop on "${prizes[segmentIndex].display}"?`);
 
                 // DEBUG: Print all segments for verification
                 if (i === 0) {
-                    console.log('\n📋 SEGMENT MAP:');
+                    console.log('\n📋 COMPLETE SEGMENT MAP (count from top clockwise):');
                     prizes.forEach((p, idx) => {
-                        console.log(`   ${idx}: ${p.name}`);
+                        console.log(`   Segment ${idx}: ${p.name} (${p.display})`);
                     });
+                    console.log('\n');
                 }
 
                 // COMPLETE REWRITE - Match canvas drawing exactly
@@ -545,15 +550,33 @@
                 const totalRotation = (360 * rotations) + targetAngle;
                 currentRotation += totalRotation;
 
-                console.log(`   Segment ${segmentIndex} center is at: ${segmentCenterAngle.toFixed(2)}°`);
-                console.log(`   Need to rotate wheel by: ${targetAngle.toFixed(2)}°`);
-                console.log(`   Total with spins: ${totalRotation.toFixed(2)}°`);
-                console.log(`   Final rotation: ${currentRotation.toFixed(2)}°`);
+                console.log(`   📐 Segment ${segmentIndex} center naturally at: ${segmentCenterAngle.toFixed(2)}°`);
+                console.log(`   🔄 Rotating wheel by: ${targetAngle.toFixed(2)}°`);
+                console.log(`   🌀 Total rotation (with ${rotations} full spins): ${totalRotation.toFixed(2)}°`);
+                console.log(`   📍 Cumulative rotation: ${currentRotation.toFixed(2)}°`);
 
-                // VERIFY
+                // VERIFY where pointer will land
                 const finalPos = ((currentRotation % 360) + 360) % 360;
-                console.log(`   🎯 Final position: ${finalPos.toFixed(2)}°`);
-                console.log(`   🎯 Should point at: segment ${segmentIndex} (${prizes[segmentIndex].name})\n`);
+                console.log(`   \n   ✅ EXPECTED: Wheel stops with segment ${segmentIndex} at top`);
+                console.log(`   ✅ EXPECTED PRIZE: ${prizes[segmentIndex].display}`);
+
+                // Calculate where we THINK segment will land
+                const finalAngle = ((currentRotation % 360) + 360) % 360;
+                // Reverse calculation: if finalAngle = 78.75 - (seg * 22.5), then seg = (78.75 - finalAngle) / 22.5
+                let expectedSegmentAtTop = (78.75 - finalAngle) / 22.5;
+                // Handle negative segments by adding 16 until positive
+                while (expectedSegmentAtTop < 0) expectedSegmentAtTop += 16;
+                // Handle segments >= 16 by wrapping
+                expectedSegmentAtTop = Math.round(expectedSegmentAtTop % 16);
+                console.log(`   🔍 VERIFICATION: After ${currentRotation.toFixed(2)}° rotation:`);
+                console.log(`      Final position: ${finalAngle.toFixed(2)}°`);
+                console.log(`      Calculated segment at top: ${expectedSegmentAtTop}`);
+                console.log(`      That segment contains: "${prizes[expectedSegmentAtTop].display}"`);
+
+                console.log(`   \n   ⚠️ AFTER SPIN COMPLETES, PLEASE TELL ME:`);
+                console.log(`   ⚠️ 1. Which segment is at the top pointer? (count 0-15 from top clockwise)`);
+                console.log(`   ⚠️ 2. What prize message do you see?`);
+                console.log(`   ⚠️ 3. Does it match "${prizes[segmentIndex].display}"?\n`);
 
                 // Show suspense with glow effect
                 resultDiv.style.display = 'flex';
