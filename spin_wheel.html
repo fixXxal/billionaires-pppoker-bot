@@ -218,10 +218,8 @@
             border-radius: 50%;
             cursor: pointer;
             font-size: 20px;
+            line-height: 1;
             color: #666;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             transition: all 0.2s;
         }
 
@@ -552,6 +550,10 @@
 
             spinning = true;
             updateButtons();
+
+            // Hide popup if visible
+            const popupOverlay = document.getElementById('popupOverlay');
+            if (popupOverlay) popupOverlay.classList.remove('show');
             document.getElementById('result').style.display = 'none';
 
             try {
@@ -590,8 +592,23 @@
                 updateButtons();
 
             } catch (error) {
-                console.error('Spin error:', error);
-                alert('Error spinning!');
+                console.error('❌ Spin error:', error);
+                console.error('❌ Error stack:', error.stack);
+
+                // Show error in popup instead of alert
+                const resultContent = document.getElementById('resultContent');
+                const popupOverlay = document.getElementById('popupOverlay');
+                const resultDiv = document.getElementById('result');
+
+                resultContent.innerHTML = `
+                    <div style="font-size: 3em; margin-bottom: 10px;">❌</div>
+                    <div style="font-size: 1.3em; font-weight: bold; color: #f5576c; margin-bottom: 10px;">Error!</div>
+                    <div style="color: #666;">${error.message || 'Failed to spin. Please try again.'}</div>
+                `;
+
+                resultDiv.style.display = 'block';
+                popupOverlay.classList.add('show');
+
                 spinning = false;
                 updateButtons();
             }
@@ -730,10 +747,14 @@
 
         // ========== CLOSE POPUP ==========
         function closePopup(event) {
-            // If clicking outside the popup or on close button
-            if (!event || event.target.id === 'popupOverlay' || event.target.classList.contains('close-popup') || event.target.classList.contains('ok-button')) {
-                const popupOverlay = document.getElementById('popupOverlay');
-                const resultDiv = document.getElementById('result');
+            const popupOverlay = document.getElementById('popupOverlay');
+            const resultDiv = document.getElementById('result');
+
+            // Close if: no event (direct call), clicking overlay, or clicking close/ok buttons
+            if (!event ||
+                event.target.id === 'popupOverlay' ||
+                event.target.classList.contains('close-popup') ||
+                event.target.classList.contains('ok-button')) {
 
                 popupOverlay.classList.remove('show');
                 setTimeout(() => {
