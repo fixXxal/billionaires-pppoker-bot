@@ -230,6 +230,7 @@
         }, { passive: false });
 
         // ========== PRIZE CONFIGURATION ==========
+        // PRIZE CONFIGURATION - 16 segments (4 are display-only, never winnable)
         const prizes = [
             { name: "500", display: "500 Chips", color: "#FFD700", textColor: "#000" },
             { name: "Try Again!", display: "Try Again!", color: "#FF6B6B", textColor: "#fff" },
@@ -512,33 +513,47 @@
                     });
                 }
 
-                // CORRECT ROTATION - FIXED FOR 180° OFFSET
-                const sliceAngle = 360 / prizes.length;  // 22.5° for 16 segments
+                // COMPLETE REWRITE - Match canvas drawing exactly
+                const numSegments = prizes.length;
+                const sliceAngleRad = (2 * Math.PI) / numSegments;  // In RADIANS like canvas
+                const sliceAngleDeg = 360 / numSegments;  // 22.5° for degrees
 
-                // The issue: wheel lands opposite side (180° off)
-                // Solution: Add 180° to the rotation
+                // CANVAS DRAWS segments like this (line 310):
+                // Segment i starts at: (i * sliceAngleRad - Math.PI/2)
+                //
+                // In degrees:
+                // Segment 0 starts at: 0 * 22.5° - 90° = -90° (top, 12 o'clock)
+                // Segment 1 starts at: 1 * 22.5° - 90° = -67.5°
+                // Segment 2 starts at: 2 * 22.5° - 90° = -45°
+                // etc.
 
-                // Segment N center in drawing: (N * sliceAngle) - 78.75°
-                // To point at segment N: rotate by negative of center angle + 180°
+                // The CENTER of segment i is at its start + half a slice:
+                // Center = (i * 22.5° - 90°) + 11.25° = i * 22.5° - 78.75°
 
-                const segmentCenter = (segmentIndex * sliceAngle) - 78.75;
-                const targetAngle = -segmentCenter + 180;  // ADD 180° to flip to correct side
+                // The POINTER is at the top (0° in CSS rotation)
+                // To make segment N's center align with pointer at 0°:
+                // We need to rotate the wheel so that angle becomes 0°
+
+                // Current segment center angle: (segmentIndex * 22.5° - 78.75°)
+                // To bring this to 0°, rotate by: 0° - (segmentIndex * 22.5° - 78.75°)
+                //                                = 78.75° - segmentIndex * 22.5°
+
+                const segmentCenterAngle = (segmentIndex * sliceAngleDeg) - 78.75;
+                const targetAngle = 78.75 - (segmentIndex * sliceAngleDeg);
 
                 const rotations = results.length === 1 ? 5 : 3;
                 const totalRotation = (360 * rotations) + targetAngle;
                 currentRotation += totalRotation;
 
-                console.log(`   Segment ${segmentIndex} natural center: ${segmentCenter.toFixed(2)}°`);
-                console.log(`   Rotate wheel by: ${targetAngle.toFixed(2)}°`);
-                console.log(`   With ${rotations} full rotations: ${totalRotation.toFixed(2)}°`);
-                console.log(`   Final cumulative rotation: ${currentRotation.toFixed(2)}°`);
+                console.log(`   Segment ${segmentIndex} center is at: ${segmentCenterAngle.toFixed(2)}°`);
+                console.log(`   Need to rotate wheel by: ${targetAngle.toFixed(2)}°`);
+                console.log(`   Total with spins: ${totalRotation.toFixed(2)}°`);
+                console.log(`   Final rotation: ${currentRotation.toFixed(2)}°`);
 
-                // VERIFICATION: Where will the pointer land?
-                const finalAngle = (currentRotation % 360 + 360) % 360; // Normalize to 0-360
-                const adjustedAngle = (finalAngle - 180 + 78.75 + 360) % 360; // Account for 180° offset
-                const pointerLandsOnSegment = Math.round(adjustedAngle / sliceAngle) % prizes.length;
-                console.log(`   🎯 VERIFY: Should land on segment ${segmentIndex} (${prizes[segmentIndex].name})`);
-                console.log(`   🎯 Math says: segment ${pointerLandsOnSegment} (${prizes[pointerLandsOnSegment].name})\n`);
+                // VERIFY
+                const finalPos = ((currentRotation % 360) + 360) % 360;
+                console.log(`   🎯 Final position: ${finalPos.toFixed(2)}°`);
+                console.log(`   🎯 Should point at: segment ${segmentIndex} (${prizes[segmentIndex].name})\n`);
 
                 // Show suspense with glow effect
                 resultDiv.style.display = 'flex';

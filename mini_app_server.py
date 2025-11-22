@@ -262,7 +262,8 @@ def spin():
                 'message': f"You only have {available_spins} spin(s)!"
             }), 400
 
-        # WHEEL PRIZES - MUST match frontend exactly!
+        # WHEEL PRIZES - MUST match frontend exactly! (16 segments)
+        # NOTE: iPhone, MacBook, AirPods, Watch are DISPLAY ONLY - backend never selects them!
         wheel_prizes = [
             "500", "Try Again!", "50", "iPhone", "20", "Try Again!",
             "100", "MacBook", "10", "Try Again!", "250", "AirPods",
