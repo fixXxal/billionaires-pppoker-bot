@@ -126,7 +126,7 @@ async def notify_user_win(user_id: int, username: str, prize: str, chips: int):
 
 
 async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppoker_id: str):
-    """Send notification to admin when user wins chips - with instant approve button"""
+    """Send notification to ALL admins when user wins chips - with instant approve button"""
     try:
         # Import InlineKeyboardButton and InlineKeyboardMarkup
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -146,21 +146,42 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
         )
 
         # Create instant approve button
-        # We'll use a special callback that approves this specific user's pending spins
         keyboard = [
             [InlineKeyboardButton("✅ Approve Now", callback_data=f"approve_instant_{user_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await bot.send_message(
-            chat_id=ADMIN_USER_ID,
-            text=message,
-            parse_mode='HTML',
-            reply_markup=reply_markup
-        )
-        logger.info(f"✅ Admin notified: {username} won {prize}")
+        # Send to super admin
+        try:
+            await bot.send_message(
+                chat_id=ADMIN_USER_ID,
+                text=message,
+                parse_mode='HTML',
+                reply_markup=reply_markup
+            )
+            logger.info(f"✅ Super admin notified: {username} won {prize}")
+        except Exception as e:
+            logger.error(f"❌ Failed to notify super admin: {e}")
+
+        # Send to all regular admins
+        try:
+            admins = sheets.get_all_admins()
+            for admin in admins:
+                try:
+                    await bot.send_message(
+                        chat_id=admin['admin_id'],
+                        text=message,
+                        parse_mode='HTML',
+                        reply_markup=reply_markup
+                    )
+                    logger.info(f"✅ Admin {admin['admin_id']} notified: {username} won {prize}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to notify admin {admin['admin_id']}: {e}")
+        except Exception as e:
+            logger.error(f"❌ Failed to get admin list: {e}")
+
     except TelegramError as e:
-        logger.error(f"❌ Failed to notify admin: {e}")
+        logger.error(f"❌ Failed to notify admins: {e}")
     except Exception as e:
         logger.error(f"❌ Unexpected error in notify_admin: {e}")
 
