@@ -1512,143 +1512,39 @@ class SheetsManager:
             print(f"Error syncing PPPoker ID: {e}")
             return ''
 
-    def log_milestone_reward(self, user_id: int, username: str, milestone_type: str,
-                            milestone_count: int, chips_awarded: int, triggered_at: int, pppoker_id: str = ''):
-        """Log a milestone reward"""
-        try:
-            # Try with PPPoker ID column first
-            try:
-                self.milestone_rewards_sheet.append_row([
-                    user_id,
-                    username,
-                    milestone_type,
-                    milestone_count,
-                    chips_awarded,
-                    triggered_at,
-                    self._get_timestamp(),
-                    'No',  # Approved (default: No)
-                    '',    # Approved By (default: empty)
-                    pppoker_id
-                ])
-            except Exception as col_error:
-                # If that fails (column doesn't exist), try without PPPoker ID
-                print(f"Note: Logging without PPPoker ID column (not yet added): {col_error}")
-                self.milestone_rewards_sheet.append_row([
-                    user_id,
-                    username,
-                    milestone_type,
-                    milestone_count,
-                    chips_awarded,
-                    triggered_at,
-                    self._get_timestamp(),
-                    'No',  # Approved (default: No)
-                    ''     # Approved By (default: empty)
-                ])
-            return True
-        except Exception as e:
-            print(f"Error logging milestone reward: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+    # ========== OLD MILESTONE/SURPRISE REWARD SYSTEM - DELETED ==========
+    # These functions are no longer used. Only Spin History is active now.
+
+    def log_milestone_reward(self, *args, **kwargs):
+        """DEPRECATED - Old milestone system removed"""
+        print("⚠️ Warning: log_milestone_reward called but milestone system is deprecated")
+        return False
 
     def get_pending_milestone_rewards(self) -> List[Dict]:
-        """Get all pending milestone/surprise rewards"""
-        try:
-            all_rows = self.milestone_rewards_sheet.get_all_values()[1:]  # Skip header
-            pending = []
+        """DEPRECATED - Old milestone system removed"""
+        print("⚠️ Warning: get_pending_milestone_rewards called but milestone system is deprecated")
+        return []
 
-            for idx, row in enumerate(all_rows, start=2):  # Start from row 2 (row 1 is header)
-                if len(row) >= 7:
-                    try:
-                        # Check if approved (column 7 = index 7 in 0-based)
-                        approved = row[7] if len(row) > 7 else 'No'
-                        approved_by = row[8] if len(row) > 8 else ''
+    def get_spin_by_id(self, spin_id: str):
+        """DEPRECATED - Old milestone system removed"""
+        print("⚠️ Warning: get_spin_by_id called but milestone system is deprecated")
+        return None
 
-                        # Only show pending (not approved)
-                        if approved != 'Yes':
-                            # Build prize name
-                            milestone_type = row[2] if len(row) > 2 else 'unknown'
-                            chips_awarded = row[4] if len(row) > 4 else '0'
-                            pppoker_id = row[9] if len(row) > 9 else ''
-                            prize_name = f"{chips_awarded} chips ({milestone_type})"
-
-                            pending.append({
-                                'spin_id': str(idx),  # Use row number as ID
-                                'user_id': str(row[0]),
-                                'username': str(row[1]) if len(row) > 1 else 'Unknown',
-                                'prize': prize_name,
-                                'chips': str(chips_awarded),
-                                'date': str(row[6]) if len(row) > 6 else '',
-                                'approved': False,
-                                'approved_by': str(approved_by),
-                                'pppoker_id': str(pppoker_id),
-                                'row': idx
-                            })
-                    except Exception as e:
-                        print(f"Error processing row {idx}: {e}")
-                        continue
-
-            return pending
-        except Exception as e:
-            print(f"Error getting pending spin rewards: {e}")
-            import traceback
-            traceback.print_exc()
-            return []
-
-    def get_spin_by_id(self, spin_id: str) -> Optional[Dict]:
-        """Get milestone reward data by row ID"""
-        try:
-            row_num = int(spin_id)
-            row = self.milestone_rewards_sheet.row_values(row_num)
-
-            if row and len(row) >= 7:
-                approved = row[7] if len(row) > 7 else 'No'
-                approved_by = row[8] if len(row) > 8 else ''
-                pppoker_id = row[9] if len(row) > 9 else ''
-                prize_name = f"{row[4]} chips ({row[2]})"
-
-                return {
-                    'spin_id': spin_id,
-                    'user_id': int(row[0]),
-                    'username': row[1],
-                    'prize': prize_name,
-                    'chips': int(row[4]),
-                    'milestone_type': row[2],
-                    'date': row[6],
-                    'approved': approved == 'Yes',
-                    'approved_by': approved_by,
-                    'pppoker_id': pppoker_id,
-                    'row': row_num
-                }
-            return None
-        except Exception as e:
-            print(f"Error getting spin by ID: {e}")
-            return None
-
-    def approve_spin_reward(self, spin_id: str, admin_id: int, admin_name: str):
-        """Approve a milestone/surprise reward"""
-        try:
-            row_num = int(spin_id)
-            # Add "Yes" to column 8 (Approved) and admin name to column 9 (Approved By)
-            self.milestone_rewards_sheet.update_cell(row_num, 8, 'Yes')
-            self.milestone_rewards_sheet.update_cell(row_num, 9, f"{admin_name}")
-            return True
-        except Exception as e:
-            print(f"Error approving spin reward: {e}")
-            return False
+    # ========== END OF DEPRECATED FUNCTIONS ==========
 
     def get_spin_statistics(self) -> Dict:
-        """Get overall spin statistics"""
+        """Get overall spin statistics - now using Spin History only"""
         try:
             users = self.spin_users_sheet.get_all_values()[1:]  # Skip header
-            rewards = self.milestone_rewards_sheet.get_all_values()[1:]  # Skip header
+            spin_history = self.spin_history_sheet.get_all_values()[1:]  # Skip header - NEW
 
             total_users = len(users)
             total_spins_used = sum(int(row[3]) if len(row) > 3 and row[3] else 0 for row in users)
             total_chips_awarded = sum(int(row[4]) if len(row) > 4 and row[4] else 0 for row in users)
 
-            pending_rewards = len([row for row in rewards if len(row) >= 8 and (row[7] if len(row) > 7 else 'No') == 'No'])
-            approved_rewards = len([row for row in rewards if len(row) >= 8 and (row[7] if len(row) > 7 else 'No') == 'Yes'])
+            # Get pending/approved from Spin History (column 7 = Status: Pending/Approved)
+            pending_rewards = len([row for row in spin_history if len(row) > 6 and row[6] == 'Pending'])
+            approved_rewards = len([row for row in spin_history if len(row) > 6 and row[6] == 'Approved'])
 
             # Top users by spins
             top_users = sorted(
