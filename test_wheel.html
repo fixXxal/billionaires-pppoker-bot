@@ -138,24 +138,24 @@
     </div>
 
     <script>
-        // PRIZE CONFIGURATION - MUST match backend exactly!
+        // PRIZE CONFIGURATION - ALL GREEN COLORS
         const prizes = [
-            { name: "500", display: "500 Chips", color: "#FFD700", textColor: "#000" },
-            { name: "Try Again!", display: "Try Again!", color: "#FF6B6B", textColor: "#fff" },
-            { name: "50", display: "50 Chips", color: "#F38181", textColor: "#fff" },
-            { name: "iPhone", display: "iPhone 17", color: "#FFE66D", textColor: "#000" },
-            { name: "20", display: "20 Chips", color: "#95E1D3", textColor: "#000" },
-            { name: "Try Again!", display: "Try Again!", color: "#9D4EDD", textColor: "#fff" },
-            { name: "100", display: "100 Chips", color: "#4ECDC4", textColor: "#000" },
-            { name: "MacBook", display: "MacBook Pro", color: "#5E60CE", textColor: "#fff" },
-            { name: "10", display: "10 Chips", color: "#457B9D", textColor: "#fff" },
-            { name: "Try Again!", display: "Try Again!", color: "#06D6A0", textColor: "#fff" },
-            { name: "250", display: "250 Chips", color: "#A8DADC", textColor: "#000" },
-            { name: "AirPods", display: "AirPods Pro", color: "#A8E6CF", textColor: "#000" },
-            { name: "20", display: "20 Chips", color: "#95E1D3", textColor: "#000" },
-            { name: "Try Again!", display: "Try Again!", color: "#F4A261", textColor: "#000" },
-            { name: "50", display: "50 Chips", color: "#F38181", textColor: "#fff" },
-            { name: "Watch", display: "Apple Watch", color: "#E63946", textColor: "#fff" }
+            { name: "500", display: "500 Chips", color: "#2D5016", textColor: "#fff" },           // Dark Forest Green
+            { name: "Try Again!", display: "Try Again!", color: "#3D7C47", textColor: "#fff" },   // Medium Forest Green
+            { name: "50", display: "50 Chips", color: "#52A555", textColor: "#fff" },             // Medium Green
+            { name: "iPhone", display: "iPhone 17", color: "#6BCF7E", textColor: "#000" },        // Light Green
+            { name: "20", display: "20 Chips", color: "#8FD99D", textColor: "#000" },             // Pale Green
+            { name: "Try Again!", display: "Try Again!", color: "#1B4D20", textColor: "#fff" },   // Very Dark Green
+            { name: "100", display: "100 Chips", color: "#2E7D32", textColor: "#fff" },           // Dark Green
+            { name: "MacBook", display: "MacBook Pro", color: "#43A047", textColor: "#fff" },     // Green
+            { name: "10", display: "10 Chips", color: "#66BB6A", textColor: "#fff" },             // Light Medium Green
+            { name: "Try Again!", display: "Try Again!", color: "#81C784", textColor: "#000" },   // Lighter Green
+            { name: "250", display: "250 Chips", color: "#A5D6A7", textColor: "#000" },           // Very Light Green
+            { name: "AirPods", display: "AirPods Pro", color: "#C8E6C9", textColor: "#000" },     // Pale Mint Green
+            { name: "20", display: "20 Chips", color: "#1E5128", textColor: "#fff" },             // Deep Forest Green
+            { name: "Try Again!", display: "Try Again!", color: "#4E9F3D", textColor: "#fff" },   // Grass Green
+            { name: "50", display: "50 Chips", color: "#8BC34A", textColor: "#000" },             // Lime Green
+            { name: "Watch", display: "Apple Watch", color: "#AED581", textColor: "#000" }        // Light Lime Green
         ];
 
         let currentRotation = 0;
@@ -187,9 +187,9 @@
             ctx.beginPath();
             ctx.arc(centerX, centerY, size / 2 - 5, 0, 2 * Math.PI);
             const outerGradient = ctx.createRadialGradient(centerX, centerY, size / 2 - 15, centerX, centerY, size / 2 - 5);
-            outerGradient.addColorStop(0, '#FFD700');
-            outerGradient.addColorStop(0.5, '#FFA500');
-            outerGradient.addColorStop(1, '#FF8C00');
+            outerGradient.addColorStop(0, '#2a2a2a');
+            outerGradient.addColorStop(0.5, '#1a1a1a');
+            outerGradient.addColorStop(1, '#000000');
             ctx.fillStyle = outerGradient;
             ctx.fill();
 
@@ -242,9 +242,9 @@
 
             // Center circle
             const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 45);
-            gradient.addColorStop(0, '#FFD700');
-            gradient.addColorStop(0.5, '#FFA500');
-            gradient.addColorStop(1, '#FF8C00');
+            gradient.addColorStop(0, '#2a2a2a');
+            gradient.addColorStop(0.5, '#1a1a1a');
+            gradient.addColorStop(1, '#000000');
 
             ctx.beginPath();
             ctx.arc(centerX, centerY, 45, 0, 2 * Math.PI);
