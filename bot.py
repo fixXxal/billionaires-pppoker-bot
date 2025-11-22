@@ -61,7 +61,7 @@ spin_bot = SpinBot(sheets, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
  DEPOSIT_PROOF, WITHDRAWAL_METHOD, WITHDRAWAL_AMOUNT, WITHDRAWAL_PPPOKER_ID,
  WITHDRAWAL_ACCOUNT_NAME, WITHDRAWAL_ACCOUNT_NUMBER, JOIN_PPPOKER_ID,
  ADMIN_APPROVAL_NOTES, SUPPORT_CHAT, ADMIN_REPLY_MESSAGE, UPDATE_ACCOUNT_METHOD, UPDATE_ACCOUNT_NUMBER, BROADCAST_MESSAGE,
- PROMO_PERCENTAGE, PROMO_START_DATE, PROMO_END_DATE, SEAT_AMOUNT, SEAT_SLIP_UPLOAD) = range(22)
+ PROMO_PERCENTAGE, PROMO_CASHBACK, PROMO_START_DATE, PROMO_END_DATE, SEAT_AMOUNT, SEAT_SLIP_UPLOAD) = range(23)
 
 # Store for live support sessions
 live_support_sessions: Dict[int, int] = {}  # user_id: admin_user_id (which admin is handling this user)
@@ -253,8 +253,9 @@ Select an option to get started:
         keyboard = [
             [KeyboardButton("💰 Deposit"), KeyboardButton("💸 Withdrawal")],
             [KeyboardButton("🪑 Seat"), KeyboardButton("🎮 Join Club")],
-            [KeyboardButton("🎲 Free Spins"), KeyboardButton("💬 Live Support")],
-            [KeyboardButton("📊 My Info"), KeyboardButton("❓ Help")]
+            [KeyboardButton("🎲 Free Spins"), KeyboardButton("💸 Cashback")],
+            [KeyboardButton("💬 Live Support"), KeyboardButton("📊 My Info")],
+            [KeyboardButton("❓ Help")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -1333,6 +1334,183 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
             logger.error(f"Failed to send join notification to admin {admin_id}: {e}")
 
     return ConversationHandler.END
+
+
+# ========== CASHBACK FLOW ==========
+CASHBACK_PPPOKER_ID = 100
+
+async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start cashback request flow"""
+    user = update.effective_user
+
+    # Check if there's an active promotion with cashback
+    promo = sheets.get_active_promotion()
+    if not promo or promo.get('cashback_percentage', 0) <= 0:
+        await update.message.reply_text(
+            "❌ <b>Cashback Not Available</b>\n\n"
+            "Sorry, there is no active cashback promotion at the moment.\n"
+            "Please check back later!",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
+
+    cashback_percentage = promo.get('cashback_percentage')
+
+    # Check eligibility
+    eligibility = sheets.check_cashback_eligibility(user.id, min_loss=500)
+
+    if not eligibility['eligible']:
+        loss_amount = eligibility['loss_amount']
+        min_required = eligibility['min_required']
+
+        await update.message.reply_text(
+            f"❌ <b>Not Eligible for Cashback</b>\n\n"
+            f"📊 Your current loss: <b>{loss_amount:.2f} MVR</b>\n"
+            f"📋 Minimum required: <b>{min_required:.2f} MVR</b>\n\n"
+            f"You need at least <b>{min_required - loss_amount:.2f} MVR</b> more in losses to be eligible for cashback.\n\n"
+            f"💡 <i>Loss = Total Deposits - Total Withdrawals</i>",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
+
+    # User is eligible
+    loss_amount = eligibility['loss_amount']
+    cashback_amount = (loss_amount * cashback_percentage) / 100
+
+    await update.message.reply_text(
+        f"✅ <b>You're Eligible for Cashback!</b>\n\n"
+        f"📊 Your total loss: <b>{loss_amount:.2f} MVR</b>\n"
+        f"💰 Cashback rate: <b>{cashback_percentage}%</b>\n"
+        f"💎 Cashback amount: <b>{cashback_amount:.2f} MVR</b>\n\n"
+        f"📝 Please enter your <b>PPPoker ID</b> to submit your cashback request:",
+        parse_mode='HTML'
+    )
+
+    # Store loss amount and cashback details in context
+    context.user_data['cashback_loss'] = loss_amount
+    context.user_data['cashback_percentage'] = cashback_percentage
+    context.user_data['cashback_amount'] = cashback_amount
+
+    return CASHBACK_PPPOKER_ID
+
+
+async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive PPPoker ID and submit cashback request"""
+    user = update.effective_user
+    pppoker_id = update.message.text.strip()
+
+    # Validate PPPoker ID (basic validation)
+    if not pppoker_id or len(pppoker_id) < 3:
+        await update.message.reply_text(
+            "❌ Invalid PPPoker ID. Please enter a valid PPPoker ID:",
+            parse_mode='HTML'
+        )
+        return CASHBACK_PPPOKER_ID
+
+    # Get cashback details from context
+    loss_amount = context.user_data.get('cashback_loss')
+    cashback_percentage = context.user_data.get('cashback_percentage')
+    cashback_amount = context.user_data.get('cashback_amount')
+
+    # Create cashback request
+    request_id = sheets.create_cashback_request(
+        user_id=user.id,
+        username=user.username or user.first_name,
+        pppoker_id=pppoker_id,
+        loss_amount=loss_amount,
+        cashback_percentage=cashback_percentage
+    )
+
+    if request_id:
+        # Notify user
+        await update.message.reply_text(
+            f"✅ <b>Cashback Request Submitted!</b>\n\n"
+            f"🎫 Request ID: <code>{request_id}</code>\n"
+            f"💰 Cashback amount: <b>{cashback_amount:.2f} MVR</b>\n"
+            f"🎮 PPPoker ID: <b>{pppoker_id}</b>\n\n"
+            f"⏳ Your request is pending admin approval.\n"
+            f"You'll receive a notification once it's processed!",
+            parse_mode='HTML'
+        )
+
+        # Notify all admins
+        asyncio.create_task(notify_admins_cashback_request(
+            user_id=user.id,
+            username=user.username or user.first_name,
+            request_id=request_id,
+            loss_amount=loss_amount,
+            cashback_percentage=cashback_percentage,
+            cashback_amount=cashback_amount,
+            pppoker_id=pppoker_id
+        ))
+
+    else:
+        await update.message.reply_text(
+            "❌ <b>Error</b>\n\nFailed to submit cashback request. Please try again later.",
+            parse_mode='HTML'
+        )
+
+    # Clear context data
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
+async def notify_admins_cashback_request(user_id: int, username: str, request_id: str,
+                                        loss_amount: float, cashback_percentage: float,
+                                        cashback_amount: float, pppoker_id: str):
+    """Notify all admins about new cashback request"""
+    try:
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+        message = (
+            f"💸 <b>CASHBACK REQUEST</b> 💸\n\n"
+            f"👤 User: {username} (ID: {user_id})\n"
+            f"🎫 Request ID: <code>{request_id}</code>\n\n"
+            f"📊 Loss Amount: <b>{loss_amount:.2f} MVR</b>\n"
+            f"💰 Cashback Rate: <b>{cashback_percentage}%</b>\n"
+            f"💎 Cashback Amount: <b>{cashback_amount:.2f} MVR</b>\n"
+            f"🎮 PPPoker ID: <b>{pppoker_id}</b>"
+        )
+
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Approve", callback_data=f"cashback_approve_{user_id}"),
+                InlineKeyboardButton("❌ Reject", callback_data=f"cashback_reject_{user_id}")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Send to super admin
+        try:
+            await application.bot.send_message(
+                chat_id=ADMIN_USER_ID,
+                text=message,
+                parse_mode='HTML',
+                reply_markup=reply_markup
+            )
+            logger.info(f"✅ Super admin notified about cashback request {request_id}")
+        except Exception as e:
+            logger.error(f"❌ Failed to notify super admin: {e}")
+
+        # Send to all regular admins
+        try:
+            admins = sheets.get_all_admins()
+            for admin in admins:
+                try:
+                    await application.bot.send_message(
+                        chat_id=admin['admin_id'],
+                        text=message,
+                        parse_mode='HTML',
+                        reply_markup=reply_markup
+                    )
+                    logger.info(f"✅ Admin {admin['admin_id']} notified about cashback request {request_id}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to notify admin {admin['admin_id']}: {e}")
+        except Exception as e:
+            logger.error(f"❌ Failed to get admin list: {e}")
+
+    except Exception as e:
+        logger.error(f"❌ Failed to notify admins about cashback: {e}")
 
 
 # My Info Command
@@ -3260,10 +3438,10 @@ async def promo_create_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def promo_percentage_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Receive promotion percentage"""
+    """Receive promotion bonus percentage"""
     try:
         percentage = float(update.message.text)
-        if percentage <= 0 or percentage > 100:
+        if percentage < 0 or percentage > 100:
             await update.message.reply_text(
                 "❌ Invalid percentage. Please enter a number between 0 and 100:"
             )
@@ -3273,6 +3451,33 @@ async def promo_percentage_received(update: Update, context: ContextTypes.DEFAUL
 
         await update.message.reply_text(
             f"✅ Bonus: {percentage}%\n\n"
+            f"💸 Now enter the cashback percentage (e.g., 5 for 5%, or 0 for no cashback):",
+            parse_mode='Markdown'
+        )
+
+        return PROMO_CASHBACK
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid input. Please enter a valid number (e.g., 10 for 10%):"
+        )
+        return PROMO_PERCENTAGE
+
+
+async def promo_cashback_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive cashback percentage"""
+    try:
+        cashback = float(update.message.text)
+        if cashback < 0 or cashback > 100:
+            await update.message.reply_text(
+                "❌ Invalid percentage. Please enter a number between 0 and 100:"
+            )
+            return PROMO_CASHBACK
+
+        context.user_data['promo_cashback'] = cashback
+
+        await update.message.reply_text(
+            f"✅ Cashback: {cashback}%\n\n"
             f"📅 Enter start date (format: YYYY-MM-DD):",
             parse_mode='Markdown'
         )
@@ -3281,9 +3486,9 @@ async def promo_percentage_received(update: Update, context: ContextTypes.DEFAUL
 
     except ValueError:
         await update.message.reply_text(
-            "❌ Invalid input. Please enter a valid number (e.g., 10 for 10%):"
+            "❌ Invalid input. Please enter a valid number (e.g., 5 for 5%):"
         )
-        return PROMO_PERCENTAGE
+        return PROMO_CASHBACK
 
 
 async def promo_start_date_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3332,6 +3537,7 @@ async def promo_end_date_received(update: Update, context: ContextTypes.DEFAULT_
         # Create promotion
         promotion_id = sheets.create_promotion(
             bonus_percentage=context.user_data['promo_percentage'],
+            cashback_percentage=context.user_data.get('promo_cashback', 0),
             start_date=context.user_data['promo_start_date'],
             end_date=end_date_str,
             admin_id=update.effective_user.id
@@ -3342,6 +3548,7 @@ async def promo_end_date_received(update: Update, context: ContextTypes.DEFAULT_
                 f"✅ **Promotion Created!**\n\n"
                 f"🆔 ID: `{promotion_id}`\n"
                 f"💰 Bonus: {context.user_data['promo_percentage']}%\n"
+                f"💸 Cashback: {context.user_data.get('promo_cashback', 0)}%\n"
                 f"📅 Period: {context.user_data['promo_start_date']} to {end_date_str}\n\n"
                 f"The promotion is now active!",
                 parse_mode='Markdown'
@@ -5120,6 +5327,174 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         await query.edit_message_text(f"❌ Error approving rewards: {str(e)}")
 
 
+# ========== CASHBACK APPROVAL HANDLERS ==========
+
+async def cashback_approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle cashback approval"""
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user
+    approver_name = user.username or user.first_name
+
+    try:
+        # Extract user_id from callback data
+        target_user_id = int(query.data.replace("cashback_approve_", ""))
+
+        # Get all pending cashback requests for this user
+        pending = sheets.get_user_pending_cashback(target_user_id)
+
+        if not pending:
+            # Try to find who already approved
+            try:
+                all_requests = sheets.cashback_history_sheet.get_all_values()[1:]
+                user_requests = [r for r in all_requests if len(r) > 9 and str(r[1]) == str(target_user_id) and r[7] == 'Approved']
+
+                if user_requests:
+                    approved_by = user_requests[-1][9] if len(user_requests[-1]) > 9 else 'Unknown Admin'
+                    total_cashback = sum(float(r[6]) for r in user_requests if len(r) > 6 and r[6])
+                    username = user_requests[-1][2] if len(user_requests[-1]) > 2 else 'User'
+
+                    await query.edit_message_text(
+                        f"✅ <b>Already Approved!</b> ✅\n\n"
+                        f"👤 User: {username}\n"
+                        f"💰 Total Cashback: {total_cashback:.2f} MVR\n"
+                        f"📦 Approved Requests: {len(user_requests)}\n\n"
+                        f"✨ <b>Approved by:</b> {approved_by}",
+                        parse_mode='HTML'
+                    )
+                else:
+                    await query.edit_message_text(
+                        f"✅ All cashback requests already processed!\n\n"
+                        f"No pending requests found for this user.",
+                        parse_mode='Markdown'
+                    )
+            except Exception as e:
+                logger.error(f"Error checking cashback approval status: {e}")
+                await query.edit_message_text(
+                    f"✅ All cashback requests already processed!\n\n"
+                    f"No pending requests found for this user.",
+                    parse_mode='Markdown'
+                )
+            return
+
+        approved_count = 0
+        total_cashback = 0
+        username = pending[0].get('username', 'Unknown')
+
+        # Approve each pending request
+        for request in pending:
+            row_number = request.get('row_number')
+            cashback_amount = request.get('cashback_amount', 0)
+
+            success = sheets.approve_cashback_request(row_number, approver_name)
+            if success:
+                approved_count += 1
+                total_cashback += cashback_amount
+
+        # Edit the notification message
+        await query.edit_message_text(
+            f"✅ <b>CASHBACK APPROVED!</b> ✅\n\n"
+            f"👤 User: {username}\n"
+            f"💰 Total Cashback: {total_cashback:.2f} MVR\n"
+            f"📦 Approved Requests: {approved_count}\n\n"
+            f"✨ User has been notified!\n"
+            f"👤 Approved by: {approver_name}",
+            parse_mode='HTML'
+        )
+
+        # Notify user
+        try:
+            await application.bot.send_message(
+                chat_id=target_user_id,
+                text=(
+                    f"✅ <b>CASHBACK APPROVED!</b> ✅\n\n"
+                    f"💰 Cashback Amount: <b>{total_cashback:.2f} MVR</b>\n"
+                    f"📦 Approved Requests: {approved_count}\n\n"
+                    f"💎 Your cashback will be credited to your PPPoker account shortly!\n\n"
+                    f"Thank you for playing with us! 🎰"
+                ),
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify user {target_user_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"Error in cashback_approve_callback: {e}")
+        import traceback
+        traceback.print_exc()
+        await query.edit_message_text(f"❌ Error approving cashback: {str(e)}")
+
+
+async def cashback_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle cashback rejection"""
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user
+    rejector_name = user.username or user.first_name
+
+    try:
+        # Extract user_id from callback data
+        target_user_id = int(query.data.replace("cashback_reject_", ""))
+
+        # Get all pending cashback requests for this user
+        pending = sheets.get_user_pending_cashback(target_user_id)
+
+        if not pending:
+            await query.edit_message_text(
+                f"❌ No pending cashback requests found for this user.",
+                parse_mode='Markdown'
+            )
+            return
+
+        rejected_count = 0
+        total_cashback = 0
+        username = pending[0].get('username', 'Unknown')
+
+        # Reject each pending request
+        for request in pending:
+            row_number = request.get('row_number')
+            cashback_amount = request.get('cashback_amount', 0)
+
+            success = sheets.reject_cashback_request(row_number, rejector_name)
+            if success:
+                rejected_count += 1
+                total_cashback += cashback_amount
+
+        # Edit the notification message
+        await query.edit_message_text(
+            f"❌ <b>CASHBACK REJECTED</b> ❌\n\n"
+            f"👤 User: {username}\n"
+            f"💰 Rejected Amount: {total_cashback:.2f} MVR\n"
+            f"📦 Rejected Requests: {rejected_count}\n\n"
+            f"👤 Rejected by: {rejector_name}",
+            parse_mode='HTML'
+        )
+
+        # Notify user
+        try:
+            await application.bot.send_message(
+                chat_id=target_user_id,
+                text=(
+                    f"❌ <b>CASHBACK REJECTED</b> ❌\n\n"
+                    f"💰 Rejected Amount: <b>{total_cashback:.2f} MVR</b>\n\n"
+                    f"Your cashback request has been rejected.\n"
+                    f"Please contact support if you have any questions.\n\n"
+                    f"💬 Use /support to reach us!"
+                ),
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify user {target_user_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"Error in cashback_reject_callback: {e}")
+        import traceback
+        traceback.print_exc()
+        await query.edit_message_text(f"❌ Error rejecting cashback: {str(e)}")
+
+
 async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle deposit button click from free spins no-spins message"""
     query = update.callback_query
@@ -5398,6 +5773,10 @@ def main():
     application.add_handler(CallbackQueryHandler(reject_seat_slip, pattern="^reject_slip_"))
     application.add_handler(CallbackQueryHandler(clear_user_credit_callback, pattern="^clear_credit_"))
 
+    # Cashback approval handlers
+    application.add_handler(CallbackQueryHandler(cashback_approve_callback, pattern="^cashback_approve_"))
+    application.add_handler(CallbackQueryHandler(cashback_reject_callback, pattern="^cashback_reject_"))
+
     # Deposit conversation handler
     deposit_conv = ConversationHandler(
         entry_points=[
@@ -5453,6 +5832,17 @@ def main():
         ],
         states={
             SEAT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, seat_amount_received)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    # Cashback conversation handler
+    cashback_conv = ConversationHandler(
+        entry_points=[
+            MessageHandler(filters.Regex("^💸 Cashback$"), cashback_start)
+        ],
+        states={
+            CASHBACK_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, cashback_pppoker_id_received)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
@@ -5521,6 +5911,9 @@ def main():
             PROMO_PERCENTAGE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, promo_percentage_received),
             ],
+            PROMO_CASHBACK: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, promo_cashback_received),
+            ],
             PROMO_START_DATE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, promo_start_date_received),
             ],
@@ -5538,6 +5931,7 @@ def main():
     application.add_handler(withdrawal_conv)
     application.add_handler(join_conv)
     application.add_handler(seat_conv)
+    application.add_handler(cashback_conv)
     application.add_handler(support_conv)
     application.add_handler(update_account_conv)
     application.add_handler(broadcast_conv)

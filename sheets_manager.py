@@ -130,9 +130,9 @@ class SheetsManager:
         try:
             self.promotions_sheet = self.spreadsheet.worksheet('Promotions')
         except gspread.WorksheetNotFound:
-            self.promotions_sheet = self.spreadsheet.add_worksheet(title='Promotions', rows=100, cols=7)
+            self.promotions_sheet = self.spreadsheet.add_worksheet(title='Promotions', rows=100, cols=8)
             self.promotions_sheet.append_row([
-                'Promotion ID', 'Bonus Percentage', 'Start Date', 'End Date',
+                'Promotion ID', 'Bonus Percentage', 'Cashback Percentage', 'Start Date', 'End Date',
                 'Status', 'Created By', 'Created At'
             ])
 
@@ -144,6 +144,17 @@ class SheetsManager:
             self.promotion_eligibility_sheet.append_row([
                 'User ID', 'PPPoker ID', 'Promotion ID', 'Deposit Request ID',
                 'Deposit Amount', 'Bonus Amount', 'Bonus Received At', 'Notes'
+            ])
+
+        # Cashback History worksheet
+        try:
+            self.cashback_history_sheet = self.spreadsheet.worksheet('Cashback History')
+        except gspread.WorksheetNotFound:
+            self.cashback_history_sheet = self.spreadsheet.add_worksheet(title='Cashback History', rows=1000, cols=11)
+            self.cashback_history_sheet.append_row([
+                'Request ID', 'User ID', 'Username', 'PPPoker ID',
+                'Loss Amount', 'Cashback Percentage', 'Cashback Amount',
+                'Status', 'Requested At', 'Approved/Rejected By', 'Approved/Rejected At'
             ])
 
         # Seat Requests worksheet
@@ -825,8 +836,8 @@ class SheetsManager:
         return rates
 
     # Promotion Management
-    def create_promotion(self, bonus_percentage: float, start_date: str, end_date: str, admin_id: int) -> Optional[str]:
-        """Create a new promotion"""
+    def create_promotion(self, bonus_percentage: float, cashback_percentage: float, start_date: str, end_date: str, admin_id: int) -> Optional[str]:
+        """Create a new promotion with cashback"""
         try:
             # Generate promotion ID
             promotion_id = f"PROMO{datetime.now(self.timezone).strftime('%Y%m%d%H%M%S')}"
@@ -838,6 +849,7 @@ class SheetsManager:
             self.promotions_sheet.append_row([
                 promotion_id,
                 str(bonus_percentage),
+                str(cashback_percentage),
                 start_date,
                 end_date,
                 'Active',
@@ -855,8 +867,8 @@ class SheetsManager:
         try:
             all_rows = self.promotions_sheet.get_all_values()[1:]  # Skip header
             for idx, row in enumerate(all_rows, start=2):
-                if len(row) > 4 and row[4] == 'Active':
-                    self.promotions_sheet.update_cell(idx, 5, 'Inactive')
+                if len(row) > 5 and row[5] == 'Active':  # Status is column 6
+                    self.promotions_sheet.update_cell(idx, 6, 'Inactive')
         except Exception as e:
             print(f"Error deactivating promotions: {e}")
 
@@ -867,11 +879,11 @@ class SheetsManager:
             all_rows = self.promotions_sheet.get_all_values()[1:]  # Skip header
 
             for row in all_rows:
-                if len(row) >= 5 and row[4] == 'Active':
+                if len(row) >= 6 and row[5] == 'Active':  # Status is now column 6
                     # Parse dates
                     try:
-                        start_date = datetime.strptime(row[2], '%Y-%m-%d')
-                        end_date = datetime.strptime(row[3], '%Y-%m-%d')
+                        start_date = datetime.strptime(row[3], '%Y-%m-%d')  # Column 4
+                        end_date = datetime.strptime(row[4], '%Y-%m-%d')    # Column 5
 
                         # Make them timezone-aware
                         start_date = self.timezone.localize(start_date)
@@ -882,11 +894,12 @@ class SheetsManager:
                             return {
                                 'promotion_id': row[0],
                                 'bonus_percentage': float(row[1]),
-                                'start_date': row[2],
-                                'end_date': row[3],
-                                'status': row[4],
-                                'created_by': row[5] if len(row) > 5 else '',
-                                'created_at': row[6] if len(row) > 6 else ''
+                                'cashback_percentage': float(row[2]),
+                                'start_date': row[3],
+                                'end_date': row[4],
+                                'status': row[5],
+                                'created_by': row[6] if len(row) > 6 else '',
+                                'created_at': row[7] if len(row) > 7 else ''
                             }
                     except ValueError as e:
                         print(f"Error parsing promotion dates: {e}")
@@ -902,15 +915,16 @@ class SheetsManager:
         try:
             all_rows = self.promotions_sheet.get_all_values()[1:]  # Skip header
             for row in all_rows:
-                if len(row) >= 5 and row[0]:
+                if len(row) >= 6 and row[0]:
                     promotions.append({
                         'promotion_id': row[0],
                         'bonus_percentage': float(row[1]) if row[1] else 0,
-                        'start_date': row[2],
-                        'end_date': row[3],
-                        'status': row[4],
-                        'created_by': row[5] if len(row) > 5 else '',
-                        'created_at': row[6] if len(row) > 6 else ''
+                        'cashback_percentage': float(row[2]) if row[2] else 0,
+                        'start_date': row[3],
+                        'end_date': row[4],
+                        'status': row[5],
+                        'created_by': row[6] if len(row) > 6 else '',
+                        'created_at': row[7] if len(row) > 7 else ''
                     })
         except Exception as e:
             print(f"Error getting all promotions: {e}")
@@ -997,6 +1011,123 @@ class SheetsManager:
         except Exception as e:
             print(f"Error getting user promotion bonuses: {e}")
         return bonuses
+
+    # ========== CASHBACK FUNCTIONS ==========
+
+    def calculate_user_loss(self, user_id: int) -> float:
+        """Calculate total loss for a user (deposits - withdrawals)"""
+        try:
+            # Get all approved deposits
+            deposit_rows = self.sheet.get_all_values()[1:]  # Skip header
+            total_deposits = 0
+            for row in deposit_rows:
+                if len(row) > 2 and row[0] == str(user_id) and row[6] == 'Approved':
+                    # Column 3 is MVR amount
+                    total_deposits += float(row[2]) if row[2] else 0
+
+            # Get all approved withdrawals
+            withdrawal_rows = self.withdrawal_sheet.get_all_values()[1:]  # Skip header
+            total_withdrawals = 0
+            for row in withdrawal_rows:
+                if len(row) > 3 and row[0] == str(user_id) and row[5] == 'Approved':
+                    # Column 4 is MVR amount
+                    total_withdrawals += float(row[3]) if row[3] else 0
+
+            # Loss = Deposits - Withdrawals (if negative, user is in profit, return 0)
+            loss = total_deposits - total_withdrawals
+            return max(0, loss)  # Return 0 if user is in profit
+
+        except Exception as e:
+            print(f"Error calculating user loss: {e}")
+            return 0
+
+    def create_cashback_request(self, user_id: int, username: str, pppoker_id: str,
+                                loss_amount: float, cashback_percentage: float) -> str:
+        """Create a new cashback request"""
+        try:
+            import uuid
+            request_id = f"CB{uuid.uuid4().hex[:8].upper()}"
+            cashback_amount = (loss_amount * cashback_percentage) / 100
+
+            self.cashback_history_sheet.append_row([
+                request_id,
+                str(user_id),
+                username,
+                pppoker_id,
+                str(loss_amount),
+                str(cashback_percentage),
+                str(cashback_amount),
+                'Pending',
+                self._get_timestamp(),
+                '',  # Approved/Rejected By
+                ''   # Approved/Rejected At
+            ])
+
+            return request_id
+        except Exception as e:
+            print(f"Error creating cashback request: {e}")
+            return None
+
+    def get_pending_cashback_requests(self) -> List[Dict]:
+        """Get all pending cashback requests"""
+        requests = []
+        try:
+            all_rows = self.cashback_history_sheet.get_all_values()[1:]  # Skip header
+            for i, row in enumerate(all_rows, start=2):
+                if len(row) >= 8 and row[7] == 'Pending':
+                    requests.append({
+                        'row_number': i,
+                        'request_id': row[0],
+                        'user_id': row[1],
+                        'username': row[2],
+                        'pppoker_id': row[3],
+                        'loss_amount': float(row[4]) if row[4] else 0,
+                        'cashback_percentage': float(row[5]) if row[5] else 0,
+                        'cashback_amount': float(row[6]) if row[6] else 0,
+                        'status': row[7],
+                        'requested_at': row[8] if len(row) > 8 else ''
+                    })
+        except Exception as e:
+            print(f"Error getting pending cashback requests: {e}")
+        return requests
+
+    def get_user_pending_cashback(self, user_id: int) -> List[Dict]:
+        """Get pending cashback requests for a specific user"""
+        all_pending = self.get_pending_cashback_requests()
+        return [r for r in all_pending if str(r.get('user_id')) == str(user_id)]
+
+    def approve_cashback_request(self, row_number: int, approved_by: str) -> bool:
+        """Approve a cashback request"""
+        try:
+            self.cashback_history_sheet.update_cell(row_number, 8, 'Approved')  # Status
+            self.cashback_history_sheet.update_cell(row_number, 10, approved_by)  # Approved By
+            self.cashback_history_sheet.update_cell(row_number, 11, self._get_timestamp())  # Approved At
+            return True
+        except Exception as e:
+            print(f"Error approving cashback request: {e}")
+            return False
+
+    def reject_cashback_request(self, row_number: int, rejected_by: str) -> bool:
+        """Reject a cashback request"""
+        try:
+            self.cashback_history_sheet.update_cell(row_number, 8, 'Rejected')  # Status
+            self.cashback_history_sheet.update_cell(row_number, 10, rejected_by)  # Rejected By
+            self.cashback_history_sheet.update_cell(row_number, 11, self._get_timestamp())  # Rejected At
+            return True
+        except Exception as e:
+            print(f"Error rejecting cashback request: {e}")
+            return False
+
+    def check_cashback_eligibility(self, user_id: int, min_loss: float = 500) -> Dict:
+        """Check if user is eligible for cashback"""
+        loss = self.calculate_user_loss(user_id)
+        is_eligible = loss >= min_loss
+
+        return {
+            'eligible': is_eligible,
+            'loss_amount': loss,
+            'min_required': min_loss
+        }
 
     # Seat Request Functions
     def create_seat_request(self, user_id: int, username: str, pppoker_id: str, amount: float) -> str:
