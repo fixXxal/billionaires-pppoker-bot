@@ -136,13 +136,21 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
         if bot is None:
             bot = Bot(token=BOT_TOKEN)
 
+        # Get ALL pending chips for this user (including this new win)
+        pending_rewards = sheets.get_pending_spin_rewards()
+        user_pending = [p for p in pending_rewards if str(p.get('user_id')) == str(user_id)]
+        total_pending_chips = sum(p.get('chips', 0) for p in user_pending)
+        pending_count = len(user_pending)
+
         message = (
             f"🎰 <b>SPIN WHEEL WIN!</b> 🎰\n\n"
             f"👤 User: {username} (ID: {user_id})\n"
-            f"🎁 Prize: {prize}\n"
-            f"💰 Chips: {chips}\n"
-            f"🎮 PPPoker ID: {pppoker_id or 'Not set'}\n\n"
-            f"⏳ <b>Pending Approval</b>"
+            f"🎁 This Win: {prize}\n"
+            f"💰 This Win Chips: {chips}\n\n"
+            f"📊 <b>Total Pending:</b>\n"
+            f"💎 Total Chips: {total_pending_chips}\n"
+            f"📦 Pending Rewards: {pending_count}\n"
+            f"🎮 PPPoker ID: {pppoker_id or 'Not set'}"
         )
 
         # Create instant approve button
