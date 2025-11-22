@@ -5015,11 +5015,38 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         user_pending = [p for p in pending if str(p.get('user_id')) == str(target_user_id)]
 
         if not user_pending:
-            await query.edit_message_text(
-                f"✅ All rewards already approved!\n\n"
-                f"No pending spins found for this user.",
-                parse_mode='Markdown'
-            )
+            # Try to find who already approved by checking spin history
+            try:
+                all_spins = spin_bot.sheets.spin_history_sheet.get_all_values()[1:]  # Skip header
+                user_spins = [s for s in all_spins if len(s) > 7 and str(s[0]) == str(target_user_id) and s[6] == 'Approved']
+
+                if user_spins:
+                    # Get first approved spin details
+                    approved_by = user_spins[0][7] if len(user_spins[0]) > 7 else 'Unknown Admin'
+                    total_chips = sum(int(s[3]) for s in user_spins if len(s) > 3 and s[3])
+                    username = user_spins[0][1] if len(user_spins[0]) > 1 else 'User'
+
+                    await query.edit_message_text(
+                        f"✅ <b>Already Approved!</b> ✅\n\n"
+                        f"👤 User: {username}\n"
+                        f"💰 Total: {total_chips} chips\n"
+                        f"📦 Approved Spins: {len(user_spins)}\n\n"
+                        f"✨ <b>Approved by:</b> {approved_by}",
+                        parse_mode='HTML'
+                    )
+                else:
+                    await query.edit_message_text(
+                        f"✅ All rewards already approved!\n\n"
+                        f"No pending spins found for this user.",
+                        parse_mode='Markdown'
+                    )
+            except Exception as e:
+                logger.error(f"Error checking approval status: {e}")
+                await query.edit_message_text(
+                    f"✅ All rewards already approved!\n\n"
+                    f"No pending spins found for this user.",
+                    parse_mode='Markdown'
+                )
             return
 
         approver_name = user.username or user.first_name
