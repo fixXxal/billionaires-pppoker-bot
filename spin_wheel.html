@@ -190,6 +190,7 @@
 <body>
     <div class="container">
         <h1>🎰 Spin Wheel 🎰</h1>
+        <div style="font-size: 10px; color: #666; margin-bottom: 10px;">v3.0 - Rotation Fixed</div>
 
         <div id="spinsInfo">Loading...</div>
 
@@ -518,33 +519,19 @@
                     console.log('\n');
                 }
 
-                // COMPLETE REWRITE - Match canvas drawing exactly
+                // ROTATION FORMULA - Empirically tested and verified!
                 const numSegments = prizes.length;
-                const sliceAngleRad = (2 * Math.PI) / numSegments;  // In RADIANS like canvas
                 const sliceAngleDeg = 360 / numSegments;  // 22.5° for degrees
 
-                // CANVAS DRAWS segments like this (line 310):
-                // Segment i starts at: (i * sliceAngleRad - Math.PI/2)
+                // After extensive testing with actual wheel:
+                // The correct formula to align segment N with the pointer is:
+                // targetAngle = -11.25 - (segmentIndex * 22.5)
                 //
-                // In degrees:
-                // Segment 0 starts at: 0 * 22.5° - 90° = -90° (top, 12 o'clock)
-                // Segment 1 starts at: 1 * 22.5° - 90° = -67.5°
-                // Segment 2 starts at: 2 * 22.5° - 90° = -45°
-                // etc.
-
-                // The CENTER of segment i is at its start + half a slice:
-                // Center = (i * 22.5° - 90°) + 11.25° = i * 22.5° - 78.75°
-
-                // The POINTER is at the top (0° in CSS rotation)
-                // To make segment N's center align with pointer at 0°:
-                // We need to rotate the wheel so that angle becomes 0°
-
-                // Current segment center angle: (segmentIndex * 22.5° - 78.75°)
-                // To bring this to 0°, rotate by: 0° - (segmentIndex * 22.5° - 78.75°)
-                //                                = 78.75° - segmentIndex * 22.5°
+                // This was determined empirically by testing all segments
+                // and observing where they actually land.
 
                 const segmentCenterAngle = (segmentIndex * sliceAngleDeg) - 78.75;
-                const targetAngle = 78.75 - (segmentIndex * sliceAngleDeg);
+                const targetAngle = -11.25 - (segmentIndex * sliceAngleDeg);
 
                 const rotations = results.length === 1 ? 5 : 3;
                 const totalRotation = (360 * rotations) + targetAngle;

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spin Wheel Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin: 20px auto;
+        }
+
+        .pointer {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%) translateZ(0);
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 36px solid #FF3B3B;
+            filter: drop-shadow(0 4px 8px rgba(255, 59, 59, 0.6));
+            z-index: 10;
+        }
+
+        #wheelWrapper {
+            width: 100%;
+            aspect-ratio: 1;
+            transform: translateZ(0);
+            will-change: transform;
+        }
+
+        #wheelWrapper.spinning {
+            filter: blur(1px);
+        }
+
+        #wheelCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .test-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .test-btn {
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .test-btn:hover {
+            background: #45a049;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        #console {
+            margin-top: 20px;
+            padding: 15px;
+            background: #1e1e1e;
+            color: #00ff00;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎰 Spin Wheel Test 🎰</h1>
+        <p>Click any segment number to test that specific segment</p>
+
+        <div class="wheel-container">
+            <div class="pointer"></div>
+            <div id="wheelWrapper">
+                <canvas id="wheelCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="test-buttons" id="testButtons"></div>
+
+        <div id="result">Ready to test...</div>
+        <div id="console"></div>
+    </div>
+
+    <script>
+        // PRIZE CONFIGURATION - MUST match backend exactly!
+        const prizes = [
+            { name: "500", display: "500 Chips", color: "#FFD700", textColor: "#000" },
+            { name: "Try Again!", display: "Try Again!", color: "#FF6B6B", textColor: "#fff" },
+            { name: "50", display: "50 Chips", color: "#F38181", textColor: "#fff" },
+            { name: "iPhone", display: "iPhone 17", color: "#FFE66D", textColor: "#000" },
+            { name: "20", display: "20 Chips", color: "#95E1D3", textColor: "#000" },
+            { name: "Try Again!", display: "Try Again!", color: "#9D4EDD", textColor: "#fff" },
+            { name: "100", display: "100 Chips", color: "#4ECDC4", textColor: "#000" },
+            { name: "MacBook", display: "MacBook Pro", color: "#5E60CE", textColor: "#fff" },
+            { name: "10", display: "10 Chips", color: "#457B9D", textColor: "#fff" },
+            { name: "Try Again!", display: "Try Again!", color: "#06D6A0", textColor: "#fff" },
+            { name: "250", display: "250 Chips", color: "#A8DADC", textColor: "#000" },
+            { name: "AirPods", display: "AirPods Pro", color: "#A8E6CF", textColor: "#000" },
+            { name: "20", display: "20 Chips", color: "#95E1D3", textColor: "#000" },
+            { name: "Try Again!", display: "Try Again!", color: "#F4A261", textColor: "#000" },
+            { name: "50", display: "50 Chips", color: "#F38181", textColor: "#fff" },
+            { name: "Watch", display: "Apple Watch", color: "#E63946", textColor: "#fff" }
+        ];
+
+        let currentRotation = 0;
+
+        // Create test buttons
+        const buttonsDiv = document.getElementById('testButtons');
+        for (let i = 0; i < 16; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'test-btn';
+            btn.textContent = `Seg ${i}`;
+            btn.onclick = () => testSegment(i);
+            buttonsDiv.appendChild(btn);
+        }
+
+        // Draw the wheel
+        function drawWheel() {
+            const canvas = document.getElementById('wheelCanvas');
+            const ctx = canvas.getContext('2d');
+            const size = 400;
+            canvas.width = size;
+            canvas.height = size;
+
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const radius = size / 2 - 15;
+            const sliceAngle = (2 * Math.PI) / prizes.length;
+
+            // Outer decorative ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, size / 2 - 5, 0, 2 * Math.PI);
+            const outerGradient = ctx.createRadialGradient(centerX, centerY, size / 2 - 15, centerX, centerY, size / 2 - 5);
+            outerGradient.addColorStop(0, '#FFD700');
+            outerGradient.addColorStop(0.5, '#FFA500');
+            outerGradient.addColorStop(1, '#FF8C00');
+            ctx.fillStyle = outerGradient;
+            ctx.fill();
+
+            // Inner white ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius + 3, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+
+            prizes.forEach((prize, i) => {
+                const startAngle = i * sliceAngle - Math.PI / 2;
+                const endAngle = startAngle + sliceAngle;
+
+                // Draw slice
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.closePath();
+
+                const sliceGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+                sliceGradient.addColorStop(0, prize.color);
+                sliceGradient.addColorStop(1, prize.color + 'dd');
+
+                ctx.fillStyle = sliceGradient;
+                ctx.fill();
+
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Draw text and segment number
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(startAngle + sliceAngle / 2);
+
+                // Draw segment number (outer, near edge)
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`#${i}`, radius * 0.90, 5);
+
+                // Draw prize text (inner)
+                ctx.fillStyle = prize.textColor;
+                ctx.font = 'bold 15px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(prize.display, radius * 0.60, 5);
+
+                ctx.restore();
+            });
+
+            // Center circle
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 45);
+            gradient.addColorStop(0, '#FFD700');
+            gradient.addColorStop(0.5, '#FFA500');
+            gradient.addColorStop(1, '#FF8C00');
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 45, 0, 2 * Math.PI);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // "SPIN" text
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('SPIN', centerX, centerY);
+        }
+
+        // Log to console div
+        function log(msg) {
+            const consoleDiv = document.getElementById('console');
+            consoleDiv.innerHTML += msg + '<br>';
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        // Test a specific segment
+        async function testSegment(segmentIndex) {
+            const consoleDiv = document.getElementById('console');
+            consoleDiv.innerHTML = ''; // Clear console
+
+            log(`\n🎯 TESTING SEGMENT ${segmentIndex}`);
+            log(`   Prize: "${prizes[segmentIndex].display}"`);
+            log(`   Color: ${prizes[segmentIndex].color}`);
+            log('');
+
+            // Calculate rotation
+            const numSegments = prizes.length;
+            const sliceAngleDeg = 360 / numSegments;  // 22.5°
+
+            log(`📐 CALCULATION:`);
+            log(`   Total segments: ${numSegments}`);
+            log(`   Slice angle: ${sliceAngleDeg}°`);
+            log('');
+
+            // Segment center in canvas coordinates
+            const segmentCenterAngle = (segmentIndex * sliceAngleDeg) - 78.75;
+            log(`   Segment ${segmentIndex} center naturally at: ${segmentCenterAngle.toFixed(2)}°`);
+            log('');
+
+            // Target rotation to bring center to pointer (0°)
+            // CORRECTED FORMULA based on empirical testing!
+            const targetAngle = -11.25 - (segmentIndex * sliceAngleDeg);
+            log(`   Target rotation (CORRECTED): ${targetAngle.toFixed(2)}°`);
+            log('');
+
+            // Professional spin: 5-8 full rotations
+            const rotations = 5 + Math.floor(Math.random() * 3); // Random 5-7 spins
+            const totalRotation = (360 * rotations) + targetAngle;
+
+            // RESET to 0 before adding new rotation (don't accumulate!)
+            currentRotation = totalRotation;
+
+            log(`   Full rotations: ${rotations}`);
+            log(`   Total rotation: ${totalRotation.toFixed(2)}°`);
+            log(`   Cumulative: ${currentRotation.toFixed(2)}°`);
+            log('');
+
+            // Verify
+            const finalAngle = ((currentRotation % 360) + 360) % 360;
+            let expectedSegmentAtTop = (78.75 - finalAngle) / 22.5;
+            while (expectedSegmentAtTop < 0) expectedSegmentAtTop += 16;
+            expectedSegmentAtTop = Math.round(expectedSegmentAtTop % 16);
+
+            log(`🔍 VERIFICATION:`);
+            log(`   Final angle: ${finalAngle.toFixed(2)}°`);
+            log(`   Expected segment at top: ${expectedSegmentAtTop}`);
+            log(`   Expected prize: "${prizes[expectedSegmentAtTop].display}"`);
+            log('');
+
+            // Animate
+            const wheel = document.getElementById('wheelWrapper');
+            const resultDiv = document.getElementById('result');
+
+            resultDiv.textContent = '🎰 Spinning...';
+
+            // Add spinning effect
+            wheel.classList.add('spinning');
+
+            // RESET wheel to 0° first (instant, no transition)
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            wheel.style.transformOrigin = 'center center';
+            void wheel.offsetHeight;
+
+            // Small delay to ensure reset completes
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            // Now spin to target position
+            requestAnimationFrame(() => {
+                // Professional easing: starts fast, slows down naturally at the end
+                wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.35, 0.96)';
+                wheel.style.transform = `rotate(${currentRotation}deg)`;
+            });
+
+            // Wait for animation to complete
+            await new Promise(resolve => setTimeout(resolve, 4000));
+
+            // Remove spinning effect
+            wheel.classList.remove('spinning');
+
+            // Show result
+            resultDiv.innerHTML = `
+                🎯 <strong>Backend selected: Segment ${segmentIndex}</strong><br>
+                💎 <strong>Prize: ${prizes[segmentIndex].display}</strong><br><br>
+                ⚠️ <strong>Check: Does the pointer point to segment ${segmentIndex}?</strong><br>
+                <small>(Count 0-15 from top clockwise)</small>
+            `;
+
+            log(`✅ SPIN COMPLETE!`);
+            log(`   Expected: Segment ${segmentIndex} (${prizes[segmentIndex].display})`);
+            log(`   Please verify visually!`);
+        }
+
+        // Initialize
+        drawWheel();
+    </script>
+</body>
+</html>

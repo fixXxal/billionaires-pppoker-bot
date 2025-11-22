@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test All Rotation Formulas</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #00ff00;
+        }
+        .test {
+            margin: 20px 0;
+            padding: 15px;
+            background: #2d2d2d;
+            border-left: 4px solid #00ff00;
+        }
+        .formula {
+            color: #ffaa00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Rotation Formula Test</h1>
+    <p>Testing all possible rotation formulas for segment alignment</p>
+
+    <div id="output"></div>
+
+    <script>
+        const numSegments = 16;
+        const sliceAngleDeg = 360 / numSegments; // 22.5°
+
+        // Test segment 0 (should end at angle 0°, which means segment 0 at top)
+        // Test segment 4 (user reported this was wrong)
+        const testSegments = [0, 1, 4, 8];
+
+        const formulas = [
+            {
+                name: "Current Formula",
+                calc: (seg) => 78.75 - (seg * sliceAngleDeg)
+            },
+            {
+                name: "Inverted",
+                calc: (seg) => -1 * (78.75 - (seg * sliceAngleDeg))
+            },
+            {
+                name: "Segment Start",
+                calc: (seg) => 90 - (seg * sliceAngleDeg)
+            },
+            {
+                name: "Segment Start Inverted",
+                calc: (seg) => -1 * (90 - (seg * sliceAngleDeg))
+            },
+            {
+                name: "Direct Segment Angle",
+                calc: (seg) => -seg * sliceAngleDeg
+            },
+            {
+                name: "Direct Segment Angle + 90",
+                calc: (seg) => 90 - seg * sliceAngleDeg
+            },
+            {
+                name: "Negative Segment Center",
+                calc: (seg) => -1 * ((seg * sliceAngleDeg) - 78.75)
+            },
+            {
+                name: "Segment Index * -22.5",
+                calc: (seg) => seg * -22.5
+            }
+        ];
+
+        let output = '';
+
+        formulas.forEach((formula, fIdx) => {
+            output += `<div class="test">`;
+            output += `<div class="formula">FORMULA ${fIdx + 1}: ${formula.name}</div><br>`;
+
+            testSegments.forEach(seg => {
+                const targetAngle = formula.calc(seg);
+                const finalAngle = ((targetAngle % 360) + 360) % 360;
+
+                // Reverse calculate which segment ends up at top
+                let segAtTop = (78.75 - finalAngle) / 22.5;
+                while (segAtTop < 0) segAtTop += 16;
+                segAtTop = Math.round(segAtTop % 16);
+
+                const correct = segAtTop === seg ? '✅ CORRECT' : `❌ WRONG (lands on ${segAtTop})`;
+
+                output += `Segment ${seg}: rotate ${targetAngle.toFixed(2)}° → final ${finalAngle.toFixed(2)}° → segment ${segAtTop} at top ${correct}<br>`;
+            });
+
+            output += `</div>`;
+        });
+
+        document.getElementById('output').innerHTML = output;
+    </script>
+</body>
+</html>
