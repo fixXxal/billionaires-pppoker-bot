@@ -346,17 +346,28 @@ def spin():
 
         if total_chips_won > 0:
             logger.info(f"💰 Total chips won: {total_chips_won} - Queuing notifications")
+
+            # Calculate delay based on number of spins
+            # Single spin: 4 seconds animation
+            # Multi-spin: 2.5 seconds per spin
+            notification_delay = 4.5 if spin_count == 1 else (spin_count * 2.5) + 0.5
+
             # Run notifications in background thread to not block the response
             import threading
             def send_notifications():
                 try:
+                    # Wait for animation to complete before sending notifications
+                    import time
+                    time.sleep(notification_delay)
+
                     asyncio.run(notify_user_win(user_id, username, f"{total_chips_won} Chips", total_chips_won))
                     asyncio.run(notify_admin(user_id, username, f"{total_chips_won} Chips Total", total_chips_won, pppoker_id))
+                    logger.info(f"✅ Notifications sent after {notification_delay}s delay")
                 except Exception as e:
                     logger.error(f"❌ Failed to send notifications: {e}")
 
             threading.Thread(target=send_notifications, daemon=True).start()
-            logger.info(f"✅ Notifications queued in background")
+            logger.info(f"✅ Notifications queued with {notification_delay}s delay")
 
         # Build response
         response = {
