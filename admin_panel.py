@@ -940,29 +940,45 @@ async def admin_view_promotions(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
 
     active_promo = sheets.get_active_promotion()
+    active_cashback_promo = sheets.get_active_cashback_promotion()
     all_promos = sheets.get_all_promotions()
+    all_cashback_promos = sheets.get_all_cashback_promotions()
 
     message = "🎁 **Promotions Management**\n\n"
 
+    # Bonus Promotion Section
+    message += "**💰 Bonus Promotion (Deposits):**\n"
     if active_promo:
-        message += f"**Active Promotion:**\n"
         message += f"🆔 ID: `{active_promo['promotion_id']}`\n"
         message += f"💰 Bonus: {active_promo['bonus_percentage']}%\n"
-        message += f"💸 Cashback: {active_promo.get('cashback_percentage', 0)}%\n"
         message += f"📅 Period: {active_promo['start_date']} to {active_promo['end_date']}\n\n"
     else:
-        message += "**No active promotion**\n\n"
+        message += "No active bonus promotion\n\n"
 
-    message += f"Total promotions: {len(all_promos)}\n"
+    # Cashback Promotion Section
+    message += "**💸 Cashback Promotion (Losses):**\n"
+    if active_cashback_promo:
+        message += f"🆔 ID: `{active_cashback_promo['promotion_id']}`\n"
+        message += f"💸 Cashback: {active_cashback_promo['cashback_percentage']}%\n"
+        message += f"📅 Period: {active_cashback_promo['start_date']} to {active_cashback_promo['end_date']}\n\n"
+    else:
+        message += "No active cashback promotion\n\n"
+
+    message += f"Total bonus promotions: {len(all_promos)}\n"
+    message += f"Total cashback promotions: {len(all_cashback_promos)}\n"
 
     keyboard = [
-        [InlineKeyboardButton("➕ Create Promotion", callback_data="promo_create")],
-        [InlineKeyboardButton("📋 View All", callback_data="promo_view_all")],
+        [InlineKeyboardButton("➕ Create Bonus Promotion", callback_data="promo_create")],
+        [InlineKeyboardButton("💸 Create Cashback Promotion", callback_data="cashback_promo_create")],
+        [InlineKeyboardButton("📋 View All Bonus", callback_data="promo_view_all")],
+        [InlineKeyboardButton("📋 View All Cashback", callback_data="cashback_promo_view_all")],
     ]
 
     if active_promo:
-        keyboard.append([InlineKeyboardButton("✏️ Edit Active", callback_data=f"promo_edit_{active_promo['promotion_id']}")])
-        keyboard.append([InlineKeyboardButton("🔴 Deactivate", callback_data=f"promo_deactivate_{active_promo['promotion_id']}")])
+        keyboard.append([InlineKeyboardButton("🔴 Deactivate Bonus", callback_data=f"promo_deactivate_{active_promo['promotion_id']}")])
+
+    if active_cashback_promo:
+        keyboard.append([InlineKeyboardButton("🔴 Deactivate Cashback", callback_data=f"cashback_promo_deactivate_{active_cashback_promo['promotion_id']}")])
 
     keyboard.append([InlineKeyboardButton("« Back", callback_data="admin_back")])
 
@@ -971,7 +987,7 @@ async def admin_view_promotions(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def admin_view_all_promotions(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """View all promotions"""
+    """View all bonus promotions"""
     query = update.callback_query
     await query.answer()
 
@@ -979,17 +995,43 @@ async def admin_view_all_promotions(update: Update, context: ContextTypes.DEFAUL
 
     if not all_promos:
         await query.edit_message_text(
-            "No promotions found.\n\nUse 'Create Promotion' to add one.",
+            "No bonus promotions found.\n\nUse 'Create Bonus Promotion' to add one.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
         )
         return
 
-    message = "🎁 **All Promotions**\n\n"
+    message = "💰 **All Bonus Promotions**\n\n"
     for promo in all_promos[-10:]:  # Show last 10
         status_emoji = "🟢" if promo['status'] == 'Active' else "⚪"
         message += f"{status_emoji} **{promo['promotion_id']}**\n"
         message += f"   Bonus: {promo['bonus_percentage']}%\n"
-        message += f"   Cashback: {promo.get('cashback_percentage', 0)}%\n"
+        message += f"   Period: {promo['start_date']} to {promo['end_date']}\n"
+        message += f"   Status: {promo['status']}\n\n"
+
+    keyboard = [[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+
+
+async def admin_view_all_cashback_promotions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View all cashback promotions"""
+    query = update.callback_query
+    await query.answer()
+
+    all_cashback_promos = sheets.get_all_cashback_promotions()
+
+    if not all_cashback_promos:
+        await query.edit_message_text(
+            "No cashback promotions found.\n\nUse 'Create Cashback Promotion' to add one.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
+        )
+        return
+
+    message = "💸 **All Cashback Promotions**\n\n"
+    for promo in all_cashback_promos[-10:]:  # Show last 10
+        status_emoji = "🟢" if promo['status'] == 'Active' else "⚪"
+        message += f"{status_emoji} **{promo['promotion_id']}**\n"
+        message += f"   Cashback: {promo['cashback_percentage']}%\n"
         message += f"   Period: {promo['start_date']} to {promo['end_date']}\n"
         message += f"   Status: {promo['status']}\n\n"
 
@@ -999,7 +1041,7 @@ async def admin_view_all_promotions(update: Update, context: ContextTypes.DEFAUL
 
 
 async def promo_deactivate(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Deactivate promotion"""
+    """Deactivate bonus promotion"""
     query = update.callback_query
     await query.answer()
 
@@ -1007,12 +1049,31 @@ async def promo_deactivate(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if sheets.deactivate_promotion(promotion_id):
         await query.edit_message_text(
-            f"✅ Promotion {promotion_id} has been deactivated.",
+            f"✅ Bonus promotion {promotion_id} has been deactivated.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
         )
     else:
         await query.edit_message_text(
-            f"❌ Failed to deactivate promotion.",
+            f"❌ Failed to deactivate bonus promotion.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
+        )
+
+
+async def cashback_promo_deactivate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Deactivate cashback promotion"""
+    query = update.callback_query
+    await query.answer()
+
+    promotion_id = query.data.split('_')[-1]
+
+    if sheets.deactivate_cashback_promotion(promotion_id):
+        await query.edit_message_text(
+            f"✅ Cashback promotion {promotion_id} has been deactivated.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
+        )
+    else:
+        await query.edit_message_text(
+            f"❌ Failed to deactivate cashback promotion.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
         )
 
@@ -1039,7 +1100,9 @@ def register_admin_handlers(application, notif_messages=None):
     application.add_handler(CallbackQueryHandler(admin_view_joins, pattern="^admin_view_joins$"))
     application.add_handler(CallbackQueryHandler(admin_view_promotions, pattern="^admin_view_promotions$"))
     application.add_handler(CallbackQueryHandler(admin_view_all_promotions, pattern="^promo_view_all$"))
+    application.add_handler(CallbackQueryHandler(admin_view_all_cashback_promotions, pattern="^cashback_promo_view_all$"))
     application.add_handler(CallbackQueryHandler(promo_deactivate, pattern="^promo_deactivate_"))
+    application.add_handler(CallbackQueryHandler(cashback_promo_deactivate, pattern="^cashback_promo_deactivate_"))
     application.add_handler(CallbackQueryHandler(admin_view_accounts, pattern="^admin_view_accounts$"))
     application.add_handler(CallbackQueryHandler(admin_back, pattern="^admin_back$"))
     application.add_handler(CallbackQueryHandler(admin_close, pattern="^admin_close$"))

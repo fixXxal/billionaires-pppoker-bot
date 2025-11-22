@@ -61,7 +61,8 @@ spin_bot = SpinBot(sheets, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
  DEPOSIT_PROOF, WITHDRAWAL_METHOD, WITHDRAWAL_AMOUNT, WITHDRAWAL_PPPOKER_ID,
  WITHDRAWAL_ACCOUNT_NAME, WITHDRAWAL_ACCOUNT_NUMBER, JOIN_PPPOKER_ID,
  ADMIN_APPROVAL_NOTES, SUPPORT_CHAT, ADMIN_REPLY_MESSAGE, UPDATE_ACCOUNT_METHOD, UPDATE_ACCOUNT_NUMBER, BROADCAST_MESSAGE,
- PROMO_PERCENTAGE, PROMO_CASHBACK, PROMO_START_DATE, PROMO_END_DATE, SEAT_AMOUNT, SEAT_SLIP_UPLOAD) = range(23)
+ PROMO_PERCENTAGE, PROMO_START_DATE, PROMO_END_DATE, SEAT_AMOUNT, SEAT_SLIP_UPLOAD,
+ CASHBACK_PROMO_PERCENTAGE, CASHBACK_PROMO_START_DATE, CASHBACK_PROMO_END_DATE) = range(25)
 
 # Store for live support sessions
 live_support_sessions: Dict[int, int] = {}  # user_id: admin_user_id (which admin is handling this user)
@@ -1343,9 +1344,9 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start cashback request flow"""
     user = update.effective_user
 
-    # Check if there's an active promotion with cashback
-    promo = sheets.get_active_promotion()
-    if not promo or promo.get('cashback_percentage', 0) <= 0:
+    # Check if there's an active CASHBACK promotion (separate from bonus)
+    cashback_promo = sheets.get_active_cashback_promotion()
+    if not cashback_promo:
         await update.message.reply_text(
             "❌ <b>Cashback Not Available</b>\n\n"
             "Sorry, there is no active cashback promotion at the moment.\n"
@@ -1354,7 +1355,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
-    cashback_percentage = promo.get('cashback_percentage')
+    cashback_percentage = cashback_promo.get('cashback_percentage')
 
     # Check eligibility
     eligibility = sheets.check_cashback_eligibility(user.id, min_loss=500)
@@ -3441,7 +3442,7 @@ async def promo_percentage_received(update: Update, context: ContextTypes.DEFAUL
     """Receive promotion bonus percentage"""
     try:
         percentage = float(update.message.text)
-        if percentage < 0 or percentage > 100:
+        if percentage <= 0 or percentage > 100:
             await update.message.reply_text(
                 "❌ Invalid percentage. Please enter a number between 0 and 100:"
             )
@@ -3451,33 +3452,6 @@ async def promo_percentage_received(update: Update, context: ContextTypes.DEFAUL
 
         await update.message.reply_text(
             f"✅ Bonus: {percentage}%\n\n"
-            f"💸 Now enter the cashback percentage (e.g., 5 for 5%, or 0 for no cashback):",
-            parse_mode='Markdown'
-        )
-
-        return PROMO_CASHBACK
-
-    except ValueError:
-        await update.message.reply_text(
-            "❌ Invalid input. Please enter a valid number (e.g., 10 for 10%):"
-        )
-        return PROMO_PERCENTAGE
-
-
-async def promo_cashback_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Receive cashback percentage"""
-    try:
-        cashback = float(update.message.text)
-        if cashback < 0 or cashback > 100:
-            await update.message.reply_text(
-                "❌ Invalid percentage. Please enter a number between 0 and 100:"
-            )
-            return PROMO_CASHBACK
-
-        context.user_data['promo_cashback'] = cashback
-
-        await update.message.reply_text(
-            f"✅ Cashback: {cashback}%\n\n"
             f"📅 Enter start date (format: YYYY-MM-DD):",
             parse_mode='Markdown'
         )
@@ -3486,9 +3460,9 @@ async def promo_cashback_received(update: Update, context: ContextTypes.DEFAULT_
 
     except ValueError:
         await update.message.reply_text(
-            "❌ Invalid input. Please enter a valid number (e.g., 5 for 5%):"
+            "❌ Invalid input. Please enter a valid number (e.g., 10 for 10%):"
         )
-        return PROMO_CASHBACK
+        return PROMO_PERCENTAGE
 
 
 async def promo_start_date_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3534,10 +3508,9 @@ async def promo_end_date_received(update: Update, context: ContextTypes.DEFAULT_
             )
             return PROMO_END_DATE
 
-        # Create promotion
+        # Create BONUS promotion
         promotion_id = sheets.create_promotion(
             bonus_percentage=context.user_data['promo_percentage'],
-            cashback_percentage=context.user_data.get('promo_cashback', 0),
             start_date=context.user_data['promo_start_date'],
             end_date=end_date_str,
             admin_id=update.effective_user.id
@@ -3545,10 +3518,9 @@ async def promo_end_date_received(update: Update, context: ContextTypes.DEFAULT_
 
         if promotion_id:
             await update.message.reply_text(
-                f"✅ **Promotion Created!**\n\n"
+                f"✅ **Bonus Promotion Created!**\n\n"
                 f"🆔 ID: `{promotion_id}`\n"
                 f"💰 Bonus: {context.user_data['promo_percentage']}%\n"
-                f"💸 Cashback: {context.user_data.get('promo_cashback', 0)}%\n"
                 f"📅 Period: {context.user_data['promo_start_date']} to {end_date_str}\n\n"
                 f"The promotion is now active!",
                 parse_mode='Markdown'
@@ -3571,6 +3543,134 @@ async def promo_end_date_received(update: Update, context: ContextTypes.DEFAULT_
 async def promo_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel promotion creation"""
     await update.message.reply_text("❌ Promotion creation cancelled.")
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
+# Cashback Promotion Handlers
+async def cashback_promo_create_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start cashback promotion creation"""
+    query = update.callback_query
+    await query.answer()
+
+    if not is_admin(query.from_user.id):
+        await query.edit_message_text("❌ Admin access required.")
+        return ConversationHandler.END
+
+    await query.edit_message_text(
+        "💸 **Create New Cashback Promotion**\n\n"
+        "Please enter the cashback percentage (e.g., 10 for 10%):",
+        parse_mode='Markdown'
+    )
+
+    return CASHBACK_PROMO_PERCENTAGE
+
+
+async def cashback_promo_percentage_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive cashback promotion percentage"""
+    try:
+        percentage = float(update.message.text)
+        if percentage <= 0 or percentage > 100:
+            await update.message.reply_text(
+                "❌ Invalid percentage. Please enter a number between 0 and 100:"
+            )
+            return CASHBACK_PROMO_PERCENTAGE
+
+        context.user_data['cashback_promo_percentage'] = percentage
+
+        await update.message.reply_text(
+            f"✅ Cashback: {percentage}%\n\n"
+            f"📅 Enter start date (format: YYYY-MM-DD):",
+            parse_mode='Markdown'
+        )
+
+        return CASHBACK_PROMO_START_DATE
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid input. Please enter a valid number (e.g., 10 for 10%):"
+        )
+        return CASHBACK_PROMO_PERCENTAGE
+
+
+async def cashback_promo_start_date_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive cashback promotion start date"""
+    from datetime import datetime as dt
+
+    try:
+        start_date_str = update.message.text.strip()
+        # Validate date format
+        start_date = dt.strptime(start_date_str, '%Y-%m-%d')
+
+        context.user_data['cashback_promo_start_date'] = start_date_str
+
+        await update.message.reply_text(
+            f"✅ Start Date: {start_date_str}\n\n"
+            f"📅 Enter end date (format: YYYY-MM-DD):",
+            parse_mode='Markdown'
+        )
+
+        return CASHBACK_PROMO_END_DATE
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid date format. Please use YYYY-MM-DD (e.g., 2025-12-31):"
+        )
+        return CASHBACK_PROMO_START_DATE
+
+
+async def cashback_promo_end_date_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive cashback promotion end date and create promotion"""
+    from datetime import datetime as dt
+
+    try:
+        end_date_str = update.message.text.strip()
+        # Validate date format
+        end_date = dt.strptime(end_date_str, '%Y-%m-%d')
+        start_date = dt.strptime(context.user_data['cashback_promo_start_date'], '%Y-%m-%d')
+
+        # Validate end date is after start date
+        if end_date < start_date:
+            await update.message.reply_text(
+                "❌ End date must be after start date. Please enter a valid end date:"
+            )
+            return CASHBACK_PROMO_END_DATE
+
+        # Create CASHBACK promotion
+        promotion_id = sheets.create_cashback_promotion(
+            cashback_percentage=context.user_data['cashback_promo_percentage'],
+            start_date=context.user_data['cashback_promo_start_date'],
+            end_date=end_date_str,
+            admin_id=update.effective_user.id
+        )
+
+        if promotion_id:
+            await update.message.reply_text(
+                f"✅ **Cashback Promotion Created!**\n\n"
+                f"🆔 ID: `{promotion_id}`\n"
+                f"💸 Cashback: {context.user_data['cashback_promo_percentage']}%\n"
+                f"📅 Period: {context.user_data['cashback_promo_start_date']} to {end_date_str}\n\n"
+                f"The cashback promotion is now active!",
+                parse_mode='Markdown'
+            )
+        else:
+            await update.message.reply_text("❌ Failed to create cashback promotion. Please try again.")
+
+        # Clear user data
+        context.user_data.clear()
+
+        return ConversationHandler.END
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid date format. Please use YYYY-MM-DD (e.g., 2025-12-31):"
+        )
+        return CASHBACK_PROMO_END_DATE
+
+
+async def cashback_promo_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel cashback promotion creation"""
+    await update.message.reply_text("❌ Cashback promotion creation cancelled.")
     context.user_data.clear()
     return ConversationHandler.END
 
@@ -5911,9 +6011,6 @@ def main():
             PROMO_PERCENTAGE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, promo_percentage_received),
             ],
-            PROMO_CASHBACK: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, promo_cashback_received),
-            ],
             PROMO_START_DATE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, promo_start_date_received),
             ],
@@ -5923,6 +6020,27 @@ def main():
         },
         fallbacks=[
             CommandHandler("cancel", promo_cancel),
+        ],
+    )
+
+    # Cashback promotion creation conversation handler
+    cashback_promo_conv = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(cashback_promo_create_start, pattern="^cashback_promo_create$"),
+        ],
+        states={
+            CASHBACK_PROMO_PERCENTAGE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cashback_promo_percentage_received),
+            ],
+            CASHBACK_PROMO_START_DATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cashback_promo_start_date_received),
+            ],
+            CASHBACK_PROMO_END_DATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cashback_promo_end_date_received),
+            ],
+        },
+        fallbacks=[
+            CommandHandler("cancel", cashback_promo_cancel),
         ],
     )
 
@@ -5936,6 +6054,7 @@ def main():
     application.add_handler(update_account_conv)
     application.add_handler(broadcast_conv)
     application.add_handler(promo_conv)
+    application.add_handler(cashback_promo_conv)
 
     # Photo handler for seat slip uploads
     application.add_handler(MessageHandler(filters.PHOTO, handle_seat_slip_upload))

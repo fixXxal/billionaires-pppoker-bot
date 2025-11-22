@@ -126,13 +126,13 @@ class SheetsManager:
             self.exchange_rates_sheet.append_row(['USD', '15.40', self._get_timestamp()])
             self.exchange_rates_sheet.append_row(['USDT', '15.40', self._get_timestamp()])
 
-        # Promotions worksheet
+        # Promotions worksheet (for BONUS promotions only)
         try:
             self.promotions_sheet = self.spreadsheet.worksheet('Promotions')
         except gspread.WorksheetNotFound:
-            self.promotions_sheet = self.spreadsheet.add_worksheet(title='Promotions', rows=100, cols=8)
+            self.promotions_sheet = self.spreadsheet.add_worksheet(title='Promotions', rows=100, cols=7)
             self.promotions_sheet.append_row([
-                'Promotion ID', 'Bonus Percentage', 'Cashback Percentage', 'Start Date', 'End Date',
+                'Promotion ID', 'Bonus Percentage', 'Start Date', 'End Date',
                 'Status', 'Created By', 'Created At'
             ])
 
@@ -144,6 +144,16 @@ class SheetsManager:
             self.promotion_eligibility_sheet.append_row([
                 'User ID', 'PPPoker ID', 'Promotion ID', 'Deposit Request ID',
                 'Deposit Amount', 'Bonus Amount', 'Bonus Received At', 'Notes'
+            ])
+
+        # Cashback Promotions worksheet (separate from bonus promotions)
+        try:
+            self.cashback_promotions_sheet = self.spreadsheet.worksheet('Cashback Promotions')
+        except gspread.WorksheetNotFound:
+            self.cashback_promotions_sheet = self.spreadsheet.add_worksheet(title='Cashback Promotions', rows=100, cols=7)
+            self.cashback_promotions_sheet.append_row([
+                'Promotion ID', 'Cashback Percentage', 'Start Date', 'End Date',
+                'Status', 'Created By', 'Created At'
             ])
 
         # Cashback History worksheet
@@ -835,9 +845,9 @@ class SheetsManager:
             print(f"Error getting all exchange rates: {e}")
         return rates
 
-    # Promotion Management
-    def create_promotion(self, bonus_percentage: float, cashback_percentage: float, start_date: str, end_date: str, admin_id: int) -> Optional[str]:
-        """Create a new promotion with cashback"""
+    # Promotion Management (BONUS PROMOTIONS)
+    def create_promotion(self, bonus_percentage: float, start_date: str, end_date: str, admin_id: int) -> Optional[str]:
+        """Create a new bonus promotion"""
         try:
             # Generate promotion ID
             promotion_id = f"PROMO{datetime.now(self.timezone).strftime('%Y%m%d%H%M%S')}"
@@ -849,7 +859,6 @@ class SheetsManager:
             self.promotions_sheet.append_row([
                 promotion_id,
                 str(bonus_percentage),
-                str(cashback_percentage),
                 start_date,
                 end_date,
                 'Active',
@@ -863,27 +872,27 @@ class SheetsManager:
             return None
 
     def _deactivate_all_promotions(self):
-        """Deactivate all existing promotions"""
+        """Deactivate all existing bonus promotions"""
         try:
             all_rows = self.promotions_sheet.get_all_values()[1:]  # Skip header
             for idx, row in enumerate(all_rows, start=2):
-                if len(row) > 5 and row[5] == 'Active':  # Status is column 6
-                    self.promotions_sheet.update_cell(idx, 6, 'Inactive')
+                if len(row) > 4 and row[4] == 'Active':  # Status is column 5
+                    self.promotions_sheet.update_cell(idx, 5, 'Inactive')
         except Exception as e:
             print(f"Error deactivating promotions: {e}")
 
     def get_active_promotion(self) -> Optional[Dict]:
-        """Get the currently active promotion"""
+        """Get the currently active bonus promotion"""
         try:
             now = datetime.now(self.timezone)
             all_rows = self.promotions_sheet.get_all_values()[1:]  # Skip header
 
             for row in all_rows:
-                if len(row) >= 6 and row[5] == 'Active':  # Status is now column 6
+                if len(row) >= 5 and row[4] == 'Active':  # Status is column 5
                     # Parse dates
                     try:
-                        start_date = datetime.strptime(row[3], '%Y-%m-%d')  # Column 4
-                        end_date = datetime.strptime(row[4], '%Y-%m-%d')    # Column 5
+                        start_date = datetime.strptime(row[2], '%Y-%m-%d')  # Column 3
+                        end_date = datetime.strptime(row[3], '%Y-%m-%d')    # Column 4
 
                         # Make them timezone-aware
                         start_date = self.timezone.localize(start_date)
@@ -894,12 +903,11 @@ class SheetsManager:
                             return {
                                 'promotion_id': row[0],
                                 'bonus_percentage': float(row[1]),
-                                'cashback_percentage': float(row[2]),
-                                'start_date': row[3],
-                                'end_date': row[4],
-                                'status': row[5],
-                                'created_by': row[6] if len(row) > 6 else '',
-                                'created_at': row[7] if len(row) > 7 else ''
+                                'start_date': row[2],
+                                'end_date': row[3],
+                                'status': row[4],
+                                'created_by': row[5] if len(row) > 5 else '',
+                                'created_at': row[6] if len(row) > 6 else ''
                             }
                     except ValueError as e:
                         print(f"Error parsing promotion dates: {e}")
@@ -910,21 +918,20 @@ class SheetsManager:
         return None
 
     def get_all_promotions(self) -> List[Dict]:
-        """Get all promotions"""
+        """Get all bonus promotions"""
         promotions = []
         try:
             all_rows = self.promotions_sheet.get_all_values()[1:]  # Skip header
             for row in all_rows:
-                if len(row) >= 6 and row[0]:
+                if len(row) >= 5 and row[0]:
                     promotions.append({
                         'promotion_id': row[0],
                         'bonus_percentage': float(row[1]) if row[1] else 0,
-                        'cashback_percentage': float(row[2]) if row[2] else 0,
-                        'start_date': row[3],
-                        'end_date': row[4],
-                        'status': row[5],
-                        'created_by': row[6] if len(row) > 6 else '',
-                        'created_at': row[7] if len(row) > 7 else ''
+                        'start_date': row[2],
+                        'end_date': row[3],
+                        'status': row[4],
+                        'created_by': row[5] if len(row) > 5 else '',
+                        'created_at': row[6] if len(row) > 6 else ''
                     })
         except Exception as e:
             print(f"Error getting all promotions: {e}")
@@ -1011,6 +1018,110 @@ class SheetsManager:
         except Exception as e:
             print(f"Error getting user promotion bonuses: {e}")
         return bonuses
+
+    # ========== CASHBACK PROMOTION MANAGEMENT (SEPARATE FROM BONUS) ==========
+
+    def create_cashback_promotion(self, cashback_percentage: float, start_date: str, end_date: str, admin_id: int) -> Optional[str]:
+        """Create a new cashback promotion"""
+        try:
+            # Generate promotion ID
+            promotion_id = f"CASHBACK{datetime.now(self.timezone).strftime('%Y%m%d%H%M%S')}"
+
+            # Deactivate any existing active cashback promotions
+            self._deactivate_all_cashback_promotions()
+
+            # Add new cashback promotion
+            self.cashback_promotions_sheet.append_row([
+                promotion_id,
+                str(cashback_percentage),
+                start_date,
+                end_date,
+                'Active',
+                str(admin_id),
+                self._get_timestamp()
+            ])
+
+            return promotion_id
+        except Exception as e:
+            print(f"Error creating cashback promotion: {e}")
+            return None
+
+    def _deactivate_all_cashback_promotions(self):
+        """Deactivate all existing cashback promotions"""
+        try:
+            all_rows = self.cashback_promotions_sheet.get_all_values()[1:]  # Skip header
+            for idx, row in enumerate(all_rows, start=2):
+                if len(row) > 4 and row[4] == 'Active':  # Status is column 5
+                    self.cashback_promotions_sheet.update_cell(idx, 5, 'Inactive')
+        except Exception as e:
+            print(f"Error deactivating cashback promotions: {e}")
+
+    def get_active_cashback_promotion(self) -> Optional[Dict]:
+        """Get the currently active cashback promotion"""
+        try:
+            now = datetime.now(self.timezone)
+            all_rows = self.cashback_promotions_sheet.get_all_values()[1:]  # Skip header
+
+            for row in all_rows:
+                if len(row) >= 5 and row[4] == 'Active':  # Status is column 5
+                    # Parse dates
+                    try:
+                        start_date = datetime.strptime(row[2], '%Y-%m-%d')  # Column 3
+                        end_date = datetime.strptime(row[3], '%Y-%m-%d')    # Column 4
+
+                        # Make them timezone-aware
+                        start_date = self.timezone.localize(start_date)
+                        end_date = self.timezone.localize(end_date.replace(hour=23, minute=59, second=59))
+
+                        # Check if promotion is currently valid
+                        if start_date <= now <= end_date:
+                            return {
+                                'promotion_id': row[0],
+                                'cashback_percentage': float(row[1]),
+                                'start_date': row[2],
+                                'end_date': row[3],
+                                'status': row[4],
+                                'created_by': row[5] if len(row) > 5 else '',
+                                'created_at': row[6] if len(row) > 6 else ''
+                            }
+                    except ValueError as e:
+                        print(f"Error parsing cashback promotion dates: {e}")
+                        continue
+
+        except Exception as e:
+            print(f"Error getting active cashback promotion: {e}")
+        return None
+
+    def get_all_cashback_promotions(self) -> List[Dict]:
+        """Get all cashback promotions"""
+        promotions = []
+        try:
+            all_rows = self.cashback_promotions_sheet.get_all_values()[1:]  # Skip header
+            for row in all_rows:
+                if len(row) >= 5 and row[0]:
+                    promotions.append({
+                        'promotion_id': row[0],
+                        'cashback_percentage': float(row[1]) if row[1] else 0,
+                        'start_date': row[2],
+                        'end_date': row[3],
+                        'status': row[4],
+                        'created_by': row[5] if len(row) > 5 else '',
+                        'created_at': row[6] if len(row) > 6 else ''
+                    })
+        except Exception as e:
+            print(f"Error getting all cashback promotions: {e}")
+        return promotions
+
+    def deactivate_cashback_promotion(self, promotion_id: str) -> bool:
+        """Deactivate a specific cashback promotion"""
+        try:
+            cell = self.cashback_promotions_sheet.find(promotion_id)
+            if cell:
+                self.cashback_promotions_sheet.update_cell(cell.row, 5, 'Inactive')
+                return True
+        except Exception as e:
+            print(f"Error deactivating cashback promotion: {e}")
+        return False
 
     # ========== CASHBACK FUNCTIONS ==========
 
