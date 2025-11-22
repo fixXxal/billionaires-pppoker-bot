@@ -190,7 +190,7 @@
 <body>
     <div class="container">
         <h1>🎰 Spin Wheel 🎰</h1>
-        <div style="font-size: 10px; color: #666; margin-bottom: 10px;">v3.0 - Rotation Fixed</div>
+        <div style="font-size: 10px; color: #666; margin-bottom: 10px;">v3.1 - Fixed & Optimized</div>
 
         <div id="spinsInfo">Loading...</div>
 
@@ -535,35 +535,14 @@
 
                 const rotations = results.length === 1 ? 5 : 3;
                 const totalRotation = (360 * rotations) + targetAngle;
-                currentRotation += totalRotation;
+                // Don't accumulate rotation - each spin resets to 0 first
 
                 console.log(`   📐 Segment ${segmentIndex} center naturally at: ${segmentCenterAngle.toFixed(2)}°`);
                 console.log(`   🔄 Rotating wheel by: ${targetAngle.toFixed(2)}°`);
                 console.log(`   🌀 Total rotation (with ${rotations} full spins): ${totalRotation.toFixed(2)}°`);
-                console.log(`   📍 Cumulative rotation: ${currentRotation.toFixed(2)}°`);
 
-                // VERIFY where pointer will land
-                const finalPos = ((currentRotation % 360) + 360) % 360;
                 console.log(`   \n   ✅ EXPECTED: Wheel stops with segment ${segmentIndex} at top`);
-                console.log(`   ✅ EXPECTED PRIZE: ${prizes[segmentIndex].display}`);
-
-                // Calculate where we THINK segment will land
-                const finalAngle = ((currentRotation % 360) + 360) % 360;
-                // Reverse calculation: if finalAngle = 78.75 - (seg * 22.5), then seg = (78.75 - finalAngle) / 22.5
-                let expectedSegmentAtTop = (78.75 - finalAngle) / 22.5;
-                // Handle negative segments by adding 16 until positive
-                while (expectedSegmentAtTop < 0) expectedSegmentAtTop += 16;
-                // Handle segments >= 16 by wrapping
-                expectedSegmentAtTop = Math.round(expectedSegmentAtTop % 16);
-                console.log(`   🔍 VERIFICATION: After ${currentRotation.toFixed(2)}° rotation:`);
-                console.log(`      Final position: ${finalAngle.toFixed(2)}°`);
-                console.log(`      Calculated segment at top: ${expectedSegmentAtTop}`);
-                console.log(`      That segment contains: "${prizes[expectedSegmentAtTop].display}"`);
-
-                console.log(`   \n   ⚠️ AFTER SPIN COMPLETES, PLEASE TELL ME:`);
-                console.log(`   ⚠️ 1. Which segment is at the top pointer? (count 0-15 from top clockwise)`);
-                console.log(`   ⚠️ 2. What prize message do you see?`);
-                console.log(`   ⚠️ 3. Does it match "${prizes[segmentIndex].display}"?\n`);
+                console.log(`   ✅ EXPECTED PRIZE: ${prizes[segmentIndex].display}\n`);
 
                 // Show suspense with glow effect
                 resultDiv.style.display = 'flex';
@@ -572,16 +551,23 @@
                 // Add spinning glow
                 wheel.classList.add('spinning');
 
-                // Apply rotation with requestAnimationFrame
+                // RESET wheel to 0° first (instant, no transition) to avoid accumulation
                 wheel.style.transition = 'none';
+                wheel.style.transform = 'rotate(0deg)';
                 wheel.style.transformOrigin = 'center center';
                 void wheel.offsetHeight;
+
+                // Small delay to ensure reset completes
+                await new Promise(resolve => setTimeout(resolve, 50));
+
+                // Now spin to target position (don't accumulate, use totalRotation directly)
+                const spinRotation = totalRotation;
 
                 requestAnimationFrame(() => {
                     const duration = results.length === 1 ? 4 : 2.5;
                     // Use ease-out cubic for smooth deceleration - starts fast, ends slow
-                    wheel.style.transition = `transform ${duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
-                    wheel.style.transform = `rotate(${currentRotation}deg)`;
+                    wheel.style.transition = `transform ${duration}s cubic-bezier(0.17, 0.67, 0.35, 0.96)`;
+                    wheel.style.transform = `rotate(${spinRotation}deg)`;
                 });
 
                 // Wait for animation to complete
