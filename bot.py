@@ -5021,10 +5021,10 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
                 user_spins = [s for s in all_spins if len(s) > 7 and str(s[0]) == str(target_user_id) and s[6] == 'Approved']
 
                 if user_spins:
-                    # Get first approved spin details
-                    approved_by = user_spins[0][7] if len(user_spins[0]) > 7 else 'Unknown Admin'
+                    # Get LAST (most recent) approved spin details
+                    approved_by = user_spins[-1][7] if len(user_spins[-1]) > 7 else 'Unknown Admin'
                     total_chips = sum(int(s[3]) for s in user_spins if len(s) > 3 and s[3])
-                    username = user_spins[0][1] if len(user_spins[0]) > 1 else 'User'
+                    username = user_spins[-1][1] if len(user_spins[-1]) > 1 else 'User'
 
                     await query.edit_message_text(
                         f"✅ <b>Already Approved!</b> ✅\n\n"
