@@ -171,96 +171,96 @@
         .spin-100x { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; }
         .spin-all { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: white; }
 
-        /* Popup Overlay */
-        .popup-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            animation: fadeIn 0.3s;
-        }
-
-        .popup-overlay.show {
-            display: flex;
-        }
-
-        /* Popup Content */
         #result {
             display: none;
-            background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
-            padding: 30px 25px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            padding: 25px 20px;
             border-radius: 20px;
             text-align: center;
-            font-size: 1.2em;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-            animation: popupBounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            max-width: 90%;
-            width: 350px;
-            position: relative;
-        }
-
-        /* Close Button */
-        .close-popup {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.1);
-            border: none;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 20px;
-            line-height: 1;
-            color: #666;
-            transition: all 0.2s;
-        }
-
-        .close-popup:hover {
-            background: rgba(0,0,0,0.2);
-            transform: scale(1.1);
-        }
-
-        /* OK Button */
-        .ok-button {
+            font-size: 1.15em;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            animation: resultPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             margin-top: 20px;
-            padding: 12px 40px;
-            background: linear-gradient(135deg, #0a4d3c 0%, #1a365d 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
+            border: 3px solid rgba(255,215,0,0.3);
+            position: relative;
+            overflow: hidden;
         }
 
-        .ok-button:active {
-            transform: scale(0.95);
+        #result::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #FFD700, #FFA500, #FFD700, #FFA500);
+            background-size: 400% 400%;
+            border-radius: 20px;
+            z-index: -1;
+            animation: gradientShift 3s ease infinite;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes popupBounce {
-            from {
+        @keyframes resultPop {
+            0% {
                 opacity: 0;
-                transform: scale(0.5) translateY(-50px);
+                transform: scale(0.5) translateY(30px);
             }
-            to {
+            60% {
+                transform: scale(1.05) translateY(0);
+            }
+            100% {
                 opacity: 1;
                 transform: scale(1) translateY(0);
             }
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .result-icon {
+            font-size: 3.5em;
+            margin-bottom: 10px;
+            animation: iconBounce 0.6s ease;
+            display: block;
+        }
+
+        @keyframes iconBounce {
+            0%, 100% { transform: scale(1); }
+            25% { transform: scale(1.2) rotate(-5deg); }
+            50% { transform: scale(1.1) rotate(5deg); }
+            75% { transform: scale(1.15) rotate(-3deg); }
+        }
+
+        .result-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #0a4d3c, #1a365d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .result-prize {
+            font-size: 2.2em;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            margin: 15px 0;
+            animation: prizeGlow 1.5s ease-in-out infinite;
+        }
+
+        @keyframes prizeGlow {
+            0%, 100% { filter: drop-shadow(0 0 5px #FFD700); }
+            50% { filter: drop-shadow(0 0 15px #FFD700); }
+        }
+
+        .result-subtitle {
+            color: #666;
+            font-size: 0.95em;
+            margin-top: 10px;
         }
 
         .suspense {
@@ -297,15 +297,7 @@
             <button class="spin-btn spin-all" onclick="doSpin('all')" id="btnAll">🚀 Spin All</button>
         </div>
 
-    </div>
-
-    <!-- Popup Overlay -->
-    <div class="popup-overlay" id="popupOverlay" onclick="closePopup(event)">
-        <div id="result" onclick="event.stopPropagation()">
-            <button class="close-popup" onclick="closePopup()">&times;</button>
-            <div id="resultContent"></div>
-            <button class="ok-button" onclick="closePopup()">OK</button>
-        </div>
+        <div id="result"></div>
     </div>
 
     <script>
@@ -550,10 +542,6 @@
 
             spinning = true;
             updateButtons();
-
-            // Hide popup if visible
-            const popupOverlay = document.getElementById('popupOverlay');
-            if (popupOverlay) popupOverlay.classList.remove('show');
             document.getElementById('result').style.display = 'none';
 
             try {
@@ -592,23 +580,8 @@
                 updateButtons();
 
             } catch (error) {
-                console.error('❌ Spin error:', error);
-                console.error('❌ Error stack:', error.stack);
-
-                // Show error in popup instead of alert
-                const resultContent = document.getElementById('resultContent');
-                const popupOverlay = document.getElementById('popupOverlay');
-                const resultDiv = document.getElementById('result');
-
-                resultContent.innerHTML = `
-                    <div style="font-size: 3em; margin-bottom: 10px;">❌</div>
-                    <div style="font-size: 1.3em; font-weight: bold; color: #f5576c; margin-bottom: 10px;">Error!</div>
-                    <div style="color: #666;">${error.message || 'Failed to spin. Please try again.'}</div>
-                `;
-
-                resultDiv.style.display = 'block';
-                popupOverlay.classList.add('show');
-
+                console.error('Spin error:', error);
+                alert('Error spinning!');
                 spinning = false;
                 updateButtons();
             }
@@ -701,26 +674,22 @@
 
         // ========== SHOW FINAL RESULT ==========
         function showFinalResult(results) {
-            const resultContent = document.getElementById('resultContent');
-            const popupOverlay = document.getElementById('popupOverlay');
             const resultDiv = document.getElementById('result');
-
-            let contentHTML = '';
 
             if (results.length === 1) {
                 const prize = prizes[results[0].segment_index];
                 if (prize.name === "Try Again!") {
-                    contentHTML = `
-                        <div style="font-size: 3em; margin-bottom: 10px;">🔄</div>
-                        <div style="font-size: 1.5em; font-weight: bold; color: #f5576c; margin-bottom: 10px;">Try Again!</div>
-                        <div style="color: #666;">Better luck next spin!</div>
+                    resultDiv.innerHTML = `
+                        <span class="result-icon">🔄</span>
+                        <div class="result-title">Try Again!</div>
+                        <div class="result-subtitle">Better luck next spin! 🍀</div>
                     `;
                 } else {
-                    contentHTML = `
-                        <div style="font-size: 3em; margin-bottom: 10px;">🎉</div>
-                        <div style="font-size: 1.3em; font-weight: bold; margin-bottom: 10px;">Congratulations!</div>
-                        <div style="font-size: 1.8em; color: #FFD700; font-weight: bold; margin: 15px 0;">💰 ${prize.display}</div>
-                        <div style="color: #666; font-size: 0.9em;">⏳ Pending approval!</div>
+                    resultDiv.innerHTML = `
+                        <span class="result-icon">🎉</span>
+                        <div class="result-title">🎊 Congratulations! 🎊</div>
+                        <div class="result-prize">💰 ${prize.display}</div>
+                        <div class="result-subtitle">⏳ Pending admin approval!</div>
                     `;
                 }
             } else {
@@ -732,35 +701,15 @@
                     }
                 });
 
-                contentHTML = `
-                    <div style="font-size: 3em; margin-bottom: 10px;">✅</div>
-                    <div style="font-size: 1.3em; font-weight: bold; margin-bottom: 15px;">${results.length} SPINS COMPLETE!</div>
-                    <div style="font-size: 2em; color: #FFD700; font-weight: bold; margin: 15px 0;">💰 Total: ${totalChips} Chips</div>
-                    <div style="color: #666; font-size: 0.9em;">⏳ Check pending approvals!</div>
+                resultDiv.innerHTML = `
+                    <span class="result-icon">✨</span>
+                    <div class="result-title">${results.length} Spins Complete!</div>
+                    <div class="result-prize">💰 Total: ${totalChips} Chips</div>
+                    <div class="result-subtitle">⏳ Check pending approvals!</div>
                 `;
             }
 
-            resultContent.innerHTML = contentHTML;
             resultDiv.style.display = 'block';
-            popupOverlay.classList.add('show');
-        }
-
-        // ========== CLOSE POPUP ==========
-        function closePopup(event) {
-            const popupOverlay = document.getElementById('popupOverlay');
-            const resultDiv = document.getElementById('result');
-
-            // Close if: no event (direct call), clicking overlay, or clicking close/ok buttons
-            if (!event ||
-                event.target.id === 'popupOverlay' ||
-                event.target.classList.contains('close-popup') ||
-                event.target.classList.contains('ok-button')) {
-
-                popupOverlay.classList.remove('show');
-                setTimeout(() => {
-                    resultDiv.style.display = 'none';
-                }, 300); // Wait for fade animation
-            }
         }
 
         // ========== INITIALIZATION ==========
