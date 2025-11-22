@@ -948,6 +948,7 @@ async def admin_view_promotions(update: Update, context: ContextTypes.DEFAULT_TY
         message += f"**Active Promotion:**\n"
         message += f"🆔 ID: `{active_promo['promotion_id']}`\n"
         message += f"💰 Bonus: {active_promo['bonus_percentage']}%\n"
+        message += f"💸 Cashback: {active_promo.get('cashback_percentage', 0)}%\n"
         message += f"📅 Period: {active_promo['start_date']} to {active_promo['end_date']}\n\n"
     else:
         message += "**No active promotion**\n\n"
@@ -988,6 +989,7 @@ async def admin_view_all_promotions(update: Update, context: ContextTypes.DEFAUL
         status_emoji = "🟢" if promo['status'] == 'Active' else "⚪"
         message += f"{status_emoji} **{promo['promotion_id']}**\n"
         message += f"   Bonus: {promo['bonus_percentage']}%\n"
+        message += f"   Cashback: {promo.get('cashback_percentage', 0)}%\n"
         message += f"   Period: {promo['start_date']} to {promo['end_date']}\n"
         message += f"   Status: {promo['status']}\n\n"
 
