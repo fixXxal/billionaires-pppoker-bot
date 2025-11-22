@@ -27,7 +27,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0a4d3c 0%, #1a365d 100%);
             min-height: 100vh;
             width: 100%;
             display: flex;
@@ -135,20 +135,24 @@
 
         .spin-buttons {
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 6px;
             margin-bottom: 20px;
+            justify-content: center;
         }
 
         .spin-btn {
-            padding: 14px 28px;
-            font-size: 1.05em;
+            padding: 10px 16px;
+            font-size: 0.9em;
             font-weight: bold;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             cursor: pointer;
             transition: transform 0.2s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            flex: 0 0 auto;
+            min-width: 60px;
         }
 
         .spin-btn:active {
@@ -167,21 +171,98 @@
         .spin-100x { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; }
         .spin-all { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: white; }
 
-        #result {
+        /* Popup Overlay */
+        .popup-overlay {
             display: none;
-            background: rgba(255,255,255,0.95);
-            padding: 18px;
-            border-radius: 12px;
-            text-align: center;
-            font-size: 1.15em;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-            animation: slideIn 0.4s;
-            margin-top: 10px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s;
         }
 
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
+        .popup-overlay.show {
+            display: flex;
+        }
+
+        /* Popup Content */
+        #result {
+            display: none;
+            background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+            padding: 30px 25px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 1.2em;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: popupBounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            max-width: 90%;
+            width: 350px;
+            position: relative;
+        }
+
+        /* Close Button */
+        .close-popup {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.1);
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .close-popup:hover {
+            background: rgba(0,0,0,0.2);
+            transform: scale(1.1);
+        }
+
+        /* OK Button */
+        .ok-button {
+            margin-top: 20px;
+            padding: 12px 40px;
+            background: linear-gradient(135deg, #0a4d3c 0%, #1a365d 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+
+        .ok-button:active {
+            transform: scale(0.95);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes popupBounce {
+            from {
+                opacity: 0;
+                transform: scale(0.5) translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
         }
 
         .suspense {
@@ -218,7 +299,15 @@
             <button class="spin-btn spin-all" onclick="doSpin('all')" id="btnAll">🚀 Spin All</button>
         </div>
 
-        <div id="result"></div>
+    </div>
+
+    <!-- Popup Overlay -->
+    <div class="popup-overlay" id="popupOverlay" onclick="closePopup(event)">
+        <div id="result" onclick="event.stopPropagation()">
+            <button class="close-popup" onclick="closePopup()">&times;</button>
+            <div id="resultContent"></div>
+            <button class="ok-button" onclick="closePopup()">OK</button>
+        </div>
     </div>
 
     <script>
@@ -595,14 +684,27 @@
 
         // ========== SHOW FINAL RESULT ==========
         function showFinalResult(results) {
+            const resultContent = document.getElementById('resultContent');
+            const popupOverlay = document.getElementById('popupOverlay');
             const resultDiv = document.getElementById('result');
+
+            let contentHTML = '';
 
             if (results.length === 1) {
                 const prize = prizes[results[0].segment_index];
                 if (prize.name === "Try Again!") {
-                    resultDiv.innerHTML = `🔄 <strong>Try Again!</strong><br><small>Better luck next spin!</small>`;
+                    contentHTML = `
+                        <div style="font-size: 3em; margin-bottom: 10px;">🔄</div>
+                        <div style="font-size: 1.5em; font-weight: bold; color: #f5576c; margin-bottom: 10px;">Try Again!</div>
+                        <div style="color: #666;">Better luck next spin!</div>
+                    `;
                 } else {
-                    resultDiv.innerHTML = `🎉 You won: <strong>${prize.display}</strong><br><small>Pending approval!</small>`;
+                    contentHTML = `
+                        <div style="font-size: 3em; margin-bottom: 10px;">🎉</div>
+                        <div style="font-size: 1.3em; font-weight: bold; margin-bottom: 10px;">Congratulations!</div>
+                        <div style="font-size: 1.8em; color: #FFD700; font-weight: bold; margin: 15px 0;">💰 ${prize.display}</div>
+                        <div style="color: #666; font-size: 0.9em;">⏳ Pending approval!</div>
+                    `;
                 }
             } else {
                 let totalChips = 0;
@@ -613,14 +715,31 @@
                     }
                 });
 
-                resultDiv.innerHTML = `
-                    <strong style="font-size: 1.25em;">✅ ${results.length} SPINS COMPLETE!</strong><br>
-                    <div style="font-size: 1.4em; margin: 8px 0; color: #FFD700;">💰 Total: ${totalChips} Chips</div>
-                    <small>Check pending approvals!</small>
+                contentHTML = `
+                    <div style="font-size: 3em; margin-bottom: 10px;">✅</div>
+                    <div style="font-size: 1.3em; font-weight: bold; margin-bottom: 15px;">${results.length} SPINS COMPLETE!</div>
+                    <div style="font-size: 2em; color: #FFD700; font-weight: bold; margin: 15px 0;">💰 Total: ${totalChips} Chips</div>
+                    <div style="color: #666; font-size: 0.9em;">⏳ Check pending approvals!</div>
                 `;
             }
 
-            resultDiv.style.display = 'flex';
+            resultContent.innerHTML = contentHTML;
+            resultDiv.style.display = 'block';
+            popupOverlay.classList.add('show');
+        }
+
+        // ========== CLOSE POPUP ==========
+        function closePopup(event) {
+            // If clicking outside the popup or on close button
+            if (!event || event.target.id === 'popupOverlay' || event.target.classList.contains('close-popup') || event.target.classList.contains('ok-button')) {
+                const popupOverlay = document.getElementById('popupOverlay');
+                const resultDiv = document.getElementById('result');
+
+                popupOverlay.classList.remove('show');
+                setTimeout(() => {
+                    resultDiv.style.display = 'none';
+                }, 300); // Wait for fade animation
+            }
         }
 
         // ========== INITIALIZATION ==========
