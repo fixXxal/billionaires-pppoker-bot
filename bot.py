@@ -1343,9 +1343,21 @@ CASHBACK_PPPOKER_ID = 100
 async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start cashback request flow"""
     user = update.effective_user
+    logger.info(f"Cashback button clicked by user {user.id} ({user.username or user.first_name})")
 
-    # Check if there's an active CASHBACK promotion (separate from bonus)
-    cashback_promo = sheets.get_active_cashback_promotion()
+    try:
+        # Check if there's an active CASHBACK promotion (separate from bonus)
+        cashback_promo = sheets.get_active_cashback_promotion()
+    except Exception as e:
+        logger.error(f"Error getting active cashback promotion: {e}")
+        await update.message.reply_text(
+            "❌ <b>Error</b>\n\n"
+            "Sorry, there was an error checking for active promotions.\n"
+            "Please try again later or contact support.",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
+
     if not cashback_promo:
         await update.message.reply_text(
             "❌ <b>Cashback Not Available</b>\n\n"
@@ -1358,9 +1370,19 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cashback_percentage = cashback_promo.get('cashback_percentage')
     promotion_id = cashback_promo.get('promotion_id')
 
-    # Check if user already has a pending cashback request for this promotion
-    pending_requests = sheets.get_user_pending_cashback(user.id)
-    pending_for_promo = [r for r in pending_requests if r.get('promotion_id') == promotion_id]
+    try:
+        # Check if user already has a pending cashback request for this promotion
+        pending_requests = sheets.get_user_pending_cashback(user.id)
+        pending_for_promo = [r for r in pending_requests if r.get('promotion_id') == promotion_id]
+    except Exception as e:
+        logger.error(f"Error getting pending cashback requests: {e}")
+        await update.message.reply_text(
+            "❌ <b>Error</b>\n\n"
+            "Sorry, there was an error checking your pending requests.\n"
+            "Please try again later or contact support.",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
 
     if pending_for_promo:
         await update.message.reply_text(
@@ -1374,8 +1396,18 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
-    # Check eligibility (both loss requirement and if already claimed)
-    eligibility = sheets.check_cashback_eligibility(user.id, promotion_id, min_loss=500)
+    try:
+        # Check eligibility (both loss requirement and if already claimed)
+        eligibility = sheets.check_cashback_eligibility(user.id, promotion_id, min_loss=500)
+    except Exception as e:
+        logger.error(f"Error checking cashback eligibility: {e}")
+        await update.message.reply_text(
+            "❌ <b>Error</b>\n\n"
+            "Sorry, there was an error checking your eligibility.\n"
+            "Please try again later or contact support.",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
 
     if not eligibility['eligible']:
         current_deposits = eligibility['current_deposits']
@@ -6151,6 +6183,23 @@ def main():
         logger.info("Scheduler started - Daily reports will be sent at midnight (00:00) Maldives time")
 
     application.post_init = post_init
+
+    # Add error handler
+    async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Log errors caused by updates."""
+        logger.error(f"Exception while handling an update: {context.error}")
+        logger.error(f"Update: {update}")
+
+        # Try to notify the user
+        if update and hasattr(update, 'effective_message') and update.effective_message:
+            try:
+                await update.effective_message.reply_text(
+                    "❌ An error occurred while processing your request. Please try again or contact support."
+                )
+            except Exception:
+                pass
+
+    application.add_error_handler(error_handler)
 
     # Log startup
     logger.info("Bot started successfully!")
