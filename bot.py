@@ -1433,11 +1433,14 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Check eligibility (both loss requirement and if already claimed)
         eligibility = sheets.check_cashback_eligibility(user.id, promotion_id, min_loss=500)
     except Exception as e:
+        import traceback
         logger.error(f"Error checking cashback eligibility: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         await update.message.reply_text(
-            "❌ <b>Error</b>\n\n"
-            "Sorry, there was an error checking your eligibility.\n"
-            "Please try again later or contact support.",
+            f"❌ <b>Error</b>\n\n"
+            f"Sorry, there was an error checking your eligibility.\n"
+            f"Error: {str(e)}\n\n"
+            f"Please contact admin.",
             parse_mode='HTML'
         )
         return ConversationHandler.END
