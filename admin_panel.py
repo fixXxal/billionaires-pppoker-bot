@@ -53,6 +53,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("💰 Pending Deposits", callback_data="admin_view_deposits")],
         [InlineKeyboardButton("💸 Pending Withdrawals", callback_data="admin_view_withdrawals")],
         [InlineKeyboardButton("💵 Pending Cashback", callback_data="admin_view_cashback")],
+        [InlineKeyboardButton("💳 Active Credits", callback_data="admin_view_credits")],
         [InlineKeyboardButton("🎮 Pending Join Requests", callback_data="admin_view_joins")],
         [InlineKeyboardButton("🎁 Promotions", callback_data="admin_view_promotions")],
         [InlineKeyboardButton("🏦 Payment Accounts", callback_data="admin_view_accounts")],
@@ -894,6 +895,65 @@ async def cashback_admin_reject(update: Update, context: ContextTypes.DEFAULT_TY
         )
 
 
+# ========== CREDITS VIEW ==========
+async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View all active credits (users who owe money)"""
+    # Handle both callback query and text message
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        edit_func = query.edit_message_text
+    else:
+        query = update
+        edit_func = update.message.reply_text
+
+    # Get all active credits
+    active_credits = sheets.get_all_active_credits()
+
+    if not active_credits:
+        await edit_func(
+            "✅ <b>No Active Credits</b>\n\n"
+            "All users have paid their debts!",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("« Back", callback_data="admin_back")
+            ]]),
+            parse_mode='HTML'
+        )
+        return
+
+    # Calculate totals
+    total_credits = len(active_credits)
+    total_amount = sum(credit['amount'] for credit in active_credits)
+
+    # Build message
+    message = f"💳 <b>ACTIVE CREDITS SUMMARY</b>\n\n"
+    message += f"👥 <b>Total Users:</b> {total_credits}\n"
+    message += f"💰 <b>Total Amount:</b> {total_amount:,.2f} MVR\n\n"
+    message += f"━━━━━━━━━━━━━━━━━━\n\n"
+
+    # List each credit
+    for i, credit in enumerate(active_credits, 1):
+        username_display = f"@{credit['username']}" if credit['username'] else "No username"
+        message += f"<b>{i}. {username_display}</b>\n"
+        message += f"   💰 Amount: <b>{credit['amount']:,.2f} MVR</b>\n"
+        message += f"   🎮 PPPoker ID: {credit['pppoker_id']}\n"
+        message += f"   👤 User ID: <code>{credit['user_id']}</code>\n"
+        message += f"   📅 Since: {credit['created_at']}\n\n"
+
+    message += f"━━━━━━━━━━━━━━━━━━\n\n"
+    message += f"💡 <i>Use /clear_credit &lt;user_id&gt; to mark as paid</i>"
+
+    # Add back button
+    keyboard = [[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await edit_func(
+        message,
+        reply_markup=reply_markup,
+        parse_mode='HTML'
+    )
+
+
 # Join requests
 async def admin_view_joins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """View pending join requests"""
@@ -1335,6 +1395,7 @@ def register_admin_handlers(application, notif_messages=None):
     application.add_handler(CallbackQueryHandler(admin_view_deposits, pattern="^admin_view_deposits$"))
     application.add_handler(CallbackQueryHandler(admin_view_withdrawals, pattern="^admin_view_withdrawals$"))
     application.add_handler(CallbackQueryHandler(admin_view_cashback, pattern="^admin_view_cashback$"))
+    application.add_handler(CallbackQueryHandler(admin_view_credits, pattern="^admin_view_credits$"))
     application.add_handler(CallbackQueryHandler(admin_view_joins, pattern="^admin_view_joins$"))
     application.add_handler(CallbackQueryHandler(admin_view_promotions, pattern="^admin_view_promotions$"))
     application.add_handler(CallbackQueryHandler(admin_view_all_promotions, pattern="^promo_view_all$"))

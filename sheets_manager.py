@@ -1345,10 +1345,14 @@ class SheetsManager:
                     # Column 6 is Cashback Amount (0-indexed)
                     total_cashback += float(row[6]) if row[6] else 0
 
+            # Get user credit (seats on credit - chips given but not paid)
+            user_credit = self.get_user_credit(user_id)
+            total_credit_seats = user_credit['amount'] if user_credit else 0
+
             # Calculate comprehensive balance
             # Club receives: deposits
-            # Club gives out: withdrawals + spins + bonuses + cashback
-            club_profit = total_deposits - (total_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
+            # Club gives out: withdrawals + spins + bonuses + cashback + credit seats
+            club_profit = total_deposits - (total_withdrawals + total_spin_rewards + total_bonuses + total_cashback + total_credit_seats)
 
             # User's loss is club's profit (negative club profit = user loss)
             user_loss = -club_profit if club_profit < 0 else 0
@@ -1360,10 +1364,11 @@ class SheetsManager:
                 'total_spin_rewards': total_spin_rewards,
                 'total_bonuses': total_bonuses,
                 'total_cashback': total_cashback,
+                'total_credit_seats': total_credit_seats,
                 'club_profit': club_profit,
                 'user_loss': user_loss,
                 'user_profit': user_profit,
-                'total_chips_given': total_spin_rewards + total_bonuses + total_cashback
+                'total_chips_given': total_spin_rewards + total_bonuses + total_cashback + total_credit_seats
             }
 
         except Exception as e:
@@ -1374,6 +1379,7 @@ class SheetsManager:
                 'total_spin_rewards': 0,
                 'total_bonuses': 0,
                 'total_cashback': 0,
+                'total_credit_seats': 0,
                 'club_profit': 0,
                 'user_loss': 0,
                 'user_profit': 0,

@@ -1006,7 +1006,23 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
 # Withdrawal Flow
 async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start withdrawal process"""
-    user_data = sheets.get_user(update.effective_user.id)
+    user_id = update.effective_user.id
+
+    # Check if user has outstanding credit
+    user_credit = sheets.get_user_credit(user_id)
+    if user_credit and user_credit['amount'] > 0:
+        await update.message.reply_text(
+            f"❌ <b>Cannot Withdraw - Outstanding Credit</b>\n\n"
+            f"You have an unpaid credit:\n"
+            f"💳 <b>Amount Owed:</b> {user_credit['amount']:,.2f} MVR\n"
+            f"📅 <b>Since:</b> {user_credit['created_at']}\n\n"
+            f"Please pay your credit before requesting withdrawal.\n"
+            f"Contact admin for payment details.",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
+
+    user_data = sheets.get_user(user_id)
 
     if not user_data or not user_data.get('account_name'):
         await update.message.reply_text(
@@ -1344,6 +1360,23 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start cashback request flow"""
     user = update.effective_user
     logger.info(f"Cashback button clicked by user {user.id} ({user.username or user.first_name})")
+
+    # Check if user has outstanding credit
+    try:
+        user_credit = sheets.get_user_credit(user.id)
+        if user_credit and user_credit['amount'] > 0:
+            await update.message.reply_text(
+                f"❌ <b>Cannot Request Cashback - Outstanding Credit</b>\n\n"
+                f"You have an unpaid credit:\n"
+                f"💳 <b>Amount Owed:</b> {user_credit['amount']:,.2f} MVR\n"
+                f"📅 <b>Since:</b> {user_credit['created_at']}\n\n"
+                f"Please pay your credit before requesting cashback.\n"
+                f"Contact admin for payment details.",
+                parse_mode='HTML'
+            )
+            return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error checking user credit: {e}")
 
     try:
         # Check if there's an active CASHBACK promotion (separate from bonus)
