@@ -293,6 +293,19 @@ class SheetsManager:
                 'User ID', 'Username', 'Prize Won', 'Chips Amount', 'Timestamp', 'PPPoker ID', 'Status', 'Approved By', 'Approved At'
             ])
 
+        # Counter Status worksheet - tracks if counter is open or closed
+        try:
+            self.counter_status_sheet = self.spreadsheet.worksheet('Counter Status')
+        except gspread.WorksheetNotFound:
+            self.counter_status_sheet = self.spreadsheet.add_worksheet(title='Counter Status', rows=100, cols=6)
+            self.counter_status_sheet.append_row([
+                'Status', 'Changed At', 'Changed By', 'Announcement Sent', 'Closing Poster ID', 'Opening Poster ID'
+            ])
+            # Initialize with OPEN status
+            self.counter_status_sheet.append_row([
+                'OPEN', self._get_timestamp(), 'SYSTEM', 'No', '', ''
+            ])
+
         # Run migration to add PPPoker ID columns if they don't exist
         self._migrate_add_pppoker_columns()
 
@@ -2203,4 +2216,108 @@ class SheetsManager:
                 'approved_rewards': 0,
                 'top_users': []
             }
+
+    # ==================== COUNTER STATUS MANAGEMENT ====================
+
+    def get_counter_status(self) -> Dict:
+        """Get current counter status (OPEN or CLOSED)"""
+        try:
+            # Get the last row (most recent status)
+            all_rows = self.counter_status_sheet.get_all_values()
+            if len(all_rows) <= 1:  # Only header
+                return {'status': 'OPEN', 'changed_at': '', 'changed_by': ''}
+
+            last_row = all_rows[-1]
+            return {
+                'status': last_row[0],  # OPEN or CLOSED
+                'changed_at': last_row[1],
+                'changed_by': last_row[2],
+                'announcement_sent': last_row[3] if len(last_row) > 3 else 'No',
+                'closing_poster_id': last_row[4] if len(last_row) > 4 else '',
+                'opening_poster_id': last_row[5] if len(last_row) > 5 else ''
+            }
+        except Exception as e:
+            print(f"Error getting counter status: {e}")
+            return {'status': 'OPEN', 'changed_at': '', 'changed_by': ''}
+
+    def is_counter_open(self) -> bool:
+        """Check if counter is currently open"""
+        status = self.get_counter_status()
+        return status['status'] == 'OPEN'
+
+    def set_counter_status(self, status: str, admin_name: str, announcement_sent: bool = False) -> bool:
+        """
+        Set counter status (OPEN or CLOSED)
+
+        Args:
+            status: 'OPEN' or 'CLOSED'
+            admin_name: Name of admin who changed the status
+            announcement_sent: Whether broadcast was sent to users
+        """
+        try:
+            self.counter_status_sheet.append_row([
+                status,
+                self._get_timestamp(),
+                admin_name,
+                'Yes' if announcement_sent else 'No',
+                '',  # Closing poster ID (will be updated separately)
+                ''   # Opening poster ID (will be updated separately)
+            ])
+            return True
+        except Exception as e:
+            print(f"Error setting counter status: {e}")
+            return False
+
+    def save_counter_poster(self, poster_type: str, file_id: str) -> bool:
+        """
+        Save poster file ID for closing/opening announcements
+
+        Args:
+            poster_type: 'closing' or 'opening'
+            file_id: Telegram file_id of the poster image
+        """
+        try:
+            # Get the last row number
+            all_rows = self.counter_status_sheet.get_all_values()
+            last_row_num = len(all_rows)
+
+            if last_row_num <= 1:  # No status rows yet
+                return False
+
+            # Update the appropriate column
+            if poster_type == 'closing':
+                self.counter_status_sheet.update_cell(last_row_num, 5, file_id)  # Column 5
+            elif poster_type == 'opening':
+                self.counter_status_sheet.update_cell(last_row_num, 6, file_id)  # Column 6
+
+            return True
+        except Exception as e:
+            print(f"Error saving counter poster: {e}")
+            return False
+
+    def get_saved_poster(self, poster_type: str) -> Optional[str]:
+        """
+        Get saved poster file ID
+
+        Args:
+            poster_type: 'closing' or 'opening'
+
+        Returns:
+            file_id if found, None otherwise
+        """
+        try:
+            all_rows = self.counter_status_sheet.get_all_values()
+
+            # Search backwards for the most recent poster of this type
+            for row in reversed(all_rows[1:]):  # Skip header
+                if len(row) > 5:
+                    if poster_type == 'closing' and row[4]:
+                        return row[4]
+                    elif poster_type == 'opening' and row[5]:
+                        return row[5]
+
+            return None
+        except Exception as e:
+            print(f"Error getting saved poster: {e}")
+            return None
 

@@ -63,6 +63,25 @@ def clean_pppoker_id(raw_input: str) -> str:
     # Keep only digits
     cleaned = ''.join(char for char in raw_input if char.isdigit())
     return cleaned
+
+def is_counter_closed() -> bool:
+    """Check if counter is currently closed"""
+    return not sheets.is_counter_open()
+
+async def send_counter_closed_message(update: Update) -> bool:
+    """
+    Send counter closed message to user.
+    Returns True if counter is closed, False if open.
+    """
+    if is_counter_closed():
+        await update.message.reply_text(
+            "🔴 <b>COUNTER IS CLOSED</b>\n\n"
+            "We are currently not accepting requests.\n"
+            "Please try again later when we reopen!",
+            parse_mode='HTML'
+        )
+        return True
+    return False
 SPREADSHEET_NAME = os.getenv('SPREADSHEET_NAME', 'Billionaires_PPPoker_Bot')
 CREDENTIALS_FILE = os.getenv('GOOGLE_SHEETS_CREDENTIALS_FILE', 'credentials.json')
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
@@ -79,7 +98,8 @@ spin_bot = SpinBot(sheets, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
  WITHDRAWAL_ACCOUNT_NAME, WITHDRAWAL_ACCOUNT_NUMBER, JOIN_PPPOKER_ID,
  ADMIN_APPROVAL_NOTES, SUPPORT_CHAT, ADMIN_REPLY_MESSAGE, UPDATE_ACCOUNT_METHOD, UPDATE_ACCOUNT_NUMBER, BROADCAST_MESSAGE,
  PROMO_PERCENTAGE, PROMO_START_DATE, PROMO_END_DATE, SEAT_AMOUNT, SEAT_SLIP_UPLOAD,
- CASHBACK_PROMO_PERCENTAGE, CASHBACK_PROMO_START_DATE, CASHBACK_PROMO_END_DATE) = range(25)
+ CASHBACK_PROMO_PERCENTAGE, CASHBACK_PROMO_START_DATE, CASHBACK_PROMO_END_DATE,
+ COUNTER_CLOSE_POSTER, COUNTER_OPEN_POSTER) = range(27)
 
 # Store for live support sessions
 live_support_sessions: Dict[int, int] = {}  # user_id: admin_user_id (which admin is handling this user)
@@ -474,6 +494,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Deposit Flow
 async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start deposit process"""
+    # Check if counter is closed
+    if await send_counter_closed_message(update):
+        return ConversationHandler.END
+
     user_data = sheets.get_user(update.effective_user.id)
 
     # Get all configured payment accounts
@@ -1034,6 +1058,10 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
 # Withdrawal Flow
 async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start withdrawal process"""
+    # Check if counter is closed
+    if await send_counter_closed_message(update):
+        return ConversationHandler.END
+
     user_id = update.effective_user.id
 
     # Check if user has outstanding credit
@@ -1282,6 +1310,10 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
 # Join Club Flow
 async def join_club_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start join club process - show club info with button"""
+    # Check if counter is closed
+    if await send_counter_closed_message(update):
+        return ConversationHandler.END
+
     club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
 
     # Create button to open club directly
@@ -1409,6 +1441,10 @@ CASHBACK_PPPOKER_ID = 100
 
 async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start cashback request flow"""
+    # Check if counter is closed
+    if await send_counter_closed_message(update):
+        return ConversationHandler.END
+
     user = update.effective_user
     logger.info(f"Cashback button clicked by user {user.id} ({user.username or user.first_name})")
 
@@ -1719,6 +1755,10 @@ async def my_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Seat Request Flow
 async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start seat request process"""
+    # Check if counter is closed
+    if await send_counter_closed_message(update):
+        return ConversationHandler.END
+
     user = update.effective_user
 
     # Check if user has active credit
@@ -3637,6 +3677,412 @@ async def broadcast_message_received(update: Update, context: ContextTypes.DEFAU
     await update.message.reply_text(result_msg, parse_mode='Markdown')
 
     return ConversationHandler.END
+
+
+# ========== COUNTER CONTROL HANDLERS ==========
+
+async def counter_close_with_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ask admin to upload closing poster"""
+    query = update.callback_query
+    await query.answer()
+
+    # Check if there's a saved poster
+    saved_poster = sheets.get_saved_poster('closing')
+
+    if saved_poster:
+        keyboard = [
+            [InlineKeyboardButton("📤 Upload New Poster", callback_data="counter_close_new_poster")],
+            [InlineKeyboardButton("♻️ Use Saved Poster", callback_data="counter_close_saved_poster")],
+            [InlineKeyboardButton("« Cancel", callback_data="admin_back")]
+        ]
+        await query.edit_message_text(
+            "📸 <b>CLOSING POSTER</b>\n\n"
+            "You have a saved closing poster. Use it or upload a new one?",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        await query.edit_message_text(
+            "📸 <b>Upload Closing Poster</b>\n\n"
+            "Please send the poster image for the closing announcement:",
+            parse_mode='HTML'
+        )
+        return COUNTER_CLOSE_POSTER
+
+
+async def counter_close_new_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ask for new poster upload"""
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "📸 <b>Upload New Closing Poster</b>\n\n"
+        "Please send the poster image:",
+        parse_mode='HTML'
+    )
+    return COUNTER_CLOSE_POSTER
+
+
+async def counter_close_saved_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Use saved poster for closing"""
+    query = update.callback_query
+    await query.answer()
+
+    saved_poster = sheets.get_saved_poster('closing')
+    if not saved_poster:
+        await query.edit_message_text(
+            "❌ Saved poster not found. Please upload a new one.",
+            parse_mode='HTML'
+        )
+        return COUNTER_CLOSE_POSTER
+
+    # Broadcast to all users
+    await query.edit_message_text(
+        "📤 <b>Broadcasting closing announcement...</b>",
+        parse_mode='HTML'
+    )
+
+    user_ids = sheets.get_all_user_ids()
+    success_count = 0
+    failed_count = 0
+
+    admin_name = query.from_user.username or query.from_user.first_name
+
+    for user_id in user_ids:
+        try:
+            await context.bot.send_photo(
+                chat_id=user_id,
+                photo=saved_poster,
+                caption="🔴 <b>COUNTER CLOSED</b>\n\nWe'll notify you when we open again!",
+                parse_mode='HTML'
+            )
+            success_count += 1
+            await asyncio.sleep(0.05)  # Rate limit
+        except Exception as e:
+            failed_count += 1
+            logger.error(f"Failed to send closing announcement to {user_id}: {e}")
+
+    # Update counter status
+    sheets.set_counter_status('CLOSED', admin_name, announcement_sent=True)
+
+    await query.edit_message_text(
+        f"✅ <b>Counter CLOSED</b>\n\n"
+        f"📤 Announcement sent to {success_count} users\n"
+        f"❌ Failed: {failed_count}",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
+    )
+    return ConversationHandler.END
+
+
+async def counter_close_poster_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive closing poster and broadcast"""
+    if not update.message.photo:
+        await update.message.reply_text(
+            "❌ Please send an image file.",
+            parse_mode='HTML'
+        )
+        return COUNTER_CLOSE_POSTER
+
+    photo = update.message.photo[-1]  # Highest quality
+    file_id = photo.file_id
+
+    # Save poster for future use
+    sheets.set_counter_status('CLOSED', update.effective_user.username or update.effective_user.first_name, announcement_sent=True)
+    sheets.save_counter_poster('closing', file_id)
+
+    # Broadcast to all users
+    await update.message.reply_text(
+        "📤 <b>Broadcasting closing announcement...</b>",
+        parse_mode='HTML'
+    )
+
+    user_ids = sheets.get_all_user_ids()
+    success_count = 0
+    failed_count = 0
+
+    for user_id in user_ids:
+        try:
+            await context.bot.send_photo(
+                chat_id=user_id,
+                photo=file_id,
+                caption="🔴 <b>COUNTER CLOSED</b>\n\nWe'll notify you when we open again!",
+                parse_mode='HTML'
+            )
+            success_count += 1
+            await asyncio.sleep(0.05)  # Rate limit
+        except Exception as e:
+            failed_count += 1
+            logger.error(f"Failed to send closing announcement to {user_id}: {e}")
+
+    await update.message.reply_text(
+        f"✅ <b>Counter CLOSED</b>\n\n"
+        f"📤 Announcement sent to {success_count} users\n"
+        f"❌ Failed: {failed_count}\n\n"
+        f"Poster saved for future use.",
+        parse_mode='HTML'
+    )
+    return ConversationHandler.END
+
+
+async def counter_close_text_only(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Close counter with text-only announcement"""
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "📤 <b>Broadcasting closing announcement...</b>",
+        parse_mode='HTML'
+    )
+
+    user_ids = sheets.get_all_user_ids()
+    success_count = 0
+    failed_count = 0
+
+    admin_name = query.from_user.username or query.from_user.first_name
+
+    for user_id in user_ids:
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="🔴 <b>COUNTER CLOSED</b>\n\nWe'll notify you when we open again!",
+                parse_mode='HTML'
+            )
+            success_count += 1
+            await asyncio.sleep(0.05)  # Rate limit
+        except Exception as e:
+            failed_count += 1
+            logger.error(f"Failed to send closing announcement to {user_id}: {e}")
+
+    # Update counter status
+    sheets.set_counter_status('CLOSED', admin_name, announcement_sent=True)
+
+    await query.edit_message_text(
+        f"✅ <b>Counter CLOSED</b>\n\n"
+        f"📤 Announcement sent to {success_count} users\n"
+        f"❌ Failed: {failed_count}",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
+    )
+
+
+async def counter_close_silent(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Close counter without announcement"""
+    query = update.callback_query
+    await query.answer()
+
+    admin_name = query.from_user.username or query.from_user.first_name
+    sheets.set_counter_status('CLOSED', admin_name, announcement_sent=False)
+
+    await query.edit_message_text(
+        "✅ <b>Counter CLOSED</b>\n\n"
+        "No announcement sent to users.",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
+    )
+
+
+# ========== COUNTER OPEN HANDLERS ==========
+
+async def counter_open_with_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ask admin to upload opening poster"""
+    query = update.callback_query
+    await query.answer()
+
+    # Check if there's a saved poster
+    saved_poster = sheets.get_saved_poster('opening')
+
+    if saved_poster:
+        keyboard = [
+            [InlineKeyboardButton("📤 Upload New Poster", callback_data="counter_open_new_poster")],
+            [InlineKeyboardButton("♻️ Use Saved Poster", callback_data="counter_open_saved_poster")],
+            [InlineKeyboardButton("« Cancel", callback_data="admin_back")]
+        ]
+        await query.edit_message_text(
+            "📸 <b>OPENING POSTER</b>\n\n"
+            "You have a saved opening poster. Use it or upload a new one?",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        await query.edit_message_text(
+            "📸 <b>Upload Opening Poster</b>\n\n"
+            "Please send the poster image for the opening announcement:",
+            parse_mode='HTML'
+        )
+        return COUNTER_OPEN_POSTER
+
+
+async def counter_open_new_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ask for new poster upload"""
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "📸 <b>Upload New Opening Poster</b>\n\n"
+        "Please send the poster image:",
+        parse_mode='HTML'
+    )
+    return COUNTER_OPEN_POSTER
+
+
+async def counter_open_saved_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Use saved poster for opening"""
+    query = update.callback_query
+    await query.answer()
+
+    saved_poster = sheets.get_saved_poster('opening')
+    if not saved_poster:
+        await query.edit_message_text(
+            "❌ Saved poster not found. Please upload a new one.",
+            parse_mode='HTML'
+        )
+        return COUNTER_OPEN_POSTER
+
+    # Broadcast to all users
+    await query.edit_message_text(
+        "📤 <b>Broadcasting opening announcement...</b>",
+        parse_mode='HTML'
+    )
+
+    user_ids = sheets.get_all_user_ids()
+    success_count = 0
+    failed_count = 0
+
+    admin_name = query.from_user.username or query.from_user.first_name
+
+    for user_id in user_ids:
+        try:
+            await context.bot.send_photo(
+                chat_id=user_id,
+                photo=saved_poster,
+                caption="🟢 <b>COUNTER NOW OPEN!</b>\n\nYou can now make deposits, withdrawals, and all requests!",
+                parse_mode='HTML'
+            )
+            success_count += 1
+            await asyncio.sleep(0.05)  # Rate limit
+        except Exception as e:
+            failed_count += 1
+            logger.error(f"Failed to send opening announcement to {user_id}: {e}")
+
+    # Update counter status
+    sheets.set_counter_status('OPEN', admin_name, announcement_sent=True)
+
+    await query.edit_message_text(
+        f"✅ <b>Counter OPEN</b>\n\n"
+        f"📤 Announcement sent to {success_count} users\n"
+        f"❌ Failed: {failed_count}",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
+    )
+    return ConversationHandler.END
+
+
+async def counter_open_poster_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive opening poster and broadcast"""
+    if not update.message.photo:
+        await update.message.reply_text(
+            "❌ Please send an image file.",
+            parse_mode='HTML'
+        )
+        return COUNTER_OPEN_POSTER
+
+    photo = update.message.photo[-1]  # Highest quality
+    file_id = photo.file_id
+
+    # Save poster for future use
+    sheets.set_counter_status('OPEN', update.effective_user.username or update.effective_user.first_name, announcement_sent=True)
+    sheets.save_counter_poster('opening', file_id)
+
+    # Broadcast to all users
+    await update.message.reply_text(
+        "📤 <b>Broadcasting opening announcement...</b>",
+        parse_mode='HTML'
+    )
+
+    user_ids = sheets.get_all_user_ids()
+    success_count = 0
+    failed_count = 0
+
+    for user_id in user_ids:
+        try:
+            await context.bot.send_photo(
+                chat_id=user_id,
+                photo=file_id,
+                caption="🟢 <b>COUNTER NOW OPEN!</b>\n\nYou can now make deposits, withdrawals, and all requests!",
+                parse_mode='HTML'
+            )
+            success_count += 1
+            await asyncio.sleep(0.05)  # Rate limit
+        except Exception as e:
+            failed_count += 1
+            logger.error(f"Failed to send opening announcement to {user_id}: {e}")
+
+    await update.message.reply_text(
+        f"✅ <b>Counter OPEN</b>\n\n"
+        f"📤 Announcement sent to {success_count} users\n"
+        f"❌ Failed: {failed_count}\n\n"
+        f"Poster saved for future use.",
+        parse_mode='HTML'
+    )
+    return ConversationHandler.END
+
+
+async def counter_open_text_only(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Open counter with text-only announcement"""
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "📤 <b>Broadcasting opening announcement...</b>",
+        parse_mode='HTML'
+    )
+
+    user_ids = sheets.get_all_user_ids()
+    success_count = 0
+    failed_count = 0
+
+    admin_name = query.from_user.username or query.from_user.first_name
+
+    for user_id in user_ids:
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="🟢 <b>COUNTER NOW OPEN!</b>\n\nYou can now make deposits, withdrawals, and all requests!",
+                parse_mode='HTML'
+            )
+            success_count += 1
+            await asyncio.sleep(0.05)  # Rate limit
+        except Exception as e:
+            failed_count += 1
+            logger.error(f"Failed to send opening announcement to {user_id}: {e}")
+
+    # Update counter status
+    sheets.set_counter_status('OPEN', admin_name, announcement_sent=True)
+
+    await query.edit_message_text(
+        f"✅ <b>Counter OPEN</b>\n\n"
+        f"📤 Announcement sent to {success_count} users\n"
+        f"❌ Failed: {failed_count}",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
+    )
+
+
+async def counter_open_silent(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Open counter without announcement"""
+    query = update.callback_query
+    await query.answer()
+
+    admin_name = query.from_user.username or query.from_user.first_name
+    sheets.set_counter_status('OPEN', admin_name, announcement_sent=False)
+
+    await query.edit_message_text(
+        "✅ <b>Counter OPEN</b>\n\n"
+        "No announcement sent to users.",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
+    )
 
 
 # Promotion Management Handlers
@@ -6275,6 +6721,50 @@ def main():
     application.add_handler(broadcast_conv)
     application.add_handler(promo_conv)
     application.add_handler(cashback_promo_conv)
+
+    # Counter control conversation handlers
+    counter_close_conv = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(counter_close_with_poster, pattern="^counter_close_with_poster$"),
+            CallbackQueryHandler(counter_close_new_poster, pattern="^counter_close_new_poster$"),
+        ],
+        states={
+            COUNTER_CLOSE_POSTER: [
+                MessageHandler(filters.PHOTO, counter_close_poster_received),
+            ],
+        },
+        fallbacks=[],
+        per_user=True,
+        per_chat=True,
+        name="counter_close_conv"
+    )
+
+    counter_open_conv = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(counter_open_with_poster, pattern="^counter_open_with_poster$"),
+            CallbackQueryHandler(counter_open_new_poster, pattern="^counter_open_new_poster$"),
+        ],
+        states={
+            COUNTER_OPEN_POSTER: [
+                MessageHandler(filters.PHOTO, counter_open_poster_received),
+            ],
+        },
+        fallbacks=[],
+        per_user=True,
+        per_chat=True,
+        name="counter_open_conv"
+    )
+
+    application.add_handler(counter_close_conv)
+    application.add_handler(counter_open_conv)
+
+    # Counter control callback handlers (non-conversation)
+    application.add_handler(CallbackQueryHandler(counter_close_text_only, pattern="^counter_close_text_only$"))
+    application.add_handler(CallbackQueryHandler(counter_close_silent, pattern="^counter_close_silent$"))
+    application.add_handler(CallbackQueryHandler(counter_close_saved_poster, pattern="^counter_close_saved_poster$"))
+    application.add_handler(CallbackQueryHandler(counter_open_text_only, pattern="^counter_open_text_only$"))
+    application.add_handler(CallbackQueryHandler(counter_open_silent, pattern="^counter_open_silent$"))
+    application.add_handler(CallbackQueryHandler(counter_open_saved_poster, pattern="^counter_open_saved_poster$"))
 
     # Photo handler for seat slip uploads
     application.add_handler(MessageHandler(filters.PHOTO, handle_seat_slip_upload))

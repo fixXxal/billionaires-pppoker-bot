@@ -49,6 +49,12 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ You don't have admin access.")
         return
 
+    # Get current counter status
+    counter_status = sheets.get_counter_status()
+    is_open = counter_status['status'] == 'OPEN'
+    counter_button_text = "🔴 Close Counter" if is_open else "🟢 Open Counter"
+    counter_callback = "admin_close_counter" if is_open else "admin_open_counter"
+
     keyboard = [
         [InlineKeyboardButton("💰 Pending Deposits", callback_data="admin_view_deposits")],
         [InlineKeyboardButton("💸 Pending Withdrawals", callback_data="admin_view_withdrawals")],
@@ -57,6 +63,8 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎮 Pending Join Requests", callback_data="admin_view_joins")],
         [InlineKeyboardButton("🎁 Promotions", callback_data="admin_view_promotions")],
         [InlineKeyboardButton("🏦 Payment Accounts", callback_data="admin_view_accounts")],
+        [InlineKeyboardButton(counter_button_text, callback_data=counter_callback)],
+        [InlineKeyboardButton("📊 Counter Status", callback_data="admin_counter_status")],
         [InlineKeyboardButton("❌ Close", callback_data="admin_close")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1419,6 +1427,92 @@ async def cashback_promo_deactivate(update: Update, context: ContextTypes.DEFAUL
 # These are now handled by update_payment_account_start() in bot.py with interactive flow
 
 
+# ========== COUNTER CONTROL HANDLERS ==========
+
+async def admin_counter_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show current counter status"""
+    query = update.callback_query
+    await query.answer()
+
+    status = sheets.get_counter_status()
+    is_open = status['status'] == 'OPEN'
+
+    status_emoji = "🟢" if is_open else "🔴"
+    status_text = "OPEN" if is_open else "CLOSED"
+
+    message = f"{status_emoji} <b>COUNTER STATUS</b>\n\n"
+    message += f"Status: <b>{status_text}</b>\n"
+    message += f"Changed At: {status['changed_at']}\n"
+    message += f"Changed By: {status['changed_by']}\n"
+    message += f"Announcement: {status['announcement_sent']}\n"
+
+    keyboard = [[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]]
+
+    await query.edit_message_text(
+        message,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def admin_close_counter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Initiate counter closing process"""
+    query = update.callback_query
+    await query.answer()
+
+    # Check if already closed
+    if not sheets.is_counter_open():
+        await query.edit_message_text(
+            "⚠️ Counter is already CLOSED.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
+        )
+        return
+
+    # Ask if admin wants to send announcement
+    keyboard = [
+        [InlineKeyboardButton("📸 Send with Poster", callback_data="counter_close_with_poster")],
+        [InlineKeyboardButton("💬 Send Text Only", callback_data="counter_close_text_only")],
+        [InlineKeyboardButton("🚫 No Announcement", callback_data="counter_close_silent")],
+        [InlineKeyboardButton("« Cancel", callback_data="admin_back")]
+    ]
+
+    await query.edit_message_text(
+        "🔴 <b>CLOSE COUNTER</b>\n\n"
+        "Do you want to send a closing announcement to all users?",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def admin_open_counter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Initiate counter opening process"""
+    query = update.callback_query
+    await query.answer()
+
+    # Check if already open
+    if sheets.is_counter_open():
+        await query.edit_message_text(
+            "⚠️ Counter is already OPEN.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
+        )
+        return
+
+    # Ask if admin wants to send announcement
+    keyboard = [
+        [InlineKeyboardButton("📸 Send with Poster", callback_data="counter_open_with_poster")],
+        [InlineKeyboardButton("💬 Send Text Only", callback_data="counter_open_text_only")],
+        [InlineKeyboardButton("🚫 No Announcement", callback_data="counter_open_silent")],
+        [InlineKeyboardButton("« Cancel", callback_data="admin_back")]
+    ]
+
+    await query.edit_message_text(
+        "🟢 <b>OPEN COUNTER</b>\n\n"
+        "Do you want to send an opening announcement to all users?",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
 def register_admin_handlers(application, notif_messages=None):
     """Register all admin handlers"""
     global notification_messages
@@ -1443,6 +1537,9 @@ def register_admin_handlers(application, notif_messages=None):
     application.add_handler(CallbackQueryHandler(promo_deactivate, pattern="^promo_deactivate_"))
     application.add_handler(CallbackQueryHandler(cashback_promo_deactivate, pattern="^cashback_promo_deactivate_"))
     application.add_handler(CallbackQueryHandler(admin_view_accounts, pattern="^admin_view_accounts$"))
+    application.add_handler(CallbackQueryHandler(admin_counter_status, pattern="^admin_counter_status$"))
+    application.add_handler(CallbackQueryHandler(admin_close_counter, pattern="^admin_close_counter$"))
+    application.add_handler(CallbackQueryHandler(admin_open_counter, pattern="^admin_open_counter$"))
     application.add_handler(CallbackQueryHandler(admin_back, pattern="^admin_back$"))
     application.add_handler(CallbackQueryHandler(admin_close, pattern="^admin_close$"))
 
