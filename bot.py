@@ -1358,6 +1358,22 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cashback_percentage = cashback_promo.get('cashback_percentage')
     promotion_id = cashback_promo.get('promotion_id')
 
+    # Check if user already has a pending cashback request for this promotion
+    pending_requests = sheets.get_user_pending_cashback(user.id)
+    pending_for_promo = [r for r in pending_requests if r.get('promotion_id') == promotion_id]
+
+    if pending_for_promo:
+        await update.message.reply_text(
+            f"❌ <b>Pending Cashback Request Exists</b>\n\n"
+            f"You already have a pending cashback request for this promotion.\n\n"
+            f"🎫 Request ID: <code>{pending_for_promo[0]['request_id']}</code>\n"
+            f"💰 Amount: <b>{pending_for_promo[0]['cashback_amount']:.2f} MVR</b>\n\n"
+            f"⏳ Please wait for admin approval before submitting another request.\n\n"
+            f"💡 <i>You can only have one pending request per promotion period.</i>",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
+
     # Check eligibility (both loss requirement and if already claimed)
     eligibility = sheets.check_cashback_eligibility(user.id, promotion_id, min_loss=500)
 
@@ -1453,6 +1469,7 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
 
         # Notify all admins
         asyncio.create_task(notify_admins_cashback_request(
+            context=context,
             user_id=user.id,
             username=user.username or user.first_name,
             request_id=request_id,
@@ -1473,7 +1490,7 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
     return ConversationHandler.END
 
 
-async def notify_admins_cashback_request(user_id: int, username: str, request_id: str,
+async def notify_admins_cashback_request(context, user_id: int, username: str, request_id: str,
                                         loss_amount: float, cashback_percentage: float,
                                         cashback_amount: float, pppoker_id: str):
     """Notify all admins about new cashback request"""
@@ -1500,7 +1517,7 @@ async def notify_admins_cashback_request(user_id: int, username: str, request_id
 
         # Send to super admin
         try:
-            await application.bot.send_message(
+            await context.bot.send_message(
                 chat_id=ADMIN_USER_ID,
                 text=message,
                 parse_mode='HTML',
@@ -1515,7 +1532,7 @@ async def notify_admins_cashback_request(user_id: int, username: str, request_id
             admins = sheets.get_all_admins()
             for admin in admins:
                 try:
-                    await application.bot.send_message(
+                    await context.bot.send_message(
                         chat_id=admin['admin_id'],
                         text=message,
                         parse_mode='HTML',

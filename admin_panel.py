@@ -52,6 +52,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("💰 Pending Deposits", callback_data="admin_view_deposits")],
         [InlineKeyboardButton("💸 Pending Withdrawals", callback_data="admin_view_withdrawals")],
+        [InlineKeyboardButton("💵 Pending Cashback", callback_data="admin_view_cashback")],
         [InlineKeyboardButton("🎮 Pending Join Requests", callback_data="admin_view_joins")],
         [InlineKeyboardButton("🎁 Promotions", callback_data="admin_view_promotions")],
         [InlineKeyboardButton("🏦 Payment Accounts", callback_data="admin_view_accounts")],
@@ -657,6 +658,242 @@ async def withdrawal_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ADMIN_NOTES
 
 
+# Cashback requests
+async def admin_view_cashback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View pending cashback requests"""
+    # Handle both callback query and text message
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        edit_func = query.edit_message_text
+    else:
+        query = update
+        edit_func = update.message.reply_text
+
+    # Get pending cashback requests
+    pending_cashback = sheets.get_pending_cashback_requests()
+
+    if not pending_cashback:
+        await edit_func(
+            "✅ No pending cashback requests.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("« Back", callback_data="admin_back")
+            ]])
+        )
+        return
+
+    # Show first pending cashback request
+    context.user_data['pending_cashback'] = pending_cashback
+    context.user_data['current_cashback_index'] = 0
+
+    await show_cashback_details(query, context, pending_cashback[0])
+
+
+async def show_cashback_details(query, context, cashback_request):
+    """Display cashback request details with approval buttons"""
+    request_id = cashback_request['request_id']
+    user_id = cashback_request['user_id']
+    username = cashback_request['username']
+    pppoker_id = cashback_request['pppoker_id']
+    loss_amount = cashback_request['loss_amount']
+    cashback_percentage = cashback_request['cashback_percentage']
+    cashback_amount = cashback_request['cashback_amount']
+    promotion_id = cashback_request.get('promotion_id', 'N/A')
+    requested_at = cashback_request.get('requested_at', 'N/A')
+
+    current_index = context.user_data.get('current_cashback_index', 0)
+    total = len(context.user_data.get('pending_cashback', []))
+
+    message_text = (
+        f"💵 <b>CASHBACK REQUEST {current_index + 1}/{total}</b>\n\n"
+        f"🎫 Request ID: <code>{request_id}</code>\n"
+        f"👤 User: {username} (ID: {user_id})\n"
+        f"🎮 PPPoker ID: <b>{pppoker_id}</b>\n\n"
+        f"📊 Loss Amount: <b>{loss_amount:.2f} MVR</b>\n"
+        f"💰 Cashback Rate: <b>{cashback_percentage}%</b>\n"
+        f"💎 Cashback Amount: <b>{cashback_amount:.2f} MVR</b>\n\n"
+        f"🎁 Promotion ID: <code>{promotion_id}</code>\n"
+        f"📅 Requested: {requested_at}\n\n"
+        f"─────────────────────"
+    )
+
+    # Build keyboard with approve/reject and navigation
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Approve", callback_data=f"cashback_admin_approve_{cashback_request['row_number']}"),
+            InlineKeyboardButton("❌ Reject", callback_data=f"cashback_admin_reject_{cashback_request['row_number']}")
+        ]
+    ]
+
+    # Add navigation if there are multiple requests
+    if total > 1:
+        nav_buttons = []
+        if current_index > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️ Previous", callback_data="cashback_nav_prev"))
+        if current_index < total - 1:
+            nav_buttons.append(InlineKeyboardButton("Next ▶️", callback_data="cashback_nav_next"))
+        if nav_buttons:
+            keyboard.append(nav_buttons)
+
+    keyboard.append([InlineKeyboardButton("« Back to Panel", callback_data="admin_back")])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Handle both callback query and regular message
+    if hasattr(query, 'edit_message_text'):
+        await query.edit_message_text(message_text, reply_markup=reply_markup, parse_mode='HTML')
+    else:
+        await query.message.reply_text(message_text, reply_markup=reply_markup, parse_mode='HTML')
+
+
+async def cashback_navigate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Navigate between cashback requests"""
+    query = update.callback_query
+    await query.answer()
+
+    direction = query.data.split('_')[2]
+    current_index = context.user_data.get('current_cashback_index', 0)
+    pending_cashback = context.user_data.get('pending_cashback', [])
+
+    if direction == 'next' and current_index < len(pending_cashback) - 1:
+        current_index += 1
+    elif direction == 'prev' and current_index > 0:
+        current_index -= 1
+
+    context.user_data['current_cashback_index'] = current_index
+    await show_cashback_details(query, context, pending_cashback[current_index])
+
+
+async def cashback_admin_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin approves a cashback request from panel"""
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user
+    approver_name = user.username or user.first_name
+
+    # Extract row number from callback data
+    row_number = int(query.data.replace("cashback_admin_approve_", ""))
+
+    # Approve the request
+    success = sheets.approve_cashback_request(row_number, approver_name)
+
+    if success:
+        # Get the request details for notification
+        cashback_data = sheets.cashback_history_sheet.row_values(row_number)
+        target_user_id = int(cashback_data[1])
+        username = cashback_data[2]
+        cashback_amount = float(cashback_data[6]) if cashback_data[6] else 0
+
+        await query.edit_message_text(
+            f"✅ <b>Cashback Approved!</b>\n\n"
+            f"User: {username}\n"
+            f"Amount: {cashback_amount:.2f} MVR\n"
+            f"Approved by: {approver_name}",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("« Back to Panel", callback_data="admin_back")
+            ]])
+        )
+
+        # Notify user
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=f"✅ <b>Cashback Approved!</b>\n\n"
+                     f"💰 Amount: <b>{cashback_amount:.2f} MVR</b>\n\n"
+                     f"Your cashback will be credited to your account shortly.",
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify user {target_user_id}: {e}")
+
+        # Remove from pending list and show next
+        pending_cashback = context.user_data.get('pending_cashback', [])
+        current_index = context.user_data.get('current_cashback_index', 0)
+
+        if current_index < len(pending_cashback):
+            pending_cashback.pop(current_index)
+
+        if pending_cashback:
+            if current_index >= len(pending_cashback):
+                current_index = len(pending_cashback) - 1
+            context.user_data['current_cashback_index'] = current_index
+            context.user_data['pending_cashback'] = pending_cashback
+    else:
+        await query.edit_message_text(
+            "❌ Error approving cashback request.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("« Back to Panel", callback_data="admin_back")
+            ]])
+        )
+
+
+async def cashback_admin_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin rejects a cashback request from panel"""
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user
+    rejector_name = user.username or user.first_name
+
+    # Extract row number from callback data
+    row_number = int(query.data.replace("cashback_admin_reject_", ""))
+
+    # Reject the request
+    success = sheets.reject_cashback_request(row_number, rejector_name)
+
+    if success:
+        # Get the request details for notification
+        cashback_data = sheets.cashback_history_sheet.row_values(row_number)
+        target_user_id = int(cashback_data[1])
+        username = cashback_data[2]
+        cashback_amount = float(cashback_data[6]) if cashback_data[6] else 0
+
+        await query.edit_message_text(
+            f"❌ <b>Cashback Rejected</b>\n\n"
+            f"User: {username}\n"
+            f"Amount: {cashback_amount:.2f} MVR\n"
+            f"Rejected by: {rejector_name}",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("« Back to Panel", callback_data="admin_back")
+            ]])
+        )
+
+        # Notify user
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=f"❌ <b>Cashback Rejected</b>\n\n"
+                     f"Your cashback request has been rejected.\n"
+                     f"Please contact support if you have questions.",
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify user {target_user_id}: {e}")
+
+        # Remove from pending list and show next
+        pending_cashback = context.user_data.get('pending_cashback', [])
+        current_index = context.user_data.get('current_cashback_index', 0)
+
+        if current_index < len(pending_cashback):
+            pending_cashback.pop(current_index)
+
+        if pending_cashback:
+            if current_index >= len(pending_cashback):
+                current_index = len(pending_cashback) - 1
+            context.user_data['current_cashback_index'] = current_index
+            context.user_data['pending_cashback'] = pending_cashback
+    else:
+        await query.edit_message_text(
+            "❌ Error rejecting cashback request.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("« Back to Panel", callback_data="admin_back")
+            ]])
+        )
+
+
 # Join requests
 async def admin_view_joins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """View pending join requests"""
@@ -1097,6 +1334,7 @@ def register_admin_handlers(application, notif_messages=None):
     # Callback query handlers
     application.add_handler(CallbackQueryHandler(admin_view_deposits, pattern="^admin_view_deposits$"))
     application.add_handler(CallbackQueryHandler(admin_view_withdrawals, pattern="^admin_view_withdrawals$"))
+    application.add_handler(CallbackQueryHandler(admin_view_cashback, pattern="^admin_view_cashback$"))
     application.add_handler(CallbackQueryHandler(admin_view_joins, pattern="^admin_view_joins$"))
     application.add_handler(CallbackQueryHandler(admin_view_promotions, pattern="^admin_view_promotions$"))
     application.add_handler(CallbackQueryHandler(admin_view_all_promotions, pattern="^promo_view_all$"))
@@ -1113,8 +1351,15 @@ def register_admin_handlers(application, notif_messages=None):
     # Withdrawal navigation
     application.add_handler(CallbackQueryHandler(withdrawal_navigate, pattern="^withdrawal_(next|prev)$"))
 
+    # Cashback navigation
+    application.add_handler(CallbackQueryHandler(cashback_navigate, pattern="^cashback_nav_(next|prev)$"))
+
     # Join navigation
     application.add_handler(CallbackQueryHandler(join_navigate, pattern="^join_(next|prev)$"))
+
+    # Cashback approval/rejection from admin panel
+    application.add_handler(CallbackQueryHandler(cashback_admin_approve, pattern="^cashback_admin_approve_"))
+    application.add_handler(CallbackQueryHandler(cashback_admin_reject, pattern="^cashback_admin_reject_"))
 
     # Approval conversation handler
     approval_conv = ConversationHandler(
