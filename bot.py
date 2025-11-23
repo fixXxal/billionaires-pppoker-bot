@@ -672,20 +672,14 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         transaction_ref
     )
 
-    # Send confirmation to user with extracted reference number
-    confirmation_msg = f"✅ **Deposit Request Submitted!**\n\n"
-    confirmation_msg += f"**Request ID:** `{request_id}`\n"
+    # Send confirmation to user
+    currency = 'MVR' if method != 'USDT' else 'USD'
+    confirmation_msg = f"✅ <b>Deposit sent!</b>\n\n"
+    confirmation_msg += f"💰 {amount} {currency} via {method}\n"
+    confirmation_msg += f"🎮 ID: {pppoker_id}\n\n"
+    confirmation_msg += f"Awaiting admin approval."
 
-    # Show extracted reference number prominently
-    if extracted_details and extracted_details['reference_number']:
-        confirmation_msg += f"**Slip Reference:** `{extracted_details['reference_number']}`\n"
-
-    confirmation_msg += f"**Amount:** {amount} {'MVR' if method != 'USDT' else 'USD'}\n"
-    confirmation_msg += f"**Method:** {method}\n"
-    confirmation_msg += f"**PPPoker ID:** {pppoker_id}\n\n"
-    confirmation_msg += f"Your request is being reviewed. You'll be notified once processed! ⏳"
-
-    await update.message.reply_text(confirmation_msg, parse_mode='Markdown')
+    await update.message.reply_text(confirmation_msg, parse_mode='HTML')
 
     # Send notification to admin with approval buttons
     username_display = f"@{user.username}" if user.username else "No username"
@@ -1237,16 +1231,15 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     )
 
     # Send confirmation to user
+    currency = 'MVR' if method != 'USDT' else 'USD'
+    # Mask account number (show last 4 digits)
+    masked_account = f"***{account_number[-4:]}" if len(account_number) >= 4 else account_number
     await update.message.reply_text(
-        f"✅ **Withdrawal Request Submitted!**\n\n"
-        f"**Request ID:** `{request_id}`\n"
-        f"**Amount:** {amount} {'MVR' if method != 'USDT' else 'USD'}\n"
-        f"**Method:** {method}\n"
-        f"**PPPoker ID:** {pppoker_id}\n"
-        f"**Account Name:** {account_name}\n"
-        f"**Account Number:** {account_number}\n\n"
-        f"Your request is being processed. You'll be notified once completed! ⏳",
-        parse_mode='Markdown'
+        f"✅ <b>Withdrawal sent!</b>\n\n"
+        f"💸 {amount} {currency} to {method}\n"
+        f"🏦 Account: {masked_account}\n\n"
+        f"Processing now.",
+        parse_mode='HTML'
     )
 
     # Send notification to admin with approval buttons
@@ -1379,11 +1372,10 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
 
     # Send confirmation to user
     await update.message.reply_text(
-        f"✅ **Club Join Request Submitted!**\n\n"
-        f"**Request ID:** `{request_id}`\n"
-        f"**PPPoker ID:** {pppoker_id}\n\n"
-        f"Your request is being reviewed. You'll be notified once approved! ⏳",
-        parse_mode='Markdown'
+        f"✅ <b>Join request sent!</b>\n\n"
+        f"🎮 ID: {pppoker_id}\n\n"
+        f"Admin will review shortly.",
+        parse_mode='HTML'
     )
 
     # Send notification to admin with approval buttons
@@ -1637,12 +1629,10 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
     if request_id:
         # Notify user
         await update.message.reply_text(
-            f"✅ <b>Cashback Request Submitted!</b>\n\n"
-            f"🎫 Request ID: <code>{request_id}</code>\n"
-            f"💰 Cashback amount: <b>{cashback_amount:.2f} MVR</b>\n"
-            f"🎮 PPPoker ID: <b>{pppoker_id}</b>\n\n"
-            f"⏳ Your request is pending admin approval.\n"
-            f"You'll receive a notification once it's processed!",
+            f"✅ <b>Cashback request sent!</b>\n\n"
+            f"💎 {cashback_amount:.2f} MVR ({cashback_percentage}%)\n"
+            f"📉 Loss: {loss_amount:.2f} MVR\n\n"
+            f"Awaiting approval.",
             parse_mode='HTML'
         )
 
@@ -1827,12 +1817,11 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
 
         # Send confirmation to user
         await update.message.reply_text(
-            f"✅ **Seat Request Submitted!**\n\n"
-            f"**Request ID:** `{request_id}`\n"
-            f"**Amount:** {amount} chips\n"
-            f"**PPPoker ID:** {pppoker_id}\n\n"
-            f"Your request is being reviewed by the admin. Please wait... ⏳",
-            parse_mode='Markdown'
+            f"✅ <b>Seat request sent!</b>\n\n"
+            f"🪑 {amount} chips\n"
+            f"🎮 ID: {pppoker_id}\n\n"
+            f"Admin will review shortly.",
+            parse_mode='HTML'
         )
 
         # Send notification to all admins
@@ -4669,11 +4658,8 @@ async def quick_approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         await context.bot.send_message(
             chat_id=join_req['user_id'],
-            text=f"✅ **Welcome to Billionaires Club!**\n\n"
-                 f"**Request ID:** `{request_id}`\n"
-                 f"**PPPoker ID:** {join_req['pppoker_id']}\n\n"
-                 f"You've been approved to join the club. See you at the tables! 🎰",
-            parse_mode='Markdown'
+            text=f"✅ <b>Welcome to βILLIONAIRES!</b>\n\n🎮 You're approved - start playing!",
+            parse_mode='HTML'
         )
     except:
         pass
@@ -4815,11 +4801,10 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             try:
                 await context.bot.send_message(
                     chat_id=deposit['user_id'],
-                    text=f"❌ **Your Deposit Has Been Rejected**\n\n"
-                         f"**Request ID:** `{request_id}`\n"
-                         f"**Reason:** {escape_markdown(reason)}\n\n"
-                         f"Please contact support if you have any questions.",
-                    parse_mode='Markdown'
+                    text=f"❌ <b>Deposit rejected</b>\n\n"
+                         f"Reason: {reason}\n\n"
+                         f"Contact support for help.",
+                    parse_mode='HTML'
                 )
             except:
                 pass
@@ -4834,11 +4819,9 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             try:
                 await context.bot.send_message(
                     chat_id=withdrawal['user_id'],
-                    text=f"❌ **Your Withdrawal Has Been Rejected**\n\n"
-                         f"**Request ID:** `{request_id}`\n"
-                         f"**Reason:** {escape_markdown(reason)}\n\n"
-                         f"Please contact support if you have any questions.",
-                    parse_mode='Markdown'
+                    text=f"❌ <b>Withdrawal rejected</b>\n\n"
+                         f"Reason: {reason}",
+                    parse_mode='HTML'
                 )
             except:
                 pass
@@ -4853,11 +4836,9 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             try:
                 await context.bot.send_message(
                     chat_id=join_req['user_id'],
-                    text=f"❌ **Your Club Join Request Has Been Declined**\n\n"
-                         f"**Request ID:** `{request_id}`\n"
-                         f"**Reason:** {escape_markdown(reason)}\n\n"
-                         f"Please contact support if you have any questions.",
-                    parse_mode='Markdown'
+                    text=f"❌ <b>Join request declined</b>\n\n"
+                         f"Reason: {reason}",
+                    parse_mode='HTML'
                 )
             except:
                 pass
@@ -4872,11 +4853,9 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             try:
                 await context.bot.send_message(
                     chat_id=seat_req['user_id'],
-                    text=f"❌ **Your Seat Request Has Been Rejected**\n\n"
-                         f"**Request ID:** `{request_id}`\n"
-                         f"**Reason:** {escape_markdown(reason)}\n\n"
-                         f"Please contact support if you have any questions.",
-                    parse_mode='Markdown'
+                    text=f"❌ <b>Seat request rejected</b>\n\n"
+                         f"Reason: {reason}",
+                    parse_mode='HTML'
                 )
             except:
                 pass
@@ -4954,13 +4933,11 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
         try:
             await context.bot.send_message(
                 chat_id=seat_req['user_id'],
-                text=f"✅ **Seat Request Approved!**\n\n"
-                     f"**Request ID:** `{request_id}`\n"
-                     f"**Amount:** {seat_req['amount']} chips/MVR\n\n"
-                     f"{payment_info}\n"
-                     f"📸 **Please upload your payment slip/receipt now.**\n\n"
-                     f"_You will receive a reminder in 1 minute if slip is not uploaded._",
-                parse_mode='Markdown'
+                text=f"✅ <b>Seat approved!</b>\n\n"
+                     f"🪑 {seat_req['amount']} chips ready\n\n"
+                     f"{payment_info}\n\n"
+                     f"📸 Upload payment slip now.",
+                parse_mode='HTML'
             )
 
             # Store data and add user to credit list

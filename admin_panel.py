@@ -216,15 +216,8 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Notify user with club link button
     user_id = deposit['user_id']
-    user_message = f"""
-✅ **Your Deposit Has Been Approved!**
-
-**Request ID:** `{request_id}`
-**Amount:** {deposit['amount']} {'MVR' if deposit['payment_method'] != 'USDT' else 'USD'}
-**PPPoker ID:** {deposit['pppoker_id']}
-
-Your chips have been added to your account. Happy gaming! 🎮
-"""
+    currency = 'MVR' if deposit['payment_method'] != 'USDT' else 'USD'
+    user_message = f"✅ <b>Deposit approved!</b>\n\n💰 {deposit['amount']} {currency} → Chips credited"
 
     club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
     keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
@@ -588,16 +581,8 @@ async def withdrawal_approve(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Notify user with club link button
     user_id = withdrawal['user_id']
-    user_message = f"""
-✅ **Your Withdrawal Has Been Processed!**
-
-**Request ID:** `{request_id}`
-**Amount:** {withdrawal['amount']} {'MVR' if withdrawal['payment_method'] != 'USDT' else 'USD'}
-**Method:** {withdrawal['payment_method']}
-**Account:** {withdrawal['account_number']}
-
-Your funds have been transferred. Please check your account. 💰
-"""
+    currency = 'MVR' if withdrawal['payment_method'] != 'USDT' else 'USD'
+    user_message = f"✅ <b>Withdrawal completed!</b>\n\n💸 {withdrawal['amount']} {currency} sent to your account"
 
     club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
     keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
