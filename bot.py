@@ -1431,7 +1431,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # Check eligibility (both loss requirement and if already claimed)
-        eligibility = sheets.check_cashback_eligibility(user.id, promotion_id, min_loss=500)
+        eligibility = sheets.check_cashback_eligibility(user.id, promotion_id, min_deposit=500)
     except Exception as e:
         import traceback
         logger.error(f"Error checking cashback eligibility: {e}")
