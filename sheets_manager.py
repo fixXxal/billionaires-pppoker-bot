@@ -203,10 +203,10 @@ class SheetsManager:
         try:
             self.daily_reports_sheet = self.spreadsheet.worksheet('Daily Reports')
         except gspread.WorksheetNotFound:
-            self.daily_reports_sheet = self.spreadsheet.add_worksheet(title='Daily Reports', rows=1000, cols=15)
+            self.daily_reports_sheet = self.spreadsheet.add_worksheet(title='Daily Reports', rows=1000, cols=18)
             self.daily_reports_sheet.append_row([
                 'Report Date', 'Report Time',
-                'MVR Deposits', 'MVR Withdrawals', 'MVR Profit',
+                'MVR Deposits', 'MVR Withdrawals', 'Spin Rewards', 'Bonuses', 'Cashback', 'MVR Profit',
                 'USD Deposits', 'USD Withdrawals', 'USD Profit',
                 'USDT Deposits', 'USDT Withdrawals', 'USDT Profit',
                 'Total Profit (MVR)',
@@ -218,10 +218,10 @@ class SheetsManager:
         try:
             self.weekly_reports_sheet = self.spreadsheet.worksheet('Weekly Reports')
         except gspread.WorksheetNotFound:
-            self.weekly_reports_sheet = self.spreadsheet.add_worksheet(title='Weekly Reports', rows=1000, cols=15)
+            self.weekly_reports_sheet = self.spreadsheet.add_worksheet(title='Weekly Reports', rows=1000, cols=18)
             self.weekly_reports_sheet.append_row([
                 'Report Date', 'Report Time',
-                'MVR Deposits', 'MVR Withdrawals', 'MVR Profit',
+                'MVR Deposits', 'MVR Withdrawals', 'Spin Rewards', 'Bonuses', 'Cashback', 'MVR Profit',
                 'USD Deposits', 'USD Withdrawals', 'USD Profit',
                 'USDT Deposits', 'USDT Withdrawals', 'USDT Profit',
                 'Total Profit (MVR)',
@@ -233,10 +233,10 @@ class SheetsManager:
         try:
             self.monthly_reports_sheet = self.spreadsheet.worksheet('Monthly Reports')
         except gspread.WorksheetNotFound:
-            self.monthly_reports_sheet = self.spreadsheet.add_worksheet(title='Monthly Reports', rows=1000, cols=15)
+            self.monthly_reports_sheet = self.spreadsheet.add_worksheet(title='Monthly Reports', rows=1000, cols=18)
             self.monthly_reports_sheet.append_row([
                 'Report Date', 'Report Time',
-                'MVR Deposits', 'MVR Withdrawals', 'MVR Profit',
+                'MVR Deposits', 'MVR Withdrawals', 'Spin Rewards', 'Bonuses', 'Cashback', 'MVR Profit',
                 'USD Deposits', 'USD Withdrawals', 'USD Profit',
                 'USDT Deposits', 'USDT Withdrawals', 'USDT Profit',
                 'Total Profit (MVR)',
@@ -248,10 +248,10 @@ class SheetsManager:
         try:
             self.six_months_reports_sheet = self.spreadsheet.worksheet('6 Months Reports')
         except gspread.WorksheetNotFound:
-            self.six_months_reports_sheet = self.spreadsheet.add_worksheet(title='6 Months Reports', rows=1000, cols=15)
+            self.six_months_reports_sheet = self.spreadsheet.add_worksheet(title='6 Months Reports', rows=1000, cols=18)
             self.six_months_reports_sheet.append_row([
                 'Report Date', 'Report Time',
-                'MVR Deposits', 'MVR Withdrawals', 'MVR Profit',
+                'MVR Deposits', 'MVR Withdrawals', 'Spin Rewards', 'Bonuses', 'Cashback', 'MVR Profit',
                 'USD Deposits', 'USD Withdrawals', 'USD Profit',
                 'USDT Deposits', 'USDT Withdrawals', 'USDT Profit',
                 'Total Profit (MVR)',
@@ -263,10 +263,10 @@ class SheetsManager:
         try:
             self.yearly_reports_sheet = self.spreadsheet.worksheet('Yearly Reports')
         except gspread.WorksheetNotFound:
-            self.yearly_reports_sheet = self.spreadsheet.add_worksheet(title='Yearly Reports', rows=1000, cols=15)
+            self.yearly_reports_sheet = self.spreadsheet.add_worksheet(title='Yearly Reports', rows=1000, cols=18)
             self.yearly_reports_sheet.append_row([
                 'Report Date', 'Report Time',
-                'MVR Deposits', 'MVR Withdrawals', 'MVR Profit',
+                'MVR Deposits', 'MVR Withdrawals', 'Spin Rewards', 'Bonuses', 'Cashback', 'MVR Profit',
                 'USD Deposits', 'USD Withdrawals', 'USD Profit',
                 'USDT Deposits', 'USDT Withdrawals', 'USDT Profit',
                 'Total Profit (MVR)',
@@ -809,6 +809,119 @@ class SheetsManager:
 
         return withdrawals
 
+    def get_spins_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict]:
+        """Get all approved spin rewards within date range"""
+        spins = []
+        try:
+            all_rows = self.spin_history_sheet.get_all_values()[1:]  # Skip header
+
+            for row in all_rows:
+                if len(row) < 7:
+                    continue
+
+                status = row[6] if len(row) > 6 else ''
+                if status not in ['Approved', 'Auto']:
+                    continue
+
+                # Parse date (column 8 - Approved At, or column 4 - Timestamp if Auto)
+                approved_at = row[8] if len(row) > 8 and row[8] else row[4]
+                if not approved_at:
+                    continue
+
+                try:
+                    # Parse date format: YYYY-MM-DD HH:MM:SS
+                    row_date = datetime.strptime(approved_at, '%Y-%m-%d %H:%M:%S')
+                    row_date = self.timezone.localize(row_date)
+
+                    if start_date <= row_date <= end_date:
+                        spins.append({
+                            'user_id': row[0],
+                            'amount': float(row[3]) if row[3] else 0,  # Column 3 is Chips Amount
+                            'prize': row[2],
+                            'approved_at': approved_at
+                        })
+                except (ValueError, IndexError):
+                    continue
+
+        except Exception as e:
+            print(f"Error getting spins by date: {e}")
+
+        return spins
+
+    def get_bonuses_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict]:
+        """Get all bonuses given within date range"""
+        bonuses = []
+        try:
+            all_rows = self.promotion_eligibility_sheet.get_all_values()[1:]  # Skip header
+
+            for row in all_rows:
+                if len(row) < 7:
+                    continue
+
+                # Parse date (column 6 - Bonus Received At)
+                received_at = row[6] if len(row) > 6 else ''
+                if not received_at:
+                    continue
+
+                try:
+                    # Parse date format: YYYY-MM-DD HH:MM:SS
+                    row_date = datetime.strptime(received_at, '%Y-%m-%d %H:%M:%S')
+                    row_date = self.timezone.localize(row_date)
+
+                    if start_date <= row_date <= end_date:
+                        bonuses.append({
+                            'user_id': row[0],
+                            'amount': float(row[5]) if row[5] else 0,  # Column 5 is Bonus Amount
+                            'promotion_id': row[2],
+                            'received_at': received_at
+                        })
+                except (ValueError, IndexError):
+                    continue
+
+        except Exception as e:
+            print(f"Error getting bonuses by date: {e}")
+
+        return bonuses
+
+    def get_cashback_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict]:
+        """Get all approved cashback within date range"""
+        cashback_list = []
+        try:
+            all_rows = self.cashback_history_sheet.get_all_values()[1:]  # Skip header
+
+            for row in all_rows:
+                if len(row) < 12:
+                    continue
+
+                status = row[8] if len(row) > 8 else ''
+                if status != 'Approved':
+                    continue
+
+                # Parse date (column 11 - Approved At)
+                approved_at = row[11] if len(row) > 11 else ''
+                if not approved_at:
+                    continue
+
+                try:
+                    # Parse date format: YYYY-MM-DD HH:MM:SS
+                    row_date = datetime.strptime(approved_at, '%Y-%m-%d %H:%M:%S')
+                    row_date = self.timezone.localize(row_date)
+
+                    if start_date <= row_date <= end_date:
+                        cashback_list.append({
+                            'user_id': row[1],
+                            'amount': float(row[6]) if row[6] else 0,  # Column 6 is Cashback Amount
+                            'promotion_id': row[7],
+                            'approved_at': approved_at
+                        })
+                except (ValueError, IndexError):
+                    continue
+
+        except Exception as e:
+            print(f"Error getting cashback by date: {e}")
+
+        return cashback_list
+
     # Exchange Rate Management
     def set_exchange_rate(self, currency: str, rate: float) -> bool:
         """Set or update exchange rate for a currency"""
@@ -1177,6 +1290,96 @@ class SheetsManager:
             print(f"Error calculating user loss: {e}")
             return 0
 
+    def get_comprehensive_user_balance(self, user_id: int) -> Dict:
+        """
+        Calculate comprehensive user balance including ALL chip movements
+
+        CHIPS GIVEN TO USER (Club's money OUT):
+        - Deposits (money converted to chips)
+        - Spin rewards (approved chips won)
+        - Bonus promotions (approved bonus chips)
+        - Cashback payments (approved cashback chips)
+
+        CHIPS TAKEN FROM USER (Club's money IN):
+        - Withdrawals (chips converted back to money)
+
+        Net Balance = Deposits - (Withdrawals + Spins + Bonuses + Cashback)
+        Positive = Club profit, Negative = Club loss (user owes club)
+        """
+        try:
+            # Get deposits (money IN to club)
+            deposit_rows = self.deposits_sheet.get_all_values()[1:]
+            total_deposits = 0
+            for row in deposit_rows:
+                if len(row) > 8 and row[1] == str(user_id) and row[8] == 'Approved':
+                    total_deposits += float(row[4]) if row[4] else 0
+
+            # Get withdrawals (money OUT from club)
+            withdrawal_rows = self.withdrawals_sheet.get_all_values()[1:]
+            total_withdrawals = 0
+            for row in withdrawal_rows:
+                if len(row) > 8 and row[1] == str(user_id) and row[8] == 'Approved':
+                    total_withdrawals += float(row[4]) if row[4] else 0
+
+            # Get approved spin rewards (chips OUT from club)
+            spin_rows = self.spin_history_sheet.get_all_values()[1:]
+            total_spin_rewards = 0
+            for row in spin_rows:
+                if len(row) > 6 and row[0] == str(user_id) and row[6] in ['Approved', 'Auto']:
+                    # Column 3 is Chips Amount (0-indexed)
+                    total_spin_rewards += float(row[3]) if row[3] else 0
+
+            # Get approved bonuses (chips OUT from club)
+            bonus_rows = self.promotion_eligibility_sheet.get_all_values()[1:]
+            total_bonuses = 0
+            for row in bonus_rows:
+                if len(row) > 5 and row[0] == str(user_id):
+                    # Column 5 is Bonus Amount (0-indexed)
+                    total_bonuses += float(row[5]) if row[5] else 0
+
+            # Get approved cashback (chips OUT from club)
+            cashback_rows = self.cashback_history_sheet.get_all_values()[1:]
+            total_cashback = 0
+            for row in cashback_rows:
+                if len(row) > 8 and row[1] == str(user_id) and row[8] == 'Approved':
+                    # Column 6 is Cashback Amount (0-indexed)
+                    total_cashback += float(row[6]) if row[6] else 0
+
+            # Calculate comprehensive balance
+            # Club receives: deposits
+            # Club gives out: withdrawals + spins + bonuses + cashback
+            club_profit = total_deposits - (total_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
+
+            # User's loss is club's profit (negative club profit = user loss)
+            user_loss = -club_profit if club_profit < 0 else 0
+            user_profit = club_profit if club_profit > 0 else 0
+
+            return {
+                'total_deposits': total_deposits,
+                'total_withdrawals': total_withdrawals,
+                'total_spin_rewards': total_spin_rewards,
+                'total_bonuses': total_bonuses,
+                'total_cashback': total_cashback,
+                'club_profit': club_profit,
+                'user_loss': user_loss,
+                'user_profit': user_profit,
+                'total_chips_given': total_spin_rewards + total_bonuses + total_cashback
+            }
+
+        except Exception as e:
+            print(f"Error calculating comprehensive user balance: {e}")
+            return {
+                'total_deposits': 0,
+                'total_withdrawals': 0,
+                'total_spin_rewards': 0,
+                'total_bonuses': 0,
+                'total_cashback': 0,
+                'club_profit': 0,
+                'user_loss': 0,
+                'user_profit': 0,
+                'total_chips_given': 0
+            }
+
     def create_cashback_request(self, user_id: int, username: str, pppoker_id: str,
                                 loss_amount: float, cashback_percentage: float, promotion_id: str = '') -> str:
         """Create a new cashback request"""
@@ -1335,48 +1538,64 @@ class SheetsManager:
 
     def check_cashback_eligibility(self, user_id: int, promotion_id: str, min_deposit: float = 500) -> Dict:
         """
-        Check if user is eligible for cashback
+        Check if user is eligible for cashback using COMPREHENSIVE balance calculation
+
         Rules:
-        1. Total deposits > Total withdrawals (user must be at a loss overall)
-        2. Effective new deposits >= min_deposit (default 500)
+        1. User must be at a REAL loss (considering deposits, withdrawals, spins, bonuses, cashback)
+        2. Effective new loss >= min_deposit (default 500)
 
-        Effective new deposits = Current Deposits - max(Last Claim Deposits, Current Withdrawals)
+        COMPREHENSIVE calculation includes:
+        - Money IN: Deposits
+        - Money OUT: Withdrawals + Spin Rewards + Bonuses + Previous Cashback
 
-        This means:
-        - If user withdraws more than deposits, they go into profit
-        - Any profit must be "paid back" before new deposits count
-        - Previous unclaimed deposits are BLOCKED if user goes into profit
+        Real Loss = Deposits - (Withdrawals + Spins + Bonuses + Cashback)
+
+        User is ONLY eligible if they have a NET LOSS after counting ALL chip sources
         """
-        # Get current deposit and withdrawal totals
-        totals = self.get_user_deposit_and_withdrawal_totals(user_id)
-        current_deposits = totals['total_deposits']
-        current_withdrawals = totals['total_withdrawals']
+        # Get comprehensive balance (includes spins, bonuses, cashback)
+        balance = self.get_comprehensive_user_balance(user_id)
 
-        # Get deposits at time of last cashback claim
+        current_deposits = balance['total_deposits']
+        current_withdrawals = balance['total_withdrawals']
+        total_chips_given = balance['total_chips_given']  # spins + bonuses + cashback
+        club_profit = balance['club_profit']
+        user_loss = balance['user_loss']
+
+        # Get deposits at time of last cashback claim for THIS promotion
         last_claim_deposits = self.get_last_cashback_claim_deposit_total(user_id, promotion_id)
 
-        # Calculate effective new deposits
-        # User must cover BOTH their last claim AND any withdrawals
-        baseline = max(last_claim_deposits, current_withdrawals)
-        effective_new_deposits = current_deposits - baseline
+        # Calculate effective new deposits since last claim
+        # User must have deposited MORE than their last claim baseline
+        # AND must still be at an overall loss
+        effective_new_deposits = current_deposits - last_claim_deposits
 
-        # Check both conditions:
-        # 1. Total deposits > total withdrawals (user is at a loss)
-        # 2. Effective new deposits >= minimum
-        deposits_exceed_withdrawals = current_deposits > current_withdrawals
+        # User is at a REAL loss if club_profit is negative
+        # This means: deposits < (withdrawals + spins + bonuses + cashback)
+        user_at_loss = club_profit < 0
+
+        # Effective deposits must exceed minimum requirement
         has_min_effective_deposits = effective_new_deposits >= min_deposit
 
-        is_eligible = deposits_exceed_withdrawals and has_min_effective_deposits
+        # User is ONLY eligible if:
+        # 1. They are at a real loss (considering ALL chip sources)
+        # 2. They have enough new deposits since last claim
+        is_eligible = user_at_loss and has_min_effective_deposits
 
         return {
             'eligible': is_eligible,
             'current_deposits': current_deposits,
             'current_withdrawals': current_withdrawals,
+            'total_spin_rewards': balance['total_spin_rewards'],
+            'total_bonuses': balance['total_bonuses'],
+            'total_cashback': balance['total_cashback'],
+            'total_chips_given': total_chips_given,
+            'club_profit': club_profit,
+            'user_loss': user_loss,
             'last_claim_deposits': last_claim_deposits,
             'effective_new_deposits': effective_new_deposits,
-            'baseline': baseline,
+            'baseline': last_claim_deposits,
             'min_required': min_deposit,
-            'deposits_exceed_withdrawals': deposits_exceed_withdrawals,
+            'deposits_exceed_withdrawals': user_at_loss,
             'already_claimed': last_claim_deposits > 0
         }
 
@@ -1624,6 +1843,9 @@ class SheetsManager:
                     report_time,
                     all_reports_data.get(f'{period_prefix}_mvr_deposits', 0),
                     all_reports_data.get(f'{period_prefix}_mvr_withdrawals', 0),
+                    all_reports_data.get(f'{period_prefix}_spin_rewards', 0),
+                    all_reports_data.get(f'{period_prefix}_bonuses', 0),
+                    all_reports_data.get(f'{period_prefix}_cashback', 0),
                     all_reports_data.get(f'{period_prefix}_mvr_profit', 0),
                     all_reports_data.get(f'{period_prefix}_usd_deposits', 0),
                     all_reports_data.get(f'{period_prefix}_usd_withdrawals', 0),

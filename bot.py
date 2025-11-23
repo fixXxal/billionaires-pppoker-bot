@@ -1412,6 +1412,11 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not eligibility['eligible']:
         current_deposits = eligibility['current_deposits']
         current_withdrawals = eligibility['current_withdrawals']
+        total_spin_rewards = eligibility.get('total_spin_rewards', 0)
+        total_bonuses = eligibility.get('total_bonuses', 0)
+        total_cashback = eligibility.get('total_cashback', 0)
+        club_profit = eligibility.get('club_profit', 0)
+        user_loss = eligibility.get('user_loss', 0)
         effective_new_deposits = eligibility['effective_new_deposits']
         last_claim_deposits = eligibility['last_claim_deposits']
         baseline = eligibility['baseline']
@@ -1419,37 +1424,50 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         deposits_exceed_withdrawals = eligibility['deposits_exceed_withdrawals']
         already_claimed = eligibility.get('already_claimed', False)
 
-        # Check if withdrawals are blocking eligibility
+        # Check if user is in profit (considering all chip sources)
         if not deposits_exceed_withdrawals:
-            shortage = current_withdrawals - current_deposits
-            await update.message.reply_text(
-                f"❌ <b>Not Eligible for Cashback</b>\n\n"
-                f"💰 Total Deposits: <b>{current_deposits:.2f} MVR</b>\n"
-                f"💸 Total Withdrawals: <b>{current_withdrawals:.2f} MVR</b>\n\n"
-                f"🚫 <b>Your withdrawals exceed your deposits!</b>\n\n"
-                f"You need to deposit <b>{shortage:.2f} MVR</b> more to cover your withdrawals first.\n\n"
-                f"💡 <i>Cashback is ONLY for users at a loss (Deposits > Withdrawals)</i>",
-                parse_mode='HTML'
-            )
+            message = f"❌ <b>Not Eligible for Cashback</b>\n\n"
+            message += f"💰 Total Deposits: <b>{current_deposits:.2f} MVR</b>\n"
+            message += f"💸 Total Withdrawals: <b>{current_withdrawals:.2f} MVR</b>\n"
+
+            if total_spin_rewards > 0:
+                message += f"🎰 Spin Rewards: <b>{total_spin_rewards:.2f} MVR</b>\n"
+            if total_bonuses > 0:
+                message += f"🎁 Bonuses Received: <b>{total_bonuses:.2f} MVR</b>\n"
+            if total_cashback > 0:
+                message += f"💸 Previous Cashback: <b>{total_cashback:.2f} MVR</b>\n"
+
+            message += f"\n📊 <b>Club's Profit: {abs(club_profit):.2f} MVR</b>\n\n"
+            message += f"🚫 <b>You're in PROFIT, not at a loss!</b>\n\n"
+            message += f"💡 <i>Cashback is ONLY for users at a real loss.\n"
+            message += f"We count deposits minus ALL money given (withdrawals + spins + bonuses + cashback).</i>"
+
+            await update.message.reply_text(message, parse_mode='HTML')
             return ConversationHandler.END
 
         # User is at a loss but doesn't have enough effective new deposits
         needed = min_required - effective_new_deposits
 
-        message = f"❌ <b>Not Enough Effective Deposits for Cashback</b>\n\n"
+        message = f"❌ <b>Not Enough New Deposits for Cashback</b>\n\n"
         message += f"💰 Total Deposits: <b>{current_deposits:.2f} MVR</b>\n"
         message += f"💸 Total Withdrawals: <b>{current_withdrawals:.2f} MVR</b>\n"
 
-        if already_claimed:
-            message += f"✅ Last claim at deposits: <b>{last_claim_deposits:.2f} MVR</b>\n"
+        if total_spin_rewards > 0:
+            message += f"🎰 Spin Rewards: <b>{total_spin_rewards:.2f} MVR</b>\n"
+        if total_bonuses > 0:
+            message += f"🎁 Bonuses: <b>{total_bonuses:.2f} MVR</b>\n"
+        if total_cashback > 0:
+            message += f"💸 Previous Cashback: <b>{total_cashback:.2f} MVR</b>\n"
 
-        message += f"\n📊 <b>Baseline (must exceed):</b> {baseline:.2f} MVR\n"
-        message += f"   (max of last claim or withdrawals)\n\n"
-        message += f"🆕 <b>Effective new deposits:</b> {effective_new_deposits:.2f} MVR\n"
-        message += f"   (Current deposits - Baseline)\n\n"
-        message += f"📋 Minimum required: <b>{min_required:.2f} MVR</b>\n"
-        message += f"❌ You need <b>{needed:.2f} MVR</b> more!\n\n"
-        message += f"💡 <i>If you withdrew, old unclaimed deposits are blocked. Start fresh!</i>"
+        message += f"\n📊 <b>Your Real Loss: {user_loss:.2f} MVR</b> ✅\n"
+
+        if already_claimed:
+            message += f"✅ Last claim at: <b>{last_claim_deposits:.2f} MVR</b> deposits\n"
+
+        message += f"\n🆕 <b>New deposits since last claim:</b> {effective_new_deposits:.2f} MVR\n"
+        message += f"📋 <b>Minimum required:</b> {min_required:.2f} MVR\n"
+        message += f"❌ <b>You need {needed:.2f} MVR more!</b>\n\n"
+        message += f"💡 <i>Deposit more to reach the minimum requirement!</i>"
 
         await update.message.reply_text(message, parse_mode='HTML')
         return ConversationHandler.END
@@ -1457,6 +1475,10 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # User is eligible - calculate cashback on effective new deposits
     current_deposits = eligibility['current_deposits']
     current_withdrawals = eligibility['current_withdrawals']
+    total_spin_rewards = eligibility.get('total_spin_rewards', 0)
+    total_bonuses = eligibility.get('total_bonuses', 0)
+    total_cashback = eligibility.get('total_cashback', 0)
+    user_loss = eligibility.get('user_loss', 0)
     effective_new_deposits = eligibility['effective_new_deposits']
     last_claim_deposits = eligibility['last_claim_deposits']
     baseline = eligibility['baseline']
@@ -1465,17 +1487,24 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = f"✅ <b>You're Eligible for Cashback!</b>\n\n"
     message += f"💰 Total Deposits: <b>{current_deposits:.2f} MVR</b>\n"
     message += f"💸 Total Withdrawals: <b>{current_withdrawals:.2f} MVR</b>\n"
-    message += f"📊 Net Loss: <b>{current_deposits - current_withdrawals:.2f} MVR</b> ✅\n\n"
+
+    if total_spin_rewards > 0:
+        message += f"🎰 Spin Rewards: <b>{total_spin_rewards:.2f} MVR</b>\n"
+    if total_bonuses > 0:
+        message += f"🎁 Bonuses: <b>{total_bonuses:.2f} MVR</b>\n"
+    if total_cashback > 0:
+        message += f"💸 Previous Cashback: <b>{total_cashback:.2f} MVR</b>\n"
+
+    message += f"\n📊 <b>Your Real Loss: {user_loss:.2f} MVR</b> ✅\n\n"
 
     if last_claim_deposits > 0:
-        message += f"✅ Last claim at deposits: <b>{last_claim_deposits:.2f} MVR</b>\n"
+        message += f"✅ Last claim at: <b>{last_claim_deposits:.2f} MVR</b> deposits\n"
 
-    message += f"📊 Baseline: <b>{baseline:.2f} MVR</b>\n"
-    message += f"🆕 Effective new deposits: <b>{effective_new_deposits:.2f} MVR</b>\n\n"
+    message += f"🆕 New deposits since last claim: <b>{effective_new_deposits:.2f} MVR</b>\n\n"
 
     message += f"💎 Cashback rate: <b>{cashback_percentage}%</b>\n"
     message += f"💰 Cashback amount: <b>{cashback_amount:.2f} MVR</b>\n"
-    message += f"   (on {effective_new_deposits:.2f} MVR effective deposits)\n\n"
+    message += f"   (on {effective_new_deposits:.2f} MVR new deposits)\n\n"
     message += f"📝 Please enter your <b>PPPoker ID</b> to submit your cashback request:"
 
     await update.message.reply_text(
@@ -2460,18 +2489,29 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
     for period_name, (start, end) in periods.items():
         deposits = sheets.get_deposits_by_date_range(start, end)
         withdrawals = sheets.get_withdrawals_by_date_range(start, end)
+        spins = sheets.get_spins_by_date_range(start, end)
+        bonuses = sheets.get_bonuses_by_date_range(start, end)
+        cashback = sheets.get_cashback_by_date_range(start, end)
 
-        # Separate by currency
+        # Calculate chip costs (money given to users as chips)
+        total_spin_rewards = sum([s['amount'] for s in spins])
+        total_bonuses = sum([b['amount'] for b in bonuses])
+        total_cashback = sum([c['amount'] for c in cashback])
+
+        # Separate deposits by currency
         mvr_deposits = sum([d['amount'] for d in deposits if d['method'] in ['BML', 'MIB']])
         usd_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USD'])
         usdt_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USDT'])
 
+        # Separate withdrawals by currency
         mvr_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] in ['BML', 'MIB']])
         usd_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USD'])
         usdt_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USDT'])
 
-        # Calculate profits per currency
-        mvr_profit = mvr_deposits - mvr_withdrawals
+        # Calculate COMPREHENSIVE profits per currency
+        # Real Profit = Deposits - (Withdrawals + Spins + Bonuses + Cashback)
+        # Note: Spins, bonuses, cashback are in MVR equivalent
+        mvr_profit = mvr_deposits - (mvr_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
         usd_profit = usd_deposits - usd_withdrawals
         usdt_profit = usdt_deposits - usdt_withdrawals
 
@@ -2484,6 +2524,9 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
         prefix = 'today_' if period_name == 'TODAY' else 'week_'
         report_data[f'{prefix}mvr_deposits'] = mvr_deposits
         report_data[f'{prefix}mvr_withdrawals'] = mvr_withdrawals
+        report_data[f'{prefix}spin_rewards'] = total_spin_rewards
+        report_data[f'{prefix}bonuses'] = total_bonuses
+        report_data[f'{prefix}cashback'] = total_cashback
         report_data[f'{prefix}mvr_profit'] = mvr_profit
         report_data[f'{prefix}usd_deposits'] = usd_deposits
         report_data[f'{prefix}usd_withdrawals'] = usd_withdrawals
@@ -2496,11 +2539,20 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
         report += f"<b>{period_name}</b>\n"
 
         # MVR Section
-        if mvr_deposits > 0 or mvr_withdrawals > 0:
+        if mvr_deposits > 0 or mvr_withdrawals > 0 or total_spin_rewards > 0 or total_bonuses > 0 or total_cashback > 0:
             mvr_emoji = "📈" if mvr_profit > 0 else "📉" if mvr_profit < 0 else "➖"
             report += f"💰 MVR Deposits: {mvr_deposits:,.2f}\n"
             report += f"💸 MVR Withdrawals: {mvr_withdrawals:,.2f}\n"
-            report += f"{mvr_emoji} MVR Profit: {mvr_profit:,.2f}\n\n"
+
+            if total_spin_rewards > 0:
+                report += f"🎰 Spin Rewards: {total_spin_rewards:,.2f}\n"
+            if total_bonuses > 0:
+                report += f"🎁 Bonuses Given: {total_bonuses:,.2f}\n"
+            if total_cashback > 0:
+                report += f"💵 Cashback Given: {total_cashback:,.2f}\n"
+
+            report += f"{mvr_emoji} <b>MVR Real Profit: {mvr_profit:,.2f}</b>\n"
+            report += f"   (Deposits - Withdrawals - Spins - Bonuses - Cashback)\n\n"
 
         # USD Section
         if usd_deposits > 0 or usd_withdrawals > 0:
@@ -2593,11 +2645,20 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
         report += f"<b>{period_name}</b>\n"
 
         # MVR Section
-        if mvr_deposits > 0 or mvr_withdrawals > 0:
+        if mvr_deposits > 0 or mvr_withdrawals > 0 or total_spin_rewards > 0 or total_bonuses > 0 or total_cashback > 0:
             mvr_emoji = "📈" if mvr_profit > 0 else "📉" if mvr_profit < 0 else "➖"
             report += f"💰 MVR Deposits: {mvr_deposits:,.2f}\n"
             report += f"💸 MVR Withdrawals: {mvr_withdrawals:,.2f}\n"
-            report += f"{mvr_emoji} MVR Profit: {mvr_profit:,.2f}\n\n"
+
+            if total_spin_rewards > 0:
+                report += f"🎰 Spin Rewards: {total_spin_rewards:,.2f}\n"
+            if total_bonuses > 0:
+                report += f"🎁 Bonuses Given: {total_bonuses:,.2f}\n"
+            if total_cashback > 0:
+                report += f"💵 Cashback Given: {total_cashback:,.2f}\n"
+
+            report += f"{mvr_emoji} <b>MVR Real Profit: {mvr_profit:,.2f}</b>\n"
+            report += f"   (Deposits - Withdrawals - Spins - Bonuses - Cashback)\n\n"
 
         # USD Section
         if usd_deposits > 0 or usd_withdrawals > 0:
@@ -3144,6 +3205,14 @@ def calculate_all_periods_data(timezone_str='Indian/Maldives'):
     for period_name, (start, end) in periods.items():
         deposits = sheets.get_deposits_by_date_range(start, end)
         withdrawals = sheets.get_withdrawals_by_date_range(start, end)
+        spins = sheets.get_spins_by_date_range(start, end)
+        bonuses = sheets.get_bonuses_by_date_range(start, end)
+        cashback = sheets.get_cashback_by_date_range(start, end)
+
+        # Calculate chip costs
+        total_spin_rewards = sum([s['amount'] for s in spins])
+        total_bonuses = sum([b['amount'] for b in bonuses])
+        total_cashback = sum([c['amount'] for c in cashback])
 
         # Separate by currency
         mvr_deposits = sum([d['amount'] for d in deposits if d['method'] in ['BML', 'MIB']])
@@ -3154,8 +3223,8 @@ def calculate_all_periods_data(timezone_str='Indian/Maldives'):
         usd_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USD'])
         usdt_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USDT'])
 
-        # Calculate profits
-        mvr_profit = mvr_deposits - mvr_withdrawals
+        # Calculate COMPREHENSIVE profits
+        mvr_profit = mvr_deposits - (mvr_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
         usd_profit = usd_deposits - usd_withdrawals
         usdt_profit = usdt_deposits - usdt_withdrawals
 
@@ -3167,6 +3236,9 @@ def calculate_all_periods_data(timezone_str='Indian/Maldives'):
         # Store data
         all_data[f'{period_name}_mvr_deposits'] = mvr_deposits
         all_data[f'{period_name}_mvr_withdrawals'] = mvr_withdrawals
+        all_data[f'{period_name}_spin_rewards'] = total_spin_rewards
+        all_data[f'{period_name}_bonuses'] = total_bonuses
+        all_data[f'{period_name}_cashback'] = total_cashback
         all_data[f'{period_name}_mvr_profit'] = mvr_profit
         all_data[f'{period_name}_usd_deposits'] = usd_deposits
         all_data[f'{period_name}_usd_withdrawals'] = usd_withdrawals
