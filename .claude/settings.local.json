@@ -1,29 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(awk:*)",
-      "Bash(python setup_helper.py:*)",
-      "Bash(python:*)",
-      "Bash(pip install:*)",
-      "Bash(source venv/bin/activate)",
-      "Bash(cat:*)",
-      "Bash(git init:*)",
-      "Bash(sudo apt-get update:*)",
-      "Bash(sudo apt-get install:*)",
-      "Bash(apt-get update:*)",
-      "Bash(apt-get install:*)",
-      "Bash(jobs)",
-      "Bash(git add:*)",
-      "Bash(kill:*)",
-      "Bash(pkill:*)",
-      "Bash(command -v:*)",
-      "Bash(chmod:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(tree:*)",
-      "Bash(python3:*)",
-      "Bash(tasklist.exe:*)",
-      "Bash(powershell.exe -Command \"Get-Process python* -ErrorAction SilentlyContinue | Select-Object Id, ProcessName, Path\")"
+      "Bash(pgrep:*)"
     ],
     "deny": [],
     "ask": []
