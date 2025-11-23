@@ -1346,8 +1346,13 @@ class SheetsManager:
                     total_cashback += float(row[6]) if row[6] else 0
 
             # Get user credit (seats on credit - chips given but not paid)
-            user_credit = self.get_user_credit(user_id)
-            total_credit_seats = user_credit['amount'] if user_credit else 0
+            total_credit_seats = 0
+            try:
+                user_credit = self.get_user_credit(user_id)
+                total_credit_seats = user_credit['amount'] if user_credit else 0
+            except Exception as credit_error:
+                print(f"Error getting user credit in comprehensive balance: {credit_error}")
+                total_credit_seats = 0
 
             # Calculate comprehensive balance
             # Club receives: deposits
