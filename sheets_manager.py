@@ -160,10 +160,10 @@ class SheetsManager:
         try:
             self.cashback_history_sheet = self.spreadsheet.worksheet('Cashback History')
         except gspread.WorksheetNotFound:
-            self.cashback_history_sheet = self.spreadsheet.add_worksheet(title='Cashback History', rows=1000, cols=11)
+            self.cashback_history_sheet = self.spreadsheet.add_worksheet(title='Cashback History', rows=1000, cols=12)
             self.cashback_history_sheet.append_row([
                 'Request ID', 'User ID', 'Username', 'PPPoker ID',
-                'Loss Amount', 'Cashback Percentage', 'Cashback Amount',
+                'Loss Amount', 'Cashback Percentage', 'Cashback Amount', 'Promotion ID',
                 'Status', 'Requested At', 'Approved/Rejected By', 'Approved/Rejected At'
             ])
 
@@ -1139,20 +1139,20 @@ class SheetsManager:
         """Calculate total loss for a user (deposits - withdrawals)"""
         try:
             # Get all approved deposits
-            deposit_rows = self.sheet.get_all_values()[1:]  # Skip header
+            deposit_rows = self.deposits_sheet.get_all_values()[1:]  # Skip header
             total_deposits = 0
             for row in deposit_rows:
-                if len(row) > 2 and row[0] == str(user_id) and row[6] == 'Approved':
-                    # Column 3 is MVR amount
-                    total_deposits += float(row[2]) if row[2] else 0
+                if len(row) > 8 and row[1] == str(user_id) and row[8] == 'Approved':
+                    # Column 4 is Amount (0-indexed)
+                    total_deposits += float(row[4]) if row[4] else 0
 
             # Get all approved withdrawals
-            withdrawal_rows = self.withdrawal_sheet.get_all_values()[1:]  # Skip header
+            withdrawal_rows = self.withdrawals_sheet.get_all_values()[1:]  # Skip header
             total_withdrawals = 0
             for row in withdrawal_rows:
-                if len(row) > 3 and row[0] == str(user_id) and row[5] == 'Approved':
-                    # Column 4 is MVR amount
-                    total_withdrawals += float(row[3]) if row[3] else 0
+                if len(row) > 8 and row[1] == str(user_id) and row[8] == 'Approved':
+                    # Column 4 is Amount (0-indexed)
+                    total_withdrawals += float(row[4]) if row[4] else 0
 
             # Loss = Deposits - Withdrawals (if negative, user is in profit, return 0)
             loss = total_deposits - total_withdrawals
@@ -1163,7 +1163,7 @@ class SheetsManager:
             return 0
 
     def create_cashback_request(self, user_id: int, username: str, pppoker_id: str,
-                                loss_amount: float, cashback_percentage: float) -> str:
+                                loss_amount: float, cashback_percentage: float, promotion_id: str = '') -> str:
         """Create a new cashback request"""
         try:
             import uuid
@@ -1178,6 +1178,7 @@ class SheetsManager:
                 str(loss_amount),
                 str(cashback_percentage),
                 str(cashback_amount),
+                promotion_id,
                 'Pending',
                 self._get_timestamp(),
                 '',  # Approved/Rejected By
@@ -1195,7 +1196,7 @@ class SheetsManager:
         try:
             all_rows = self.cashback_history_sheet.get_all_values()[1:]  # Skip header
             for i, row in enumerate(all_rows, start=2):
-                if len(row) >= 8 and row[7] == 'Pending':
+                if len(row) >= 9 and row[8] == 'Pending':
                     requests.append({
                         'row_number': i,
                         'request_id': row[0],
@@ -1205,8 +1206,9 @@ class SheetsManager:
                         'loss_amount': float(row[4]) if row[4] else 0,
                         'cashback_percentage': float(row[5]) if row[5] else 0,
                         'cashback_amount': float(row[6]) if row[6] else 0,
-                        'status': row[7],
-                        'requested_at': row[8] if len(row) > 8 else ''
+                        'promotion_id': row[7] if len(row) > 7 else '',
+                        'status': row[8],
+                        'requested_at': row[9] if len(row) > 9 else ''
                     })
         except Exception as e:
             print(f"Error getting pending cashback requests: {e}")
@@ -1218,11 +1220,30 @@ class SheetsManager:
         return [r for r in all_pending if str(r.get('user_id')) == str(user_id)]
 
     def approve_cashback_request(self, row_number: int, approved_by: str) -> bool:
-        """Approve a cashback request"""
+        """Approve a cashback request and record in eligibility tracking"""
         try:
-            self.cashback_history_sheet.update_cell(row_number, 8, 'Approved')  # Status
-            self.cashback_history_sheet.update_cell(row_number, 10, approved_by)  # Approved By
-            self.cashback_history_sheet.update_cell(row_number, 11, self._get_timestamp())  # Approved At
+            # Get the request data from the row before approving
+            row_data = self.cashback_history_sheet.row_values(row_number)
+
+            # Update status to Approved (column 9)
+            self.cashback_history_sheet.update_cell(row_number, 9, 'Approved')  # Status
+            self.cashback_history_sheet.update_cell(row_number, 11, approved_by)  # Approved By
+            self.cashback_history_sheet.update_cell(row_number, 12, self._get_timestamp())  # Approved At
+
+            # Record in Cashback Eligibility to prevent duplicate claims
+            if len(row_data) >= 8:
+                promotion_id = row_data[7] if row_data[7] else ''  # Promotion ID from row
+                if promotion_id:
+                    self.record_cashback_claim(
+                        user_id=int(row_data[1]),  # User ID
+                        username=row_data[2],  # Username
+                        pppoker_id=row_data[3],  # PPPoker ID
+                        promotion_id=promotion_id,
+                        cashback_request_id=row_data[0],  # Request ID
+                        loss_amount=float(row_data[4]) if row_data[4] else 0,  # Loss Amount
+                        cashback_amount=float(row_data[6]) if row_data[6] else 0  # Cashback Amount
+                    )
+
             return True
         except Exception as e:
             print(f"Error approving cashback request: {e}")
@@ -1231,9 +1252,9 @@ class SheetsManager:
     def reject_cashback_request(self, row_number: int, rejected_by: str) -> bool:
         """Reject a cashback request"""
         try:
-            self.cashback_history_sheet.update_cell(row_number, 8, 'Rejected')  # Status
-            self.cashback_history_sheet.update_cell(row_number, 10, rejected_by)  # Rejected By
-            self.cashback_history_sheet.update_cell(row_number, 11, self._get_timestamp())  # Rejected At
+            self.cashback_history_sheet.update_cell(row_number, 9, 'Rejected')  # Status (column 9)
+            self.cashback_history_sheet.update_cell(row_number, 11, rejected_by)  # Rejected By
+            self.cashback_history_sheet.update_cell(row_number, 12, self._get_timestamp())  # Rejected At
             return True
         except Exception as e:
             print(f"Error rejecting cashback request: {e}")

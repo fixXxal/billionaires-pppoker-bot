@@ -1435,21 +1435,11 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
         username=user.username or user.first_name,
         pppoker_id=pppoker_id,
         loss_amount=loss_amount,
-        cashback_percentage=cashback_percentage
+        cashback_percentage=cashback_percentage,
+        promotion_id=promotion_id
     )
 
     if request_id:
-        # Record the cashback claim in eligibility tracking
-        sheets.record_cashback_claim(
-            user_id=user.id,
-            username=user.username or user.first_name,
-            pppoker_id=pppoker_id,
-            promotion_id=promotion_id,
-            cashback_request_id=request_id,
-            loss_amount=loss_amount,
-            cashback_amount=cashback_amount
-        )
-
         # Notify user
         await update.message.reply_text(
             f"✅ <b>Cashback Request Submitted!</b>\n\n"
