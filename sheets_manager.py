@@ -167,6 +167,16 @@ class SheetsManager:
                 'Status', 'Requested At', 'Approved/Rejected By', 'Approved/Rejected At'
             ])
 
+        # Cashback Eligibility worksheet (tracks who has received cashback for each promotion)
+        try:
+            self.cashback_eligibility_sheet = self.spreadsheet.worksheet('Cashback Eligibility')
+        except gspread.WorksheetNotFound:
+            self.cashback_eligibility_sheet = self.spreadsheet.add_worksheet(title='Cashback Eligibility', rows=1000, cols=9)
+            self.cashback_eligibility_sheet.append_row([
+                'User ID', 'Username', 'PPPoker ID', 'Promotion ID', 'Cashback Request ID',
+                'Loss Amount', 'Cashback Amount', 'Cashback Received At', 'Notes'
+            ])
+
         # Seat Requests worksheet
         try:
             self.seat_requests_sheet = self.spreadsheet.worksheet('Seat Requests')
@@ -1229,15 +1239,76 @@ class SheetsManager:
             print(f"Error rejecting cashback request: {e}")
             return False
 
-    def check_cashback_eligibility(self, user_id: int, min_loss: float = 500) -> Dict:
-        """Check if user is eligible for cashback"""
+    def check_user_cashback_eligibility(self, user_id: int, promotion_id: str) -> bool:
+        """Check if user is eligible for cashback (hasn't received cashback for this promotion yet)"""
+        try:
+            all_rows = self.cashback_eligibility_sheet.get_all_values()[1:]  # Skip header
+            for row in all_rows:
+                if len(row) >= 4:
+                    # Check if user already received cashback for this promotion
+                    if row[0] == str(user_id) and row[3] == promotion_id:
+                        return False
+            return True
+        except Exception as e:
+            print(f"Error checking cashback eligibility: {e}")
+            return False
+
+    def record_cashback_claim(self, user_id: int, username: str, pppoker_id: str, promotion_id: str,
+                              cashback_request_id: str, loss_amount: float, cashback_amount: float) -> bool:
+        """Record that a user has received cashback for a promotion"""
+        try:
+            self.cashback_eligibility_sheet.append_row([
+                str(user_id),
+                username,
+                pppoker_id,
+                promotion_id,
+                cashback_request_id,
+                str(loss_amount),
+                str(cashback_amount),
+                self._get_timestamp(),
+                'Cashback claimed'
+            ])
+            return True
+        except Exception as e:
+            print(f"Error recording cashback claim: {e}")
+            return False
+
+    def get_user_cashback_claims(self, user_id: int) -> list:
+        """Get all cashback claims for a specific user"""
+        claims = []
+        try:
+            all_rows = self.cashback_eligibility_sheet.get_all_values()[1:]  # Skip header
+            for row in all_rows:
+                if len(row) >= 7 and row[0] == str(user_id):
+                    claims.append({
+                        'username': row[1],
+                        'pppoker_id': row[2],
+                        'promotion_id': row[3],
+                        'request_id': row[4],
+                        'loss_amount': float(row[5]) if row[5] else 0,
+                        'cashback_amount': float(row[6]) if row[6] else 0,
+                        'claimed_at': row[7] if len(row) > 7 else '',
+                        'notes': row[8] if len(row) > 8 else ''
+                    })
+        except Exception as e:
+            print(f"Error getting user cashback claims: {e}")
+        return claims
+
+    def check_cashback_eligibility(self, user_id: int, promotion_id: str, min_loss: float = 500) -> Dict:
+        """Check if user is eligible for cashback (hasn't claimed for this promotion and meets loss requirement)"""
         loss = self.calculate_user_loss(user_id)
-        is_eligible = loss >= min_loss
+        meets_loss_requirement = loss >= min_loss
+
+        # Check if user already claimed cashback for this promotion
+        has_not_claimed = self.check_user_cashback_eligibility(user_id, promotion_id)
+
+        is_eligible = meets_loss_requirement and has_not_claimed
 
         return {
             'eligible': is_eligible,
             'loss_amount': loss,
-            'min_required': min_loss
+            'min_required': min_loss,
+            'already_claimed': not has_not_claimed
         }
 
     # Seat Request Functions

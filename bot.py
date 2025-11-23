@@ -1356,14 +1356,28 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     cashback_percentage = cashback_promo.get('cashback_percentage')
+    promotion_id = cashback_promo.get('promotion_id')
 
-    # Check eligibility
-    eligibility = sheets.check_cashback_eligibility(user.id, min_loss=500)
+    # Check eligibility (both loss requirement and if already claimed)
+    eligibility = sheets.check_cashback_eligibility(user.id, promotion_id, min_loss=500)
 
     if not eligibility['eligible']:
         loss_amount = eligibility['loss_amount']
         min_required = eligibility['min_required']
+        already_claimed = eligibility.get('already_claimed', False)
 
+        # Check if user already claimed for this promotion
+        if already_claimed:
+            await update.message.reply_text(
+                f"❌ <b>Already Claimed Cashback</b>\n\n"
+                f"You have already claimed cashback for the current promotion period.\n\n"
+                f"🎫 Promotion ID: <code>{promotion_id}</code>\n\n"
+                f"💡 <i>You can only claim cashback once per promotion period.</i>",
+                parse_mode='HTML'
+            )
+            return ConversationHandler.END
+
+        # User hasn't claimed but doesn't meet loss requirement
         await update.message.reply_text(
             f"❌ <b>Not Eligible for Cashback</b>\n\n"
             f"📊 Your current loss: <b>{loss_amount:.2f} MVR</b>\n"
@@ -1391,6 +1405,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['cashback_loss'] = loss_amount
     context.user_data['cashback_percentage'] = cashback_percentage
     context.user_data['cashback_amount'] = cashback_amount
+    context.user_data['cashback_promotion_id'] = promotion_id
 
     return CASHBACK_PPPOKER_ID
 
@@ -1412,6 +1427,7 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
     loss_amount = context.user_data.get('cashback_loss')
     cashback_percentage = context.user_data.get('cashback_percentage')
     cashback_amount = context.user_data.get('cashback_amount')
+    promotion_id = context.user_data.get('cashback_promotion_id')
 
     # Create cashback request
     request_id = sheets.create_cashback_request(
@@ -1423,6 +1439,17 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
     )
 
     if request_id:
+        # Record the cashback claim in eligibility tracking
+        sheets.record_cashback_claim(
+            user_id=user.id,
+            username=user.username or user.first_name,
+            pppoker_id=pppoker_id,
+            promotion_id=promotion_id,
+            cashback_request_id=request_id,
+            loss_amount=loss_amount,
+            cashback_amount=cashback_amount
+        )
+
         # Notify user
         await update.message.reply_text(
             f"✅ <b>Cashback Request Submitted!</b>\n\n"
