@@ -1378,47 +1378,81 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     eligibility = sheets.check_cashback_eligibility(user.id, promotion_id, min_loss=500)
 
     if not eligibility['eligible']:
-        loss_amount = eligibility['loss_amount']
+        current_deposits = eligibility['current_deposits']
+        current_withdrawals = eligibility['current_withdrawals']
+        effective_new_deposits = eligibility['effective_new_deposits']
+        last_claim_deposits = eligibility['last_claim_deposits']
+        baseline = eligibility['baseline']
         min_required = eligibility['min_required']
+        deposits_exceed_withdrawals = eligibility['deposits_exceed_withdrawals']
         already_claimed = eligibility.get('already_claimed', False)
 
-        # Check if user already claimed for this promotion
-        if already_claimed:
+        # Check if withdrawals are blocking eligibility
+        if not deposits_exceed_withdrawals:
+            shortage = current_withdrawals - current_deposits
             await update.message.reply_text(
-                f"❌ <b>Already Claimed Cashback</b>\n\n"
-                f"You have already claimed cashback for the current promotion period.\n\n"
-                f"🎫 Promotion ID: <code>{promotion_id}</code>\n\n"
-                f"💡 <i>You can only claim cashback once per promotion period.</i>",
+                f"❌ <b>Not Eligible for Cashback</b>\n\n"
+                f"💰 Total Deposits: <b>{current_deposits:.2f} MVR</b>\n"
+                f"💸 Total Withdrawals: <b>{current_withdrawals:.2f} MVR</b>\n\n"
+                f"🚫 <b>Your withdrawals exceed your deposits!</b>\n\n"
+                f"You need to deposit <b>{shortage:.2f} MVR</b> more to cover your withdrawals first.\n\n"
+                f"💡 <i>Cashback is ONLY for users at a loss (Deposits > Withdrawals)</i>",
                 parse_mode='HTML'
             )
             return ConversationHandler.END
 
-        # User hasn't claimed but doesn't meet loss requirement
-        await update.message.reply_text(
-            f"❌ <b>Not Eligible for Cashback</b>\n\n"
-            f"📊 Your current loss: <b>{loss_amount:.2f} MVR</b>\n"
-            f"📋 Minimum required: <b>{min_required:.2f} MVR</b>\n\n"
-            f"You need at least <b>{min_required - loss_amount:.2f} MVR</b> more in losses to be eligible for cashback.\n\n"
-            f"💡 <i>Loss = Total Deposits - Total Withdrawals</i>",
-            parse_mode='HTML'
-        )
+        # User is at a loss but doesn't have enough effective new deposits
+        needed = min_required - effective_new_deposits
+
+        message = f"❌ <b>Not Enough Effective Deposits for Cashback</b>\n\n"
+        message += f"💰 Total Deposits: <b>{current_deposits:.2f} MVR</b>\n"
+        message += f"💸 Total Withdrawals: <b>{current_withdrawals:.2f} MVR</b>\n"
+
+        if already_claimed:
+            message += f"✅ Last claim at deposits: <b>{last_claim_deposits:.2f} MVR</b>\n"
+
+        message += f"\n📊 <b>Baseline (must exceed):</b> {baseline:.2f} MVR\n"
+        message += f"   (max of last claim or withdrawals)\n\n"
+        message += f"🆕 <b>Effective new deposits:</b> {effective_new_deposits:.2f} MVR\n"
+        message += f"   (Current deposits - Baseline)\n\n"
+        message += f"📋 Minimum required: <b>{min_required:.2f} MVR</b>\n"
+        message += f"❌ You need <b>{needed:.2f} MVR</b> more!\n\n"
+        message += f"💡 <i>If you withdrew, old unclaimed deposits are blocked. Start fresh!</i>"
+
+        await update.message.reply_text(message, parse_mode='HTML')
         return ConversationHandler.END
 
-    # User is eligible
-    loss_amount = eligibility['loss_amount']
-    cashback_amount = (loss_amount * cashback_percentage) / 100
+    # User is eligible - calculate cashback on effective new deposits
+    current_deposits = eligibility['current_deposits']
+    current_withdrawals = eligibility['current_withdrawals']
+    effective_new_deposits = eligibility['effective_new_deposits']
+    last_claim_deposits = eligibility['last_claim_deposits']
+    baseline = eligibility['baseline']
+    cashback_amount = (effective_new_deposits * cashback_percentage) / 100
+
+    message = f"✅ <b>You're Eligible for Cashback!</b>\n\n"
+    message += f"💰 Total Deposits: <b>{current_deposits:.2f} MVR</b>\n"
+    message += f"💸 Total Withdrawals: <b>{current_withdrawals:.2f} MVR</b>\n"
+    message += f"📊 Net Loss: <b>{current_deposits - current_withdrawals:.2f} MVR</b> ✅\n\n"
+
+    if last_claim_deposits > 0:
+        message += f"✅ Last claim at deposits: <b>{last_claim_deposits:.2f} MVR</b>\n"
+
+    message += f"📊 Baseline: <b>{baseline:.2f} MVR</b>\n"
+    message += f"🆕 Effective new deposits: <b>{effective_new_deposits:.2f} MVR</b>\n\n"
+
+    message += f"💎 Cashback rate: <b>{cashback_percentage}%</b>\n"
+    message += f"💰 Cashback amount: <b>{cashback_amount:.2f} MVR</b>\n"
+    message += f"   (on {effective_new_deposits:.2f} MVR effective deposits)\n\n"
+    message += f"📝 Please enter your <b>PPPoker ID</b> to submit your cashback request:"
 
     await update.message.reply_text(
-        f"✅ <b>You're Eligible for Cashback!</b>\n\n"
-        f"📊 Your total loss: <b>{loss_amount:.2f} MVR</b>\n"
-        f"💰 Cashback rate: <b>{cashback_percentage}%</b>\n"
-        f"💎 Cashback amount: <b>{cashback_amount:.2f} MVR</b>\n\n"
-        f"📝 Please enter your <b>PPPoker ID</b> to submit your cashback request:",
+        message,
         parse_mode='HTML'
     )
 
-    # Store loss amount and cashback details in context
-    context.user_data['cashback_loss'] = loss_amount
+    # Store deposit amount and cashback details in context
+    context.user_data['cashback_loss'] = effective_new_deposits
     context.user_data['cashback_percentage'] = cashback_percentage
     context.user_data['cashback_amount'] = cashback_amount
     context.user_data['cashback_promotion_id'] = promotion_id
@@ -5539,7 +5573,7 @@ async def cashback_approve_callback(update: Update, context: ContextTypes.DEFAUL
 
         # Notify user
         try:
-            await application.bot.send_message(
+            await context.bot.send_message(
                 chat_id=target_user_id,
                 text=(
                     f"✅ <b>CASHBACK APPROVED!</b> ✅\n\n"
@@ -5608,7 +5642,7 @@ async def cashback_reject_callback(update: Update, context: ContextTypes.DEFAULT
 
         # Notify user
         try:
-            await application.bot.send_message(
+            await context.bot.send_message(
                 chat_id=target_user_id,
                 text=(
                     f"❌ <b>CASHBACK REJECTED</b> ❌\n\n"

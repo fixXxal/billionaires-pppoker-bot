@@ -1135,8 +1135,8 @@ class SheetsManager:
 
     # ========== CASHBACK FUNCTIONS ==========
 
-    def calculate_user_loss(self, user_id: int) -> float:
-        """Calculate total loss for a user (deposits - withdrawals)"""
+    def get_user_deposit_and_withdrawal_totals(self, user_id: int) -> Dict:
+        """Get total deposits and withdrawals for a user"""
         try:
             # Get all approved deposits
             deposit_rows = self.deposits_sheet.get_all_values()[1:]  # Skip header
@@ -1154,8 +1154,23 @@ class SheetsManager:
                     # Column 4 is Amount (0-indexed)
                     total_withdrawals += float(row[4]) if row[4] else 0
 
-            # Loss = Deposits - Withdrawals (if negative, user is in profit, return 0)
-            loss = total_deposits - total_withdrawals
+            return {
+                'total_deposits': total_deposits,
+                'total_withdrawals': total_withdrawals
+            }
+
+        except Exception as e:
+            print(f"Error getting user deposits and withdrawals: {e}")
+            return {
+                'total_deposits': 0,
+                'total_withdrawals': 0
+            }
+
+    def calculate_user_loss(self, user_id: int) -> float:
+        """Calculate total loss for a user (deposits - withdrawals)"""
+        try:
+            totals = self.get_user_deposit_and_withdrawal_totals(user_id)
+            loss = totals['total_deposits'] - totals['total_withdrawals']
             return max(0, loss)  # Return 0 if user is in profit
 
         except Exception as e:
@@ -1260,19 +1275,22 @@ class SheetsManager:
             print(f"Error rejecting cashback request: {e}")
             return False
 
-    def check_user_cashback_eligibility(self, user_id: int, promotion_id: str) -> bool:
-        """Check if user is eligible for cashback (hasn't received cashback for this promotion yet)"""
+    def get_last_cashback_claim_deposit_total(self, user_id: int, promotion_id: str) -> float:
+        """Get the total deposits at the time of last cashback claim for this promotion"""
         try:
+            last_deposit_total = 0
             all_rows = self.cashback_eligibility_sheet.get_all_values()[1:]  # Skip header
             for row in all_rows:
-                if len(row) >= 4:
-                    # Check if user already received cashback for this promotion
+                if len(row) >= 6:
+                    # Find last claimed deposit total for this user and promotion
                     if row[0] == str(user_id) and row[3] == promotion_id:
-                        return False
-            return True
+                        # Row[5] is Loss Amount which represents deposits at time of claim
+                        last_deposit_total = max(last_deposit_total, float(row[5]) if row[5] else 0)
+
+            return last_deposit_total
         except Exception as e:
-            print(f"Error checking cashback eligibility: {e}")
-            return False
+            print(f"Error getting last cashback claim: {e}")
+            return 0
 
     def record_cashback_claim(self, user_id: int, username: str, pppoker_id: str, promotion_id: str,
                               cashback_request_id: str, loss_amount: float, cashback_amount: float) -> bool:
@@ -1315,21 +1333,51 @@ class SheetsManager:
             print(f"Error getting user cashback claims: {e}")
         return claims
 
-    def check_cashback_eligibility(self, user_id: int, promotion_id: str, min_loss: float = 500) -> Dict:
-        """Check if user is eligible for cashback (hasn't claimed for this promotion and meets loss requirement)"""
-        loss = self.calculate_user_loss(user_id)
-        meets_loss_requirement = loss >= min_loss
+    def check_cashback_eligibility(self, user_id: int, promotion_id: str, min_deposit: float = 500) -> Dict:
+        """
+        Check if user is eligible for cashback
+        Rules:
+        1. Total deposits > Total withdrawals (user must be at a loss overall)
+        2. Effective new deposits >= min_deposit (default 500)
 
-        # Check if user already claimed cashback for this promotion
-        has_not_claimed = self.check_user_cashback_eligibility(user_id, promotion_id)
+        Effective new deposits = Current Deposits - max(Last Claim Deposits, Current Withdrawals)
 
-        is_eligible = meets_loss_requirement and has_not_claimed
+        This means:
+        - If user withdraws more than deposits, they go into profit
+        - Any profit must be "paid back" before new deposits count
+        - Previous unclaimed deposits are BLOCKED if user goes into profit
+        """
+        # Get current deposit and withdrawal totals
+        totals = self.get_user_deposit_and_withdrawal_totals(user_id)
+        current_deposits = totals['total_deposits']
+        current_withdrawals = totals['total_withdrawals']
+
+        # Get deposits at time of last cashback claim
+        last_claim_deposits = self.get_last_cashback_claim_deposit_total(user_id, promotion_id)
+
+        # Calculate effective new deposits
+        # User must cover BOTH their last claim AND any withdrawals
+        baseline = max(last_claim_deposits, current_withdrawals)
+        effective_new_deposits = current_deposits - baseline
+
+        # Check both conditions:
+        # 1. Total deposits > total withdrawals (user is at a loss)
+        # 2. Effective new deposits >= minimum
+        deposits_exceed_withdrawals = current_deposits > current_withdrawals
+        has_min_effective_deposits = effective_new_deposits >= min_deposit
+
+        is_eligible = deposits_exceed_withdrawals and has_min_effective_deposits
 
         return {
             'eligible': is_eligible,
-            'loss_amount': loss,
-            'min_required': min_loss,
-            'already_claimed': not has_not_claimed
+            'current_deposits': current_deposits,
+            'current_withdrawals': current_withdrawals,
+            'last_claim_deposits': last_claim_deposits,
+            'effective_new_deposits': effective_new_deposits,
+            'baseline': baseline,
+            'min_required': min_deposit,
+            'deposits_exceed_withdrawals': deposits_exceed_withdrawals,
+            'already_claimed': last_claim_deposits > 0
         }
 
     # Seat Request Functions
