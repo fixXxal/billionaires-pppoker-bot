@@ -46,6 +46,23 @@ def escape_markdown(text: str) -> str:
     for char in special_chars:
         text = text.replace(char, f'\\{char}')
     return text
+
+def clean_pppoker_id(raw_input: str) -> str:
+    """
+    Clean PPPoker ID by removing all non-numeric characters.
+    Keeps only digits 0-9.
+
+    Examples:
+        '123 456 789' -> '123456789'
+        'ID: 123456' -> '123456'
+        '123-456-789' -> '123456789'
+        'abc123xyz' -> '123'
+    """
+    if not raw_input:
+        return ''
+    # Keep only digits
+    cleaned = ''.join(char for char in raw_input if char.isdigit())
+    return cleaned
 SPREADSHEET_NAME = os.getenv('SPREADSHEET_NAME', 'Billionaires_PPPoker_Bot')
 CREDENTIALS_FILE = os.getenv('GOOGLE_SHEETS_CREDENTIALS_FILE', 'credentials.json')
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
@@ -591,7 +608,18 @@ async def deposit_amount_received(update: Update, context: ContextTypes.DEFAULT_
 async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle PPPoker ID input - final step, creates deposit request and sends to admin"""
     user = update.effective_user
-    pppoker_id = update.message.text.strip()
+    raw_input = update.message.text.strip()
+
+    # Clean PPPoker ID (remove spaces, letters, special characters)
+    pppoker_id = clean_pppoker_id(raw_input)
+
+    # Validate that we have a valid number
+    if not pppoker_id or len(pppoker_id) < 3:
+        await update.message.reply_text(
+            "❌ Invalid PPPoker ID. Please enter only numbers (at least 3 digits):",
+            parse_mode='HTML'
+        )
+        return DEPOSIT_PPPOKER_ID
 
     # Update user's PPPoker ID
     sheets.update_user_pppoker_id(user.id, pppoker_id)
@@ -1125,7 +1153,19 @@ async def withdrawal_amount_received(update: Update, context: ContextTypes.DEFAU
 
 async def withdrawal_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle PPPoker ID input for withdrawal"""
-    pppoker_id = update.message.text.strip()
+    raw_input = update.message.text.strip()
+
+    # Clean PPPoker ID (remove spaces, letters, special characters)
+    pppoker_id = clean_pppoker_id(raw_input)
+
+    # Validate that we have a valid number
+    if not pppoker_id or len(pppoker_id) < 3:
+        await update.message.reply_text(
+            "❌ Invalid PPPoker ID. Please enter only numbers (at least 3 digits):",
+            parse_mode='HTML'
+        )
+        return WITHDRAWAL_PPPOKER_ID
+
     context.user_data['withdrawal_pppoker_id'] = pppoker_id
 
     method = context.user_data['withdrawal_method']
@@ -1280,7 +1320,18 @@ Please enter your <b>PPPoker ID</b> to complete your join request:"""
 async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle PPPoker ID input for join request"""
     user = update.effective_user
-    pppoker_id = update.message.text.strip()
+    raw_input = update.message.text.strip()
+
+    # Clean PPPoker ID (remove spaces, letters, special characters)
+    pppoker_id = clean_pppoker_id(raw_input)
+
+    # Validate that we have a valid number
+    if not pppoker_id or len(pppoker_id) < 3:
+        await update.message.reply_text(
+            "❌ Invalid PPPoker ID. Please enter only numbers (at least 3 digits):",
+            parse_mode='HTML'
+        )
+        return JOIN_PPPOKER_ID
 
     # Create join request
     request_id = sheets.create_join_request(
@@ -1518,12 +1569,15 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Receive PPPoker ID and submit cashback request"""
     user = update.effective_user
-    pppoker_id = update.message.text.strip()
+    raw_input = update.message.text.strip()
+
+    # Clean PPPoker ID (remove spaces, letters, special characters)
+    pppoker_id = clean_pppoker_id(raw_input)
 
     # Validate PPPoker ID (basic validation)
     if not pppoker_id or len(pppoker_id) < 3:
         await update.message.reply_text(
-            "❌ Invalid PPPoker ID. Please enter a valid PPPoker ID:",
+            "❌ Invalid PPPoker ID. Please enter only numbers (at least 3 digits):",
             parse_mode='HTML'
         )
         return CASHBACK_PPPOKER_ID
