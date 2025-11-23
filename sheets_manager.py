@@ -1454,6 +1454,13 @@ class SheetsManager:
             # Get the request data from the row before approving
             row_data = self.cashback_history_sheet.row_values(row_number)
 
+            # Check if already processed (prevent duplicate processing)
+            if len(row_data) >= 9:
+                current_status = row_data[8]  # Status is column 9 (index 8)
+                if current_status and current_status.lower() != 'pending':
+                    print(f"Cashback request already processed with status: {current_status}")
+                    return False
+
             # Update status to Approved (column 9)
             self.cashback_history_sheet.update_cell(row_number, 9, 'Approved')  # Status
             self.cashback_history_sheet.update_cell(row_number, 11, approved_by)  # Approved By
@@ -1481,6 +1488,16 @@ class SheetsManager:
     def reject_cashback_request(self, row_number: int, rejected_by: str) -> bool:
         """Reject a cashback request"""
         try:
+            # Get the request data from the row before rejecting
+            row_data = self.cashback_history_sheet.row_values(row_number)
+
+            # Check if already processed (prevent duplicate processing)
+            if len(row_data) >= 9:
+                current_status = row_data[8]  # Status is column 9 (index 8)
+                if current_status and current_status.lower() != 'pending':
+                    print(f"Cashback request already processed with status: {current_status}")
+                    return False
+
             self.cashback_history_sheet.update_cell(row_number, 9, 'Rejected')  # Status (column 9)
             self.cashback_history_sheet.update_cell(row_number, 11, rejected_by)  # Rejected By
             self.cashback_history_sheet.update_cell(row_number, 12, self._get_timestamp())  # Rejected At

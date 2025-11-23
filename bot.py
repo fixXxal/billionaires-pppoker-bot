@@ -1463,20 +1463,18 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Check if user is in profit (considering all chip sources)
         if not deposits_exceed_withdrawals:
             message = f"❌ <b>Not Eligible for Cashback</b>\n\n"
-            message += f"💰 Total Deposits: <b>{current_deposits:.2f} MVR</b>\n"
-            message += f"💸 Total Withdrawals: <b>{current_withdrawals:.2f} MVR</b>\n"
-
+            message += f"You are currently in profit, not at a loss.\n\n"
+            message += f"💰 Your Balance:\n"
+            message += f"   Deposits: {current_deposits:.2f} MVR\n"
+            message += f"   Withdrawals: {current_withdrawals:.2f} MVR\n"
             if total_spin_rewards > 0:
-                message += f"🎰 Spin Rewards: <b>{total_spin_rewards:.2f} MVR</b>\n"
+                message += f"   Spin Wins: {total_spin_rewards:.2f} MVR\n"
             if total_bonuses > 0:
-                message += f"🎁 Bonuses Received: <b>{total_bonuses:.2f} MVR</b>\n"
+                message += f"   Bonuses: {total_bonuses:.2f} MVR\n"
             if total_cashback > 0:
-                message += f"💸 Previous Cashback: <b>{total_cashback:.2f} MVR</b>\n"
+                message += f"   Cashback: {total_cashback:.2f} MVR\n"
 
-            message += f"\n📊 <b>Club's Profit: {abs(club_profit):.2f} MVR</b>\n\n"
-            message += f"🚫 <b>You're in PROFIT, not at a loss!</b>\n\n"
-            message += f"💡 <i>Cashback is ONLY for users at a real loss.\n"
-            message += f"We count deposits minus ALL money given (withdrawals + spins + bonuses + cashback).</i>"
+            message += f"\n💡 <i>Cashback is only available for users at a net loss.</i>"
 
             await update.message.reply_text(message, parse_mode='HTML')
             return ConversationHandler.END
@@ -1484,64 +1482,24 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # User is at a loss but doesn't have enough effective new deposits
         needed = min_required - effective_new_deposits
 
-        message = f"❌ <b>Not Enough New Deposits for Cashback</b>\n\n"
-        message += f"💰 Total Deposits: <b>{current_deposits:.2f} MVR</b>\n"
-        message += f"💸 Total Withdrawals: <b>{current_withdrawals:.2f} MVR</b>\n"
-
-        if total_spin_rewards > 0:
-            message += f"🎰 Spin Rewards: <b>{total_spin_rewards:.2f} MVR</b>\n"
-        if total_bonuses > 0:
-            message += f"🎁 Bonuses: <b>{total_bonuses:.2f} MVR</b>\n"
-        if total_cashback > 0:
-            message += f"💸 Previous Cashback: <b>{total_cashback:.2f} MVR</b>\n"
-
-        message += f"\n📊 <b>Your Real Loss: {user_loss:.2f} MVR</b> ✅\n"
-
-        if already_claimed:
-            message += f"✅ Last claim at: <b>{last_claim_deposits:.2f} MVR</b> deposits\n"
-
-        message += f"\n🆕 <b>New deposits since last claim:</b> {effective_new_deposits:.2f} MVR\n"
-        message += f"📋 <b>Minimum required:</b> {min_required:.2f} MVR\n"
-        message += f"❌ <b>You need {needed:.2f} MVR more!</b>\n\n"
-        message += f"💡 <i>Deposit more to reach the minimum requirement!</i>"
+        message = f"❌ <b>Insufficient New Deposits</b>\n\n"
+        message += f"New deposits required: <b>{min_required:.2f} MVR</b>\n"
+        message += f"Your new deposits: <b>{effective_new_deposits:.2f} MVR</b>\n"
+        message += f"Deposit <b>{needed:.2f} MVR</b> more to qualify.\n\n"
+        message += f"💡 <i>Minimum {min_required:.2f} MVR in new deposits required.</i>"
 
         await update.message.reply_text(message, parse_mode='HTML')
         return ConversationHandler.END
 
     # User is eligible - calculate cashback on effective new deposits
-    current_deposits = eligibility['current_deposits']
-    current_withdrawals = eligibility['current_withdrawals']
-    total_spin_rewards = eligibility.get('total_spin_rewards', 0)
-    total_bonuses = eligibility.get('total_bonuses', 0)
-    total_cashback = eligibility.get('total_cashback', 0)
-    user_loss = eligibility.get('user_loss', 0)
     effective_new_deposits = eligibility['effective_new_deposits']
-    last_claim_deposits = eligibility['last_claim_deposits']
-    baseline = eligibility['baseline']
     cashback_amount = (effective_new_deposits * cashback_percentage) / 100
 
-    message = f"✅ <b>You're Eligible for Cashback!</b>\n\n"
-    message += f"💰 Total Deposits: <b>{current_deposits:.2f} MVR</b>\n"
-    message += f"💸 Total Withdrawals: <b>{current_withdrawals:.2f} MVR</b>\n"
-
-    if total_spin_rewards > 0:
-        message += f"🎰 Spin Rewards: <b>{total_spin_rewards:.2f} MVR</b>\n"
-    if total_bonuses > 0:
-        message += f"🎁 Bonuses: <b>{total_bonuses:.2f} MVR</b>\n"
-    if total_cashback > 0:
-        message += f"💸 Previous Cashback: <b>{total_cashback:.2f} MVR</b>\n"
-
-    message += f"\n📊 <b>Your Real Loss: {user_loss:.2f} MVR</b> ✅\n\n"
-
-    if last_claim_deposits > 0:
-        message += f"✅ Last claim at: <b>{last_claim_deposits:.2f} MVR</b> deposits\n"
-
-    message += f"🆕 New deposits since last claim: <b>{effective_new_deposits:.2f} MVR</b>\n\n"
-
-    message += f"💎 Cashback rate: <b>{cashback_percentage}%</b>\n"
-    message += f"💰 Cashback amount: <b>{cashback_amount:.2f} MVR</b>\n"
-    message += f"   (on {effective_new_deposits:.2f} MVR new deposits)\n\n"
-    message += f"📝 Please enter your <b>PPPoker ID</b> to submit your cashback request:"
+    message = f"✅ <b>Cashback Eligible!</b>\n\n"
+    message += f"💎 Cashback Rate: <b>{cashback_percentage}%</b>\n"
+    message += f"💰 Cashback Amount: <b>{cashback_amount:.2f} MVR</b>\n"
+    message += f"   (on {effective_new_deposits:.2f} MVR deposits)\n\n"
+    message += f"📝 Enter your <b>PPPoker ID</b> to submit:"
 
     await update.message.reply_text(
         message,

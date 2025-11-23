@@ -822,6 +822,26 @@ async def cashback_admin_approve(update: Update, context: ContextTypes.DEFAULT_T
             context.user_data['current_cashback_index'] = current_index
             context.user_data['pending_cashback'] = pending_cashback
     else:
+        # Check if already processed by getting current status
+        try:
+            cashback_data = sheets.cashback_history_sheet.row_values(row_number)
+            if len(cashback_data) >= 9:
+                current_status = cashback_data[8]
+                if current_status and current_status.lower() != 'pending':
+                    username = cashback_data[2] if len(cashback_data) > 2 else 'Unknown'
+                    await query.edit_message_text(
+                        f"⚠️ <b>Already Processed</b>\n\n"
+                        f"This cashback request has already been {current_status.lower()}.\n"
+                        f"User: {username}",
+                        parse_mode='HTML',
+                        reply_markup=InlineKeyboardMarkup([[
+                            InlineKeyboardButton("« Back to Panel", callback_data="admin_back")
+                        ]])
+                    )
+                    return
+        except Exception as e:
+            logger.error(f"Error checking cashback status: {e}")
+
         await query.edit_message_text(
             "❌ Error approving cashback request.",
             reply_markup=InlineKeyboardMarkup([[
@@ -887,6 +907,26 @@ async def cashback_admin_reject(update: Update, context: ContextTypes.DEFAULT_TY
             context.user_data['current_cashback_index'] = current_index
             context.user_data['pending_cashback'] = pending_cashback
     else:
+        # Check if already processed by getting current status
+        try:
+            cashback_data = sheets.cashback_history_sheet.row_values(row_number)
+            if len(cashback_data) >= 9:
+                current_status = cashback_data[8]
+                if current_status and current_status.lower() != 'pending':
+                    username = cashback_data[2] if len(cashback_data) > 2 else 'Unknown'
+                    await query.edit_message_text(
+                        f"⚠️ <b>Already Processed</b>\n\n"
+                        f"This cashback request has already been {current_status.lower()}.\n"
+                        f"User: {username}",
+                        parse_mode='HTML',
+                        reply_markup=InlineKeyboardMarkup([[
+                            InlineKeyboardButton("« Back to Panel", callback_data="admin_back")
+                        ]])
+                    )
+                    return
+        except Exception as e:
+            logger.error(f"Error checking cashback status: {e}")
+
         await query.edit_message_text(
             "❌ Error rejecting cashback request.",
             reply_markup=InlineKeyboardMarkup([[
