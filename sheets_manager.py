@@ -316,27 +316,37 @@ class SheetsManager:
                 'Profit', 'Player Share', 'Club Share', 'Status', 'Date Added', 'Date Returned'
             ])
 
-        # Club_Balances worksheet - tracks current club chip and cash balances
+        # Club_Balances worksheet - tracks current club chip and cash balances (OPTIONAL - won't break other features if fails)
         try:
-            self.club_balances_sheet = self.spreadsheet.worksheet('Club_Balances')
-        except gspread.WorksheetNotFound:
-            self.club_balances_sheet = self.spreadsheet.add_worksheet(title='Club_Balances', rows=100, cols=8)
-            self.club_balances_sheet.append_row([
-                'Chip Inventory', 'MVR Balance', 'USD Balance', 'USDT Balance',
-                'Total Chip Cost Basis', 'Average Chip Buy Rate', 'Last Updated', 'Initialized'
-            ])
-            # Initialize with zeros
-            self.club_balances_sheet.append_row([0, 0, 0, 0, 0, 0, '', 'No'])
+            try:
+                self.club_balances_sheet = self.spreadsheet.worksheet('Club_Balances')
+            except gspread.WorksheetNotFound:
+                self.club_balances_sheet = self.spreadsheet.add_worksheet(title='Club_Balances', rows=100, cols=8)
+                self.club_balances_sheet.append_row([
+                    'Chip Inventory', 'MVR Balance', 'USD Balance', 'USDT Balance',
+                    'Total Chip Cost Basis', 'Average Chip Buy Rate', 'Last Updated', 'Initialized'
+                ])
+                # Initialize with zeros
+                self.club_balances_sheet.append_row([0, 0, 0, 0, 0, 0, '', 'No'])
+        except Exception as e:
+            print(f"⚠️ Warning: Could not initialize Club_Balances sheet: {e}")
+            print("✅ Other features will continue to work normally")
+            self.club_balances_sheet = None
 
-        # Inventory_Transactions worksheet - tracks all chip buys and cash additions
+        # Inventory_Transactions worksheet - tracks all chip buys and cash additions (OPTIONAL - won't break other features if fails)
         try:
-            self.inventory_transactions_sheet = self.spreadsheet.worksheet('Inventory_Transactions')
-        except gspread.WorksheetNotFound:
-            self.inventory_transactions_sheet = self.spreadsheet.add_worksheet(title='Inventory_Transactions', rows=5000, cols=9)
-            self.inventory_transactions_sheet.append_row([
-                'ID', 'Transaction Type', 'Currency', 'Amount', 'Rate',
-                'Cost/Value (MVR)', 'Notes', 'Admin Name', 'Date Time'
-            ])
+            try:
+                self.inventory_transactions_sheet = self.spreadsheet.worksheet('Inventory_Transactions')
+            except gspread.WorksheetNotFound:
+                self.inventory_transactions_sheet = self.spreadsheet.add_worksheet(title='Inventory_Transactions', rows=5000, cols=9)
+                self.inventory_transactions_sheet.append_row([
+                    'ID', 'Transaction Type', 'Currency', 'Amount', 'Rate',
+                    'Cost/Value (MVR)', 'Notes', 'Admin Name', 'Date Time'
+                ])
+        except Exception as e:
+            print(f"⚠️ Warning: Could not initialize Inventory_Transactions sheet: {e}")
+            print("✅ Other features will continue to work normally")
+            self.inventory_transactions_sheet = None
 
         # Run migration to add PPPoker ID columns if they don't exist
         self._migrate_add_pppoker_columns()
@@ -2660,6 +2670,8 @@ class SheetsManager:
     def is_balances_initialized(self) -> bool:
         """Check if club balances have been initialized"""
         try:
+            if self.club_balances_sheet is None:
+                return False
             row = self.club_balances_sheet.row_values(2)
             if len(row) >= 8:
                 return row[7] == 'Yes'
@@ -2671,6 +2683,17 @@ class SheetsManager:
     def get_club_balances(self) -> Dict:
         """Get current club balances"""
         try:
+            if self.club_balances_sheet is None:
+                return {
+                    'chip_inventory': 0,
+                    'mvr_balance': 0,
+                    'usd_balance': 0,
+                    'usdt_balance': 0,
+                    'chip_cost_basis': 0,
+                    'avg_chip_rate': 0,
+                    'last_updated': '',
+                    'initialized': False
+                }
             row = self.club_balances_sheet.row_values(2)
 
             if len(row) < 8:
@@ -2712,6 +2735,9 @@ class SheetsManager:
                              mvr_balance: float, usd_balance: float, usdt_balance: float) -> bool:
         """Set starting balances for club (one-time setup)"""
         try:
+            if self.club_balances_sheet is None:
+                print("⚠️ Club_Balances sheet not available")
+                return False
             avg_rate = chip_cost_basis / chip_inventory if chip_inventory > 0 else 0
             timestamp = self._get_timestamp()
 
@@ -2737,6 +2763,9 @@ class SheetsManager:
                            chip_cost_change: float = 0) -> bool:
         """Update club balances (add or subtract)"""
         try:
+            if self.club_balances_sheet is None:
+                print("⚠️ Club_Balances sheet not available")
+                return False
             current = self.get_club_balances()
 
             new_chips = current['chip_inventory'] + chip_change
@@ -2771,6 +2800,9 @@ class SheetsManager:
                                     notes: str = '', admin_name: str = 'Admin') -> bool:
         """Record inventory transaction in history"""
         try:
+            if self.inventory_transactions_sheet is None:
+                print("⚠️ Inventory_Transactions sheet not available")
+                return False
             all_values = self.inventory_transactions_sheet.get_all_values()
             next_id = len(all_values)
 
@@ -2800,6 +2832,8 @@ class SheetsManager:
         Deducts MVR and adds chips
         """
         try:
+            if self.club_balances_sheet is None:
+                return {'success': False, 'error': 'Club_Balances sheet not available'}
             current = self.get_club_balances()
 
             # Check if enough MVR
@@ -2856,6 +2890,8 @@ class SheetsManager:
         Add cash (MVR/USD/USDT) to club balance
         """
         try:
+            if self.club_balances_sheet is None:
+                return {'success': False, 'error': 'Club_Balances sheet not available'}
             # Update appropriate balance
             if currency == 'MVR':
                 success = self.update_club_balance(mvr_change=amount)
@@ -2897,6 +2933,8 @@ class SheetsManager:
     def get_inventory_transactions(self, limit: int = 50) -> List[Dict]:
         """Get recent inventory transactions"""
         try:
+            if self.inventory_transactions_sheet is None:
+                return []
             all_values = self.inventory_transactions_sheet.get_all_values()
 
             transactions = []

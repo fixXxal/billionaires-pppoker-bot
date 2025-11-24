@@ -7441,7 +7441,7 @@ def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, investment_amount_received),
             ],
         },
-        fallbacks=[],
+        fallbacks=[CommandHandler('cancel', cancel)],
         per_user=True,
         per_chat=True,
         name="investment_add_conv"
@@ -7459,7 +7459,7 @@ def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, return_amount_received),
             ],
         },
-        fallbacks=[],
+        fallbacks=[CommandHandler('cancel', cancel)],
         per_user=True,
         per_chat=True,
         name="investment_return_conv"
@@ -7490,7 +7490,7 @@ def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, balance_setup_usdt_received),
             ],
         },
-        fallbacks=[],
+        fallbacks=[CommandHandler('cancel', cancel)],
         per_user=True,
         per_chat=True,
         name="balance_setup_conv"
@@ -7508,7 +7508,7 @@ def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, balance_buy_cost_received),
             ],
         },
-        fallbacks=[],
+        fallbacks=[CommandHandler('cancel', cancel)],
         per_user=True,
         per_chat=True,
         name="balance_buy_conv"
@@ -7529,7 +7529,7 @@ def main():
                 MessageHandler(filters.TEXT, balance_add_note_received),
             ],
         },
-        fallbacks=[],
+        fallbacks=[CommandHandler('cancel', cancel)],
         per_user=True,
         per_chat=True,
         name="balance_add_cash_conv"
