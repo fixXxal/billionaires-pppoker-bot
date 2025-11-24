@@ -64,6 +64,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎁 Promotions", callback_data="admin_view_promotions")],
         [InlineKeyboardButton("🏦 Payment Accounts", callback_data="admin_view_accounts")],
         [InlineKeyboardButton("💎 50/50 Investments", callback_data="admin_investments")],
+        [InlineKeyboardButton("🏦 Club Balances", callback_data="admin_club_balances")],
         [InlineKeyboardButton(counter_button_text, callback_data=counter_callback)],
         [InlineKeyboardButton("📊 Counter Status", callback_data="admin_counter_status")],
         [InlineKeyboardButton("❌ Close", callback_data="admin_close")]
@@ -1598,6 +1599,95 @@ async def investment_view_completed(update: Update, context: ContextTypes.DEFAUL
     )
 
 
+async def admin_club_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show club balances menu"""
+    query = update.callback_query
+    await query.answer()
+
+    # Check if balances are initialized
+    initialized = sheets.is_balances_initialized()
+
+    if not initialized:
+        keyboard = [
+            [InlineKeyboardButton("⚙️ Set Starting Balances", callback_data="balances_setup")],
+            [InlineKeyboardButton("« Back", callback_data="admin_back")]
+        ]
+        await query.edit_message_text(
+            "🏦 <b>Club Balances</b>\n\n"
+            "⚠️ Balances not initialized yet.\n\n"
+            "Please set starting balances to begin tracking.",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
+    # Show current balances
+    balances = sheets.get_club_balances()
+
+    message = "🏦 <b>Club Balances</b>\n\n"
+    message += f"🎲 <b>Chip Inventory:</b> {balances['chip_inventory']:,.0f}\n"
+    message += f"💰 <b>MVR Balance:</b> {balances['mvr_balance']:,.2f}\n"
+    message += f"💵 <b>USD Balance:</b> {balances['usd_balance']:,.2f}\n"
+    message += f"💎 <b>USDT Balance:</b> {balances['usdt_balance']:,.2f}\n\n"
+    message += f"📊 <b>Chip Cost Basis:</b> {balances['chip_cost_basis']:,.2f} MVR\n"
+    message += f"📈 <b>Avg Buy Rate:</b> {balances['avg_chip_rate']:.4f} MVR/chip\n\n"
+    message += f"🕐 <b>Last Updated:</b> {balances['last_updated']}"
+
+    keyboard = [
+        [InlineKeyboardButton("🎲 Buy Chips", callback_data="balances_buy_chips")],
+        [InlineKeyboardButton("💵 Add Cash", callback_data="balances_add_cash")],
+        [InlineKeyboardButton("📊 Transaction History", callback_data="balances_history")],
+        [InlineKeyboardButton("🔄 Refresh", callback_data="admin_club_balances")],
+        [InlineKeyboardButton("« Back", callback_data="admin_back")]
+    ]
+
+    await query.edit_message_text(
+        message,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def balances_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show transaction history"""
+    query = update.callback_query
+    await query.answer()
+
+    transactions = sheets.get_inventory_transactions(limit=10)
+
+    if not transactions:
+        await query.edit_message_text(
+            "📊 <b>Transaction History</b>\n\n"
+            "No transactions found.",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_club_balances")]])
+        )
+        return
+
+    message = "📊 <b>Recent Transactions</b>\n\n"
+
+    for txn in transactions:
+        if txn['type'] == 'BUY_CHIPS':
+            message += f"🎲 <b>Bought Chips</b>\n"
+            message += f"   Amount: {txn['amount']:,.0f} chips\n"
+            message += f"   Cost: {txn['cost_value']:,.2f} MVR\n"
+            message += f"   Rate: {txn['rate']:.4f} MVR/chip\n"
+        elif txn['type'] == 'ADD_CASH':
+            message += f"💵 <b>Added Cash</b>\n"
+            message += f"   Amount: {txn['amount']:,.2f} {txn['currency']}\n"
+            if txn['notes']:
+                message += f"   Note: {txn['notes']}\n"
+
+        message += f"   By: {txn['admin']}\n"
+        message += f"   {txn['datetime']}\n\n"
+
+    await query.edit_message_text(
+        message,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_club_balances")]])
+    )
+
+
 def register_admin_handlers(application, notif_messages=None):
     """Register all admin handlers"""
     global notification_messages
@@ -1628,6 +1718,8 @@ def register_admin_handlers(application, notif_messages=None):
     application.add_handler(CallbackQueryHandler(admin_investments, pattern="^admin_investments$"))
     application.add_handler(CallbackQueryHandler(investment_view_active, pattern="^investment_view_active$"))
     application.add_handler(CallbackQueryHandler(investment_view_completed, pattern="^investment_view_completed$"))
+    application.add_handler(CallbackQueryHandler(admin_club_balances, pattern="^admin_club_balances$"))
+    application.add_handler(CallbackQueryHandler(balances_history, pattern="^balances_history$"))
     application.add_handler(CallbackQueryHandler(admin_back, pattern="^admin_back$"))
     application.add_handler(CallbackQueryHandler(admin_close, pattern="^admin_close$"))
 

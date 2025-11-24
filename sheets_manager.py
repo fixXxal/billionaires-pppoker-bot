@@ -316,6 +316,28 @@ class SheetsManager:
                 'Profit', 'Player Share', 'Club Share', 'Status', 'Date Added', 'Date Returned'
             ])
 
+        # Club_Balances worksheet - tracks current club chip and cash balances
+        try:
+            self.club_balances_sheet = self.spreadsheet.worksheet('Club_Balances')
+        except gspread.WorksheetNotFound:
+            self.club_balances_sheet = self.spreadsheet.add_worksheet(title='Club_Balances', rows=100, cols=8)
+            self.club_balances_sheet.append_row([
+                'Chip Inventory', 'MVR Balance', 'USD Balance', 'USDT Balance',
+                'Total Chip Cost Basis', 'Average Chip Buy Rate', 'Last Updated', 'Initialized'
+            ])
+            # Initialize with zeros
+            self.club_balances_sheet.append_row([0, 0, 0, 0, 0, 0, '', 'No'])
+
+        # Inventory_Transactions worksheet - tracks all chip buys and cash additions
+        try:
+            self.inventory_transactions_sheet = self.spreadsheet.worksheet('Inventory_Transactions')
+        except gspread.WorksheetNotFound:
+            self.inventory_transactions_sheet = self.spreadsheet.add_worksheet(title='Inventory_Transactions', rows=5000, cols=9)
+            self.inventory_transactions_sheet.append_row([
+                'ID', 'Transaction Type', 'Currency', 'Amount', 'Rate',
+                'Cost/Value (MVR)', 'Notes', 'Admin Name', 'Date Time'
+            ])
+
         # Run migration to add PPPoker ID columns if they don't exist
         self._migrate_add_pppoker_columns()
 
@@ -2630,4 +2652,273 @@ class SheetsManager:
                 'lost_amount': 0,
                 'total_club_share': 0
             }
+
+    # ===========================
+    # CLUB BALANCE MANAGEMENT FUNCTIONS
+    # ===========================
+
+    def is_balances_initialized(self) -> bool:
+        """Check if club balances have been initialized"""
+        try:
+            row = self.club_balances_sheet.row_values(2)
+            if len(row) >= 8:
+                return row[7] == 'Yes'
+            return False
+        except Exception as e:
+            print(f"Error checking balance initialization: {e}")
+            return False
+
+    def get_club_balances(self) -> Dict:
+        """Get current club balances"""
+        try:
+            row = self.club_balances_sheet.row_values(2)
+
+            if len(row) < 8:
+                return {
+                    'chip_inventory': 0,
+                    'mvr_balance': 0,
+                    'usd_balance': 0,
+                    'usdt_balance': 0,
+                    'chip_cost_basis': 0,
+                    'avg_chip_rate': 0,
+                    'last_updated': '',
+                    'initialized': False
+                }
+
+            return {
+                'chip_inventory': float(row[0]) if row[0] else 0,
+                'mvr_balance': float(row[1]) if row[1] else 0,
+                'usd_balance': float(row[2]) if row[2] else 0,
+                'usdt_balance': float(row[3]) if row[3] else 0,
+                'chip_cost_basis': float(row[4]) if row[4] else 0,
+                'avg_chip_rate': float(row[5]) if row[5] else 0,
+                'last_updated': row[6] if row[6] else '',
+                'initialized': row[7] == 'Yes' if len(row) > 7 else False
+            }
+        except Exception as e:
+            print(f"Error getting club balances: {e}")
+            return {
+                'chip_inventory': 0,
+                'mvr_balance': 0,
+                'usd_balance': 0,
+                'usdt_balance': 0,
+                'chip_cost_basis': 0,
+                'avg_chip_rate': 0,
+                'last_updated': '',
+                'initialized': False
+            }
+
+    def set_starting_balances(self, chip_inventory: float, chip_cost_basis: float,
+                             mvr_balance: float, usd_balance: float, usdt_balance: float) -> bool:
+        """Set starting balances for club (one-time setup)"""
+        try:
+            avg_rate = chip_cost_basis / chip_inventory if chip_inventory > 0 else 0
+            timestamp = self._get_timestamp()
+
+            self.club_balances_sheet.update('A2:H2', [[
+                chip_inventory,
+                mvr_balance,
+                usd_balance,
+                usdt_balance,
+                chip_cost_basis,
+                avg_rate,
+                timestamp,
+                'Yes'
+            ]])
+
+            print(f"✅ Starting balances set: {chip_inventory} chips, {mvr_balance} MVR")
+            return True
+        except Exception as e:
+            print(f"Error setting starting balances: {e}")
+            return False
+
+    def update_club_balance(self, chip_change: float = 0, mvr_change: float = 0,
+                           usd_change: float = 0, usdt_change: float = 0,
+                           chip_cost_change: float = 0) -> bool:
+        """Update club balances (add or subtract)"""
+        try:
+            current = self.get_club_balances()
+
+            new_chips = current['chip_inventory'] + chip_change
+            new_mvr = current['mvr_balance'] + mvr_change
+            new_usd = current['usd_balance'] + usd_change
+            new_usdt = current['usdt_balance'] + usdt_change
+            new_cost_basis = current['chip_cost_basis'] + chip_cost_change
+
+            # Recalculate average rate
+            new_avg_rate = new_cost_basis / new_chips if new_chips > 0 else 0
+
+            timestamp = self._get_timestamp()
+
+            self.club_balances_sheet.update('A2:H2', [[
+                new_chips,
+                new_mvr,
+                new_usd,
+                new_usdt,
+                new_cost_basis,
+                new_avg_rate,
+                timestamp,
+                'Yes'
+            ]])
+
+            return True
+        except Exception as e:
+            print(f"Error updating club balance: {e}")
+            return False
+
+    def record_inventory_transaction(self, transaction_type: str, currency: str,
+                                    amount: float, rate: float = 0, cost_value: float = 0,
+                                    notes: str = '', admin_name: str = 'Admin') -> bool:
+        """Record inventory transaction in history"""
+        try:
+            all_values = self.inventory_transactions_sheet.get_all_values()
+            next_id = len(all_values)
+
+            timestamp = self._get_timestamp()
+
+            self.inventory_transactions_sheet.append_row([
+                next_id,
+                transaction_type,
+                currency,
+                amount,
+                rate if rate > 0 else '',
+                cost_value,
+                notes,
+                admin_name,
+                timestamp
+            ])
+
+            print(f"✅ Transaction recorded: {transaction_type} - {amount} {currency}")
+            return True
+        except Exception as e:
+            print(f"Error recording transaction: {e}")
+            return False
+
+    def buy_chips_for_club(self, chips: float, cost_mvr: float, admin_name: str = 'Admin') -> Dict:
+        """
+        Buy chips and add to club inventory
+        Deducts MVR and adds chips
+        """
+        try:
+            current = self.get_club_balances()
+
+            # Check if enough MVR
+            if current['mvr_balance'] < cost_mvr:
+                return {
+                    'success': False,
+                    'error': f"Not enough MVR. Have {current['mvr_balance']:.2f}, need {cost_mvr:.2f}",
+                    'current_mvr': current['mvr_balance'],
+                    'needed_mvr': cost_mvr
+                }
+
+            rate = cost_mvr / chips
+
+            # Update balances
+            success = self.update_club_balance(
+                chip_change=chips,
+                mvr_change=-cost_mvr,
+                chip_cost_change=cost_mvr
+            )
+
+            if not success:
+                return {'success': False, 'error': 'Failed to update balances'}
+
+            # Record transaction
+            self.record_inventory_transaction(
+                transaction_type='BUY_CHIPS',
+                currency='CHIPS',
+                amount=chips,
+                rate=rate,
+                cost_value=cost_mvr,
+                notes=f'Bought {chips:,.0f} chips at {rate:.4f} MVR/chip',
+                admin_name=admin_name
+            )
+
+            # Get updated balances
+            updated = self.get_club_balances()
+
+            return {
+                'success': True,
+                'chips_bought': chips,
+                'cost': cost_mvr,
+                'rate': rate,
+                'new_chip_inventory': updated['chip_inventory'],
+                'new_mvr_balance': updated['mvr_balance'],
+                'new_avg_rate': updated['avg_chip_rate'],
+                'total_chip_cost': updated['chip_cost_basis']
+            }
+        except Exception as e:
+            print(f"Error buying chips: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def add_cash_to_club(self, currency: str, amount: float, notes: str = '', admin_name: str = 'Admin') -> Dict:
+        """
+        Add cash (MVR/USD/USDT) to club balance
+        """
+        try:
+            # Update appropriate balance
+            if currency == 'MVR':
+                success = self.update_club_balance(mvr_change=amount)
+            elif currency == 'USD':
+                success = self.update_club_balance(usd_change=amount)
+            elif currency == 'USDT':
+                success = self.update_club_balance(usdt_change=amount)
+            else:
+                return {'success': False, 'error': 'Invalid currency'}
+
+            if not success:
+                return {'success': False, 'error': 'Failed to update balance'}
+
+            # Record transaction
+            self.record_inventory_transaction(
+                transaction_type='ADD_CASH',
+                currency=currency,
+                amount=amount,
+                cost_value=amount if currency == 'MVR' else 0,
+                notes=notes or f'Added {amount:,.2f} {currency}',
+                admin_name=admin_name
+            )
+
+            # Get updated balances
+            updated = self.get_club_balances()
+
+            return {
+                'success': True,
+                'currency': currency,
+                'amount': amount,
+                'new_mvr_balance': updated['mvr_balance'],
+                'new_usd_balance': updated['usd_balance'],
+                'new_usdt_balance': updated['usdt_balance']
+            }
+        except Exception as e:
+            print(f"Error adding cash: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def get_inventory_transactions(self, limit: int = 50) -> List[Dict]:
+        """Get recent inventory transactions"""
+        try:
+            all_values = self.inventory_transactions_sheet.get_all_values()
+
+            transactions = []
+            for row in reversed(all_values[1:]):  # Skip header, reverse for most recent first
+                if len(row) >= 9:
+                    transactions.append({
+                        'id': row[0],
+                        'type': row[1],
+                        'currency': row[2],
+                        'amount': float(row[3]) if row[3] else 0,
+                        'rate': float(row[4]) if row[4] else 0,
+                        'cost_value': float(row[5]) if row[5] else 0,
+                        'notes': row[6],
+                        'admin': row[7],
+                        'datetime': row[8]
+                    })
+
+                    if len(transactions) >= limit:
+                        break
+
+            return transactions
+        except Exception as e:
+            print(f"Error getting inventory transactions: {e}")
+            return []
 
