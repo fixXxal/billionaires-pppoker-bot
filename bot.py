@@ -3967,6 +3967,433 @@ async def return_amount_received(update: Update, context: ContextTypes.DEFAULT_T
         return RETURN_AMOUNT
 
 
+# ========== CLUB BALANCE MANAGEMENT HANDLERS ==========
+
+async def balance_setup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start setting up club balances (one-time)"""
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "⚙️ <b>Set Starting Balances</b>\n\n"
+        "Let's set up your club's starting inventory and cash balances.\n\n"
+        "Enter your starting chip inventory:",
+        parse_mode='HTML'
+    )
+
+    return BALANCE_SETUP_CHIPS
+
+
+async def balance_setup_chips_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive starting chip inventory"""
+    try:
+        chips = float(update.message.text.strip())
+
+        if chips < 0:
+            await update.message.reply_text(
+                "❌ Chips cannot be negative. Please enter a valid amount:",
+                parse_mode='HTML'
+            )
+            return BALANCE_SETUP_CHIPS
+
+        context.user_data['setup_chips'] = chips
+
+        await update.message.reply_text(
+            f"✅ Starting chip inventory: {chips:,.0f}\n\n"
+            f"How much did these {chips:,.0f} chips cost you? (MVR)",
+            parse_mode='HTML'
+        )
+
+        return BALANCE_SETUP_COST
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid number. Please enter chip inventory:",
+            parse_mode='HTML'
+        )
+        return BALANCE_SETUP_CHIPS
+
+
+async def balance_setup_cost_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive chip cost basis"""
+    try:
+        cost = float(update.message.text.strip())
+
+        if cost < 0:
+            await update.message.reply_text(
+                "❌ Cost cannot be negative. Please enter a valid amount:",
+                parse_mode='HTML'
+            )
+            return BALANCE_SETUP_COST
+
+        chips = context.user_data['setup_chips']
+        rate = cost / chips if chips > 0 else 0
+
+        context.user_data['setup_cost'] = cost
+
+        await update.message.reply_text(
+            f"✅ Chip cost: {cost:,.2f} MVR\n"
+            f"📊 Average rate: {rate:.4f} MVR/chip\n\n"
+            f"Enter your starting MVR cash balance:",
+            parse_mode='HTML'
+        )
+
+        return BALANCE_SETUP_MVR
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid number. Please enter cost in MVR:",
+            parse_mode='HTML'
+        )
+        return BALANCE_SETUP_COST
+
+
+async def balance_setup_mvr_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive MVR balance"""
+    try:
+        mvr = float(update.message.text.strip())
+
+        if mvr < 0:
+            await update.message.reply_text(
+                "❌ Balance cannot be negative. Please enter a valid amount:",
+                parse_mode='HTML'
+            )
+            return BALANCE_SETUP_MVR
+
+        context.user_data['setup_mvr'] = mvr
+
+        await update.message.reply_text(
+            f"✅ MVR balance: {mvr:,.2f}\n\n"
+            f"Enter your starting USD balance (or 0 if none):",
+            parse_mode='HTML'
+        )
+
+        return BALANCE_SETUP_USD
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid number. Please enter MVR balance:",
+            parse_mode='HTML'
+        )
+        return BALANCE_SETUP_MVR
+
+
+async def balance_setup_usd_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive USD balance"""
+    try:
+        usd = float(update.message.text.strip())
+
+        if usd < 0:
+            await update.message.reply_text(
+                "❌ Balance cannot be negative. Please enter a valid amount:",
+                parse_mode='HTML'
+            )
+            return BALANCE_SETUP_USD
+
+        context.user_data['setup_usd'] = usd
+
+        await update.message.reply_text(
+            f"✅ USD balance: {usd:,.2f}\n\n"
+            f"Enter your starting USDT balance (or 0 if none):",
+            parse_mode='HTML'
+        )
+
+        return BALANCE_SETUP_USDT
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid number. Please enter USD balance:",
+            parse_mode='HTML'
+        )
+        return BALANCE_SETUP_USD
+
+
+async def balance_setup_usdt_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive USDT balance and complete setup"""
+    try:
+        usdt = float(update.message.text.strip())
+
+        if usdt < 0:
+            await update.message.reply_text(
+                "❌ Balance cannot be negative. Please enter a valid amount:",
+                parse_mode='HTML'
+            )
+            return BALANCE_SETUP_USDT
+
+        # Get all saved data
+        chips = context.user_data['setup_chips']
+        cost = context.user_data['setup_cost']
+        mvr = context.user_data['setup_mvr']
+        usd = context.user_data['setup_usd']
+
+        rate = cost / chips if chips > 0 else 0
+
+        # Save to sheets
+        success = sheets.set_starting_balances(chips, cost, mvr, usd, usdt)
+
+        if success:
+            await update.message.reply_text(
+                f"✅ <b>Starting Balances Set!</b>\n\n"
+                f"🎲 Chip Inventory: {chips:,.0f}\n"
+                f"💰 Chip Cost: {cost:,.2f} MVR\n"
+                f"📊 Avg Rate: {rate:.4f} MVR/chip\n\n"
+                f"💰 MVR Balance: {mvr:,.2f}\n"
+                f"💵 USD Balance: {usd:,.2f}\n"
+                f"💎 USDT Balance: {usdt:,.2f}\n\n"
+                f"Balance tracking is now active!",
+                parse_mode='HTML'
+            )
+        else:
+            await update.message.reply_text(
+                "❌ Failed to set balances. Please try again.",
+                parse_mode='HTML'
+            )
+
+        # Clean up
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid number. Please enter USDT balance:",
+            parse_mode='HTML'
+        )
+        return BALANCE_SETUP_USDT
+
+
+async def balance_buy_chips_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start buying chips for club"""
+    query = update.callback_query
+    await query.answer()
+
+    balances = sheets.get_club_balances()
+
+    await query.edit_message_text(
+        f"🎲 <b>Buy Chips for Club</b>\n\n"
+        f"Current MVR Balance: {balances['mvr_balance']:,.2f}\n"
+        f"Current Chip Inventory: {balances['chip_inventory']:,.0f}\n"
+        f"Current Avg Rate: {balances['avg_chip_rate']:.4f} MVR/chip\n\n"
+        f"How many chips are you buying?",
+        parse_mode='HTML'
+    )
+
+    return BALANCE_BUY_CHIPS
+
+
+async def balance_buy_chips_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive chips amount"""
+    try:
+        chips = float(update.message.text.strip())
+
+        if chips <= 0:
+            await update.message.reply_text(
+                "❌ Amount must be greater than 0. Please enter chips amount:",
+                parse_mode='HTML'
+            )
+            return BALANCE_BUY_CHIPS
+
+        context.user_data['buy_chips'] = chips
+
+        await update.message.reply_text(
+            f"✅ Buying: {chips:,.0f} chips\n\n"
+            f"What's the total cost? (MVR)",
+            parse_mode='HTML'
+        )
+
+        return BALANCE_BUY_COST
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid number. Please enter chips amount:",
+            parse_mode='HTML'
+        )
+        return BALANCE_BUY_CHIPS
+
+
+async def balance_buy_cost_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive cost and process chip purchase"""
+    try:
+        cost = float(update.message.text.strip())
+
+        if cost <= 0:
+            await update.message.reply_text(
+                "❌ Cost must be greater than 0. Please enter cost:",
+                parse_mode='HTML'
+            )
+            return BALANCE_BUY_COST
+
+        chips = context.user_data['buy_chips']
+        rate = cost / chips
+
+        # Get current balances
+        current = sheets.get_club_balances()
+
+        # Check if enough MVR
+        if current['mvr_balance'] < cost:
+            await update.message.reply_text(
+                f"❌ <b>Not Enough MVR!</b>\n\n"
+                f"You need: {cost:,.2f} MVR\n"
+                f"You have: {current['mvr_balance']:,.2f} MVR\n"
+                f"Short by: {cost - current['mvr_balance']:,.2f} MVR\n\n"
+                f"Please add MVR cash first from Club Balances menu.",
+                parse_mode='HTML'
+            )
+            context.user_data.clear()
+            return ConversationHandler.END
+
+        # Buy chips
+        admin_name = update.effective_user.username or update.effective_user.first_name or 'Admin'
+        result = sheets.buy_chips_for_club(chips, cost, admin_name)
+
+        if result['success']:
+            rate_change = ""
+            if result['rate'] > current['avg_chip_rate']:
+                rate_change = f"⚠️ Higher than avg ({current['avg_chip_rate']:.4f})"
+            elif result['rate'] < current['avg_chip_rate']:
+                rate_change = f"✅ Lower than avg ({current['avg_chip_rate']:.4f})"
+
+            await update.message.reply_text(
+                f"✅ <b>Chips Purchased!</b>\n\n"
+                f"🎲 Bought: {chips:,.0f} chips\n"
+                f"💰 Cost: {cost:,.2f} MVR\n"
+                f"📊 Rate: {rate:.4f} MVR/chip {rate_change}\n\n"
+                f"<b>Updated Balances:</b>\n"
+                f"🎲 Chip Inventory: {result['new_chip_inventory']:,.0f}\n"
+                f"💰 MVR Balance: {result['new_mvr_balance']:,.2f}\n\n"
+                f"📊 New Avg Rate: {result['new_avg_rate']:.4f} MVR/chip\n"
+                f"💎 Total Invested in Chips: {result['total_chip_cost']:,.2f} MVR",
+                parse_mode='HTML'
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ Failed to buy chips: {result.get('error', 'Unknown error')}",
+                parse_mode='HTML'
+            )
+
+        # Clean up
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid number. Please enter cost in MVR:",
+            parse_mode='HTML'
+        )
+        return BALANCE_BUY_COST
+
+
+async def balance_add_cash_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start adding cash"""
+    query = update.callback_query
+    await query.answer()
+
+    balances = sheets.get_club_balances()
+
+    keyboard = [
+        [InlineKeyboardButton("💰 MVR", callback_data="add_cash_mvr")],
+        [InlineKeyboardButton("💵 USD", callback_data="add_cash_usd")],
+        [InlineKeyboardButton("💎 USDT", callback_data="add_cash_usdt")],
+        [InlineKeyboardButton("« Cancel", callback_data="admin_club_balances")]
+    ]
+
+    await query.edit_message_text(
+        f"💵 <b>Add Cash to Club</b>\n\n"
+        f"Current Balances:\n"
+        f"💰 MVR: {balances['mvr_balance']:,.2f}\n"
+        f"💵 USD: {balances['usd_balance']:,.2f}\n"
+        f"💎 USDT: {balances['usdt_balance']:,.2f}\n\n"
+        f"Select currency:",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+    return BALANCE_ADD_CURRENCY
+
+
+async def balance_add_currency_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Currency selected"""
+    query = update.callback_query
+    await query.answer()
+
+    currency = query.data.split('_')[2].upper()  # Extract MVR/USD/USDT
+    context.user_data['add_currency'] = currency
+
+    await query.edit_message_text(
+        f"💵 <b>Add {currency}</b>\n\n"
+        f"How much {currency} are you adding?",
+        parse_mode='HTML'
+    )
+
+    return BALANCE_ADD_AMOUNT
+
+
+async def balance_add_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive amount"""
+    try:
+        amount = float(update.message.text.strip())
+
+        if amount <= 0:
+            await update.message.reply_text(
+                "❌ Amount must be greater than 0. Please enter amount:",
+                parse_mode='HTML'
+            )
+            return BALANCE_ADD_AMOUNT
+
+        context.user_data['add_amount'] = amount
+        currency = context.user_data['add_currency']
+
+        await update.message.reply_text(
+            f"✅ Adding: {amount:,.2f} {currency}\n\n"
+            f"Add a note? (optional)\n"
+            f"Or send /skip to skip:",
+            parse_mode='HTML'
+        )
+
+        return BALANCE_ADD_NOTE
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid number. Please enter amount:",
+            parse_mode='HTML'
+        )
+        return BALANCE_ADD_AMOUNT
+
+
+async def balance_add_note_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive note and complete cash addition"""
+    note = ''
+    if update.message.text.strip() != '/skip':
+        note = update.message.text.strip()
+
+    currency = context.user_data['add_currency']
+    amount = context.user_data['add_amount']
+
+    # Add cash
+    admin_name = update.effective_user.username or update.effective_user.first_name or 'Admin'
+    result = sheets.add_cash_to_club(currency, amount, note, admin_name)
+
+    if result['success']:
+        await update.message.reply_text(
+            f"✅ <b>Cash Added!</b>\n\n"
+            f"💵 Added: {amount:,.2f} {currency}\n"
+            f"📝 Note: {note if note else 'None'}\n\n"
+            f"<b>Updated Balances:</b>\n"
+            f"💰 MVR: {result['new_mvr_balance']:,.2f}\n"
+            f"💵 USD: {result['new_usd_balance']:,.2f}\n"
+            f"💎 USDT: {result['new_usdt_balance']:,.2f}",
+            parse_mode='HTML'
+        )
+    else:
+        await update.message.reply_text(
+            f"❌ Failed to add cash: {result.get('error', 'Unknown error')}",
+            parse_mode='HTML'
+        )
+
+    # Clean up
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
 # ========== COUNTER CONTROL HANDLERS ==========
 
 async def counter_close_with_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -7040,6 +7467,77 @@ def main():
 
     application.add_handler(investment_add_conv)
     application.add_handler(investment_return_conv)
+
+    # Club Balance conversation handlers
+    balance_setup_conv = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(balance_setup_start, pattern="^balances_setup$"),
+        ],
+        states={
+            BALANCE_SETUP_CHIPS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_setup_chips_received),
+            ],
+            BALANCE_SETUP_COST: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_setup_cost_received),
+            ],
+            BALANCE_SETUP_MVR: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_setup_mvr_received),
+            ],
+            BALANCE_SETUP_USD: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_setup_usd_received),
+            ],
+            BALANCE_SETUP_USDT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_setup_usdt_received),
+            ],
+        },
+        fallbacks=[],
+        per_user=True,
+        per_chat=True,
+        name="balance_setup_conv"
+    )
+
+    balance_buy_conv = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(balance_buy_chips_start, pattern="^balances_buy_chips$"),
+        ],
+        states={
+            BALANCE_BUY_CHIPS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_buy_chips_amount_received),
+            ],
+            BALANCE_BUY_COST: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_buy_cost_received),
+            ],
+        },
+        fallbacks=[],
+        per_user=True,
+        per_chat=True,
+        name="balance_buy_conv"
+    )
+
+    balance_add_cash_conv = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(balance_add_cash_start, pattern="^balances_add_cash$"),
+        ],
+        states={
+            BALANCE_ADD_CURRENCY: [
+                CallbackQueryHandler(balance_add_currency_selected, pattern="^add_cash_(mvr|usd|usdt)$"),
+            ],
+            BALANCE_ADD_AMOUNT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_add_amount_received),
+            ],
+            BALANCE_ADD_NOTE: [
+                MessageHandler(filters.TEXT, balance_add_note_received),
+            ],
+        },
+        fallbacks=[],
+        per_user=True,
+        per_chat=True,
+        name="balance_add_cash_conv"
+    )
+
+    application.add_handler(balance_setup_conv)
+    application.add_handler(balance_buy_conv)
+    application.add_handler(balance_add_cash_conv)
 
     # Counter control conversation handlers
     counter_close_conv = ConversationHandler(
