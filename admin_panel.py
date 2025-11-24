@@ -63,6 +63,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎮 Pending Join Requests", callback_data="admin_view_joins")],
         [InlineKeyboardButton("🎁 Promotions", callback_data="admin_view_promotions")],
         [InlineKeyboardButton("🏦 Payment Accounts", callback_data="admin_view_accounts")],
+        [InlineKeyboardButton("💎 50/50 Investments", callback_data="admin_investments")],
         [InlineKeyboardButton(counter_button_text, callback_data=counter_callback)],
         [InlineKeyboardButton("📊 Counter Status", callback_data="admin_counter_status")],
         [InlineKeyboardButton("❌ Close", callback_data="admin_close")]
@@ -1498,6 +1499,105 @@ async def admin_open_counter(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
+async def admin_investments(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show 50/50 investments menu"""
+    query = update.callback_query
+    await query.answer()
+
+    keyboard = [
+        [InlineKeyboardButton("➕ Add Investment", callback_data="investment_add")],
+        [InlineKeyboardButton("📥 Add Return", callback_data="investment_return")],
+        [InlineKeyboardButton("📊 View Active (24h)", callback_data="investment_view_active")],
+        [InlineKeyboardButton("📈 View Completed", callback_data="investment_view_completed")],
+        [InlineKeyboardButton("« Back", callback_data="admin_back")]
+    ]
+
+    await query.edit_message_text(
+        "💎 <b>50/50 Investments</b>\n\n"
+        "Manage chip investments with trusted players.",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def investment_view_active(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View active investments from last 24 hours"""
+    query = update.callback_query
+    await query.answer()
+
+    active_investments = sheets.get_all_active_investments_summary()
+
+    if not active_investments:
+        await query.edit_message_text(
+            "💎 <b>Active Investments (Last 24 Hours)</b>\n\n"
+            "No active investments found.",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+        )
+        return
+
+    message = "💎 <b>Active Investments (Last 24 Hours)</b>\n\n"
+
+    for inv in active_investments:
+        pppoker_id = inv['pppoker_id']
+        note = inv['player_note']
+        amount = inv['total_amount']
+        date = inv['first_date']
+
+        player_display = f"{pppoker_id}"
+        if note:
+            player_display += f" ({note})"
+
+        message += f"🎮 <b>{player_display}</b>\n"
+        message += f"💰 {amount:.2f} MVR\n"
+        message += f"📅 {date}\n\n"
+
+    await query.edit_message_text(
+        message,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+    )
+
+
+async def investment_view_completed(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View completed investments"""
+    query = update.callback_query
+    await query.answer()
+
+    # Get investment stats for completed investments
+    stats = sheets.get_investment_stats()
+
+    if stats['completed_count'] == 0:
+        await query.edit_message_text(
+            "📈 <b>Completed Investments</b>\n\n"
+            "No completed investments found.",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+        )
+        return
+
+    message = "📈 <b>Completed Investments Summary</b>\n\n"
+    message += f"✅ Completed: {stats['completed_count']}\n"
+    message += f"💰 Total Profit: {stats['completed_profit']:.2f} MVR\n"
+    message += f"🏛️ Club Share: {stats['total_club_share']:.2f} MVR\n\n"
+
+    if stats['lost_count'] > 0:
+        message += f"❌ Lost: {stats['lost_count']}\n"
+        message += f"💸 Lost Amount: {stats['lost_amount']:.2f} MVR\n\n"
+
+    net_result = stats['total_club_share'] - stats['lost_amount']
+    if net_result >= 0:
+        message += f"📊 <b>Net Result: +{net_result:.2f} MVR</b>"
+    else:
+        message += f"📊 <b>Net Result: {net_result:.2f} MVR</b>"
+
+    await query.edit_message_text(
+        message,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+    )
+
+
 def register_admin_handlers(application, notif_messages=None):
     """Register all admin handlers"""
     global notification_messages
@@ -1525,6 +1625,9 @@ def register_admin_handlers(application, notif_messages=None):
     application.add_handler(CallbackQueryHandler(admin_counter_status, pattern="^admin_counter_status$"))
     application.add_handler(CallbackQueryHandler(admin_close_counter, pattern="^admin_close_counter$"))
     application.add_handler(CallbackQueryHandler(admin_open_counter, pattern="^admin_open_counter$"))
+    application.add_handler(CallbackQueryHandler(admin_investments, pattern="^admin_investments$"))
+    application.add_handler(CallbackQueryHandler(investment_view_active, pattern="^investment_view_active$"))
+    application.add_handler(CallbackQueryHandler(investment_view_completed, pattern="^investment_view_completed$"))
     application.add_handler(CallbackQueryHandler(admin_back, pattern="^admin_back$"))
     application.add_handler(CallbackQueryHandler(admin_close, pattern="^admin_close$"))
 

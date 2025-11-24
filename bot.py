@@ -99,7 +99,9 @@ spin_bot = SpinBot(sheets, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
  ADMIN_APPROVAL_NOTES, SUPPORT_CHAT, ADMIN_REPLY_MESSAGE, UPDATE_ACCOUNT_METHOD, UPDATE_ACCOUNT_NUMBER, BROADCAST_MESSAGE,
  PROMO_PERCENTAGE, PROMO_START_DATE, PROMO_END_DATE, SEAT_AMOUNT, SEAT_SLIP_UPLOAD,
  CASHBACK_PROMO_PERCENTAGE, CASHBACK_PROMO_START_DATE, CASHBACK_PROMO_END_DATE,
- COUNTER_CLOSE_POSTER, COUNTER_OPEN_POSTER) = range(27)
+ COUNTER_CLOSE_POSTER, COUNTER_OPEN_POSTER,
+ INVESTMENT_PPPOKER_ID, INVESTMENT_NOTE, INVESTMENT_AMOUNT,
+ RETURN_SELECT_ID, RETURN_AMOUNT) = range(32)
 
 # Store for live support sessions
 live_support_sessions: Dict[int, int] = {}  # user_id: admin_user_id (which admin is handling this user)
@@ -2570,6 +2572,11 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
         bonuses = sheets.get_bonuses_by_date_range(start, end)
         cashback = sheets.get_cashback_by_date_range(start, end)
 
+        # Get 50/50 investment stats for this period
+        start_date_str = start.strftime('%Y-%m-%d')
+        end_date_str = end.strftime('%Y-%m-%d')
+        investment_stats = sheets.get_investment_stats(start_date_str, end_date_str)
+
         # Calculate chip costs (money given to users as chips)
         total_spin_rewards = sum([s['amount'] for s in spins])
         total_bonuses = sum([b['amount'] for b in bonuses])
@@ -2585,10 +2592,13 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
         usd_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USD'])
         usdt_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USDT'])
 
+        # Calculate 50/50 investment impact
+        investment_net = investment_stats['total_club_share'] - investment_stats['lost_amount']
+
         # Calculate COMPREHENSIVE profits per currency
-        # Real Profit = Deposits - (Withdrawals + Spins + Bonuses + Cashback)
+        # Real Profit = Deposits - (Withdrawals + Spins + Bonuses + Cashback) + 50/50 Net
         # Note: Spins, bonuses, cashback are in MVR equivalent
-        mvr_profit = mvr_deposits - (mvr_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
+        mvr_profit = mvr_deposits - (mvr_withdrawals + total_spin_rewards + total_bonuses + total_cashback) + investment_net
         usd_profit = usd_deposits - usd_withdrawals
         usdt_profit = usdt_deposits - usdt_withdrawals
 
@@ -2604,6 +2614,9 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
         report_data[f'{prefix}spin_rewards'] = total_spin_rewards
         report_data[f'{prefix}bonuses'] = total_bonuses
         report_data[f'{prefix}cashback'] = total_cashback
+        report_data[f'{prefix}investment_profit'] = investment_stats['total_club_share']
+        report_data[f'{prefix}investment_loss'] = investment_stats['lost_amount']
+        report_data[f'{prefix}investment_net'] = investment_net
         report_data[f'{prefix}mvr_profit'] = mvr_profit
         report_data[f'{prefix}usd_deposits'] = usd_deposits
         report_data[f'{prefix}usd_withdrawals'] = usd_withdrawals
@@ -2647,10 +2660,30 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
             report += f"{usdt_emoji} USDT Profit: {usdt_profit:,.2f}\n"
             report += f"   ≈ {usdt_mvr_equiv:,.2f} MVR\n\n"
 
+        # 50/50 Investment Section
+        if (investment_stats['completed_count'] > 0 or investment_stats['lost_count'] > 0 or
+            investment_stats['active_count'] > 0):
+            report += f"💎 <b>50/50 Investments:</b>\n"
+
+            if investment_stats['active_count'] > 0:
+                report += f"🔄 Active: {investment_stats['active_count']} ({investment_stats['active_amount']:,.2f} MVR)\n"
+
+            if investment_stats['completed_count'] > 0:
+                report += f"✅ Completed: {investment_stats['completed_count']}\n"
+                report += f"   Club Share: +{investment_stats['total_club_share']:,.2f} MVR\n"
+
+            if investment_stats['lost_count'] > 0:
+                report += f"❌ Lost: {investment_stats['lost_count']}\n"
+                report += f"   Lost Amount: -{investment_stats['lost_amount']:,.2f} MVR\n"
+
+            investment_emoji = "📈" if investment_net > 0 else "📉" if investment_net < 0 else "➖"
+            report += f"{investment_emoji} <b>50/50 Net:</b> {investment_net:,.2f} MVR\n\n"
+
         # Total in MVR
         if (mvr_deposits > 0 or mvr_withdrawals > 0 or
             usd_deposits > 0 or usd_withdrawals > 0 or
-            usdt_deposits > 0 or usdt_withdrawals > 0):
+            usdt_deposits > 0 or usdt_withdrawals > 0 or
+            investment_stats['completed_count'] > 0 or investment_stats['lost_count'] > 0):
             total_emoji = "📈" if total_mvr_profit > 0 else "📉" if total_mvr_profit < 0 else "➖"
             report += f"<b>{total_emoji} Total Profit (MVR):</b> {total_mvr_profit:,.2f}\n\n"
 
@@ -3666,6 +3699,269 @@ async def broadcast_message_received(update: Update, context: ContextTypes.DEFAU
     await update.message.reply_text(result_msg, parse_mode='Markdown')
 
     return ConversationHandler.END
+
+
+# ========== 50/50 INVESTMENT HANDLERS ==========
+
+async def investment_add_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start adding a new 50/50 investment"""
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "💎 <b>Add 50/50 Investment</b>\n\n"
+        "Enter the player's PPPoker ID:",
+        parse_mode='HTML'
+    )
+
+    return INVESTMENT_PPPOKER_ID
+
+
+async def investment_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive PPPoker ID and ask for optional note"""
+    pppoker_id = update.message.text.strip()
+
+    # Clean PPPoker ID (remove spaces, letters, special characters)
+    pppoker_id = ''.join(filter(str.isdigit, pppoker_id))
+
+    if not pppoker_id:
+        await update.message.reply_text(
+            "❌ Invalid PPPoker ID. Please enter a valid ID:",
+            parse_mode='HTML'
+        )
+        return INVESTMENT_PPPOKER_ID
+
+    context.user_data['investment_pppoker_id'] = pppoker_id
+
+    await update.message.reply_text(
+        "💎 <b>Add Note (Optional)</b>\n\n"
+        "Enter player name or note (e.g., 'Ahmed', 'Friend 1')\n"
+        "Or send /skip to skip:",
+        parse_mode='HTML'
+    )
+
+    return INVESTMENT_NOTE
+
+
+async def investment_note_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive optional note and ask for amount"""
+    if update.message.text.strip() == '/skip':
+        context.user_data['investment_note'] = ''
+    else:
+        context.user_data['investment_note'] = update.message.text.strip()
+
+    await update.message.reply_text(
+        "💎 <b>Investment Amount</b>\n\n"
+        "Enter the amount you gave to the player (MVR):",
+        parse_mode='HTML'
+    )
+
+    return INVESTMENT_AMOUNT
+
+
+async def investment_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive amount and add investment"""
+    try:
+        amount = float(update.message.text.strip())
+
+        if amount <= 0:
+            await update.message.reply_text(
+                "❌ Amount must be greater than 0. Please enter a valid amount:",
+                parse_mode='HTML'
+            )
+            return INVESTMENT_AMOUNT
+
+        pppoker_id = context.user_data['investment_pppoker_id']
+        note = context.user_data.get('investment_note', '')
+
+        # Add investment to Google Sheets
+        success = sheets.add_investment(pppoker_id, note, amount)
+
+        if success:
+            player_display = pppoker_id
+            if note:
+                player_display += f" ({note})"
+
+            await update.message.reply_text(
+                f"✅ <b>Investment Added!</b>\n\n"
+                f"🎮 Player: {player_display}\n"
+                f"💰 Amount: {amount:.2f} MVR\n"
+                f"📅 Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+                f"⚠️ Will count as loss after 24 hours if not returned.",
+                parse_mode='HTML'
+            )
+        else:
+            await update.message.reply_text(
+                "❌ Failed to add investment. Please try again later.",
+                parse_mode='HTML'
+            )
+
+        # Clean up
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid amount. Please enter a number:",
+            parse_mode='HTML'
+        )
+        return INVESTMENT_AMOUNT
+
+
+async def investment_return_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start recording a return - show active investments"""
+    query = update.callback_query
+    await query.answer()
+
+    # Get all active investments from last 24 hours
+    active_investments = sheets.get_all_active_investments_summary()
+
+    if not active_investments:
+        await query.edit_message_text(
+            "💎 <b>No Active Investments</b>\n\n"
+            "There are no active investments from the last 24 hours.",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+        )
+        return ConversationHandler.END
+
+    # Show list of active investments
+    message = "💎 <b>Active Investments (Last 24 Hours)</b>\n\n"
+    message += "Select a PPPoker ID by sending the ID number:\n\n"
+
+    for inv in active_investments:
+        pppoker_id = inv['pppoker_id']
+        note = inv['player_note']
+        amount = inv['total_amount']
+        date = inv['first_date']
+
+        player_display = pppoker_id
+        if note:
+            player_display += f" ({note})"
+
+        message += f"🎮 <b>{player_display}</b>\n"
+        message += f"💰 Total Investment: {amount:.2f} MVR\n"
+        message += f"📅 Since: {date}\n\n"
+
+    message += "Send the PPPoker ID or /cancel to cancel:"
+
+    await query.edit_message_text(message, parse_mode='HTML')
+
+    return RETURN_SELECT_ID
+
+
+async def return_id_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive PPPoker ID selection"""
+    if update.message.text.strip() == '/cancel':
+        await update.message.reply_text(
+            "❌ Cancelled.",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
+
+    pppoker_id = update.message.text.strip()
+
+    # Clean PPPoker ID
+    pppoker_id = ''.join(filter(str.isdigit, pppoker_id))
+
+    # Check if this PPPoker ID has active investments
+    investments_data = sheets.get_active_investments_by_id(pppoker_id)
+
+    if investments_data['count'] == 0:
+        await update.message.reply_text(
+            "❌ No active investments found for this PPPoker ID.\n"
+            "Please send a valid PPPoker ID or /cancel:",
+            parse_mode='HTML'
+        )
+        return RETURN_SELECT_ID
+
+    context.user_data['return_pppoker_id'] = pppoker_id
+    context.user_data['return_investment_data'] = investments_data
+
+    # Show investment details and ask for return amount
+    total_investment = investments_data['total_amount']
+    player_note = ''
+    if investments_data['investments']:
+        player_note = investments_data['investments'][0].get('player_note', '')
+
+    player_display = pppoker_id
+    if player_note:
+        player_display += f" ({player_note})"
+
+    await update.message.reply_text(
+        f"💎 <b>Investment Details</b>\n\n"
+        f"🎮 Player: {player_display}\n"
+        f"💰 Total Investment: {total_investment:.2f} MVR\n"
+        f"📊 Number of investments: {investments_data['count']}\n\n"
+        f"Enter the total return amount (what player has now):",
+        parse_mode='HTML'
+    )
+
+    return RETURN_AMOUNT
+
+
+async def return_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive return amount and process the return"""
+    try:
+        return_amount = float(update.message.text.strip())
+
+        if return_amount < 0:
+            await update.message.reply_text(
+                "❌ Amount cannot be negative. Please enter a valid amount:",
+                parse_mode='HTML'
+            )
+            return RETURN_AMOUNT
+
+        pppoker_id = context.user_data['return_pppoker_id']
+        investment_data = context.user_data['return_investment_data']
+        total_investment = investment_data['total_amount']
+
+        # Record the return
+        result = sheets.record_investment_return(pppoker_id, return_amount)
+
+        if result['success']:
+            net_profit = result['net_profit']
+            player_share = result['player_share']
+            club_share = result['club_share']
+
+            player_note = ''
+            if investment_data['investments']:
+                player_note = investment_data['investments'][0].get('player_note', '')
+
+            player_display = pppoker_id
+            if player_note:
+                player_display += f" ({player_note})"
+
+            message = "✅ <b>50/50 Return Recorded!</b>\n\n"
+            message += f"📊 <b>Calculation:</b>\n"
+            message += f"💰 Investment: {total_investment:.2f} MVR\n"
+            message += f"💵 Return Total: {return_amount:.2f} MVR\n"
+            message += f"📈 Net Profit: {net_profit:.2f} MVR\n\n"
+            message += f"💎 <b>Split (50/50):</b>\n"
+            message += f"👤 Player Share: {player_share:.2f} MVR\n"
+            message += f"🏛️ Club Share: {club_share:.2f} MVR\n\n"
+            message += f"📊 <b>Financial Impact:</b>\n"
+            message += f"✅ +{club_share:.2f} MVR added to Club Profit\n\n"
+            message += f"🎮 {player_display}\n"
+            message += f"📅 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+            await update.message.reply_text(message, parse_mode='HTML')
+        else:
+            await update.message.reply_text(
+                f"❌ Failed to record return: {result.get('error', 'Unknown error')}",
+                parse_mode='HTML'
+            )
+
+        # Clean up
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid amount. Please enter a number:",
+            parse_mode='HTML'
+        )
+        return RETURN_AMOUNT
 
 
 # ========== COUNTER CONTROL HANDLERS ==========
@@ -6699,6 +6995,49 @@ def main():
     application.add_handler(promo_conv)
     application.add_handler(cashback_promo_conv)
 
+    # 50/50 Investment conversation handlers
+    investment_add_conv = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(investment_add_start, pattern="^investment_add$"),
+        ],
+        states={
+            INVESTMENT_PPPOKER_ID: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, investment_pppoker_id_received),
+            ],
+            INVESTMENT_NOTE: [
+                MessageHandler(filters.TEXT, investment_note_received),
+            ],
+            INVESTMENT_AMOUNT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, investment_amount_received),
+            ],
+        },
+        fallbacks=[],
+        per_user=True,
+        per_chat=True,
+        name="investment_add_conv"
+    )
+
+    investment_return_conv = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(investment_return_start, pattern="^investment_return$"),
+        ],
+        states={
+            RETURN_SELECT_ID: [
+                MessageHandler(filters.TEXT, return_id_selected),
+            ],
+            RETURN_AMOUNT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, return_amount_received),
+            ],
+        },
+        fallbacks=[],
+        per_user=True,
+        per_chat=True,
+        name="investment_return_conv"
+    )
+
+    application.add_handler(investment_add_conv)
+    application.add_handler(investment_return_conv)
+
     # Counter control conversation handlers
     counter_close_conv = ConversationHandler(
         entry_points=[
@@ -6764,10 +7103,28 @@ def main():
         name='Daily Profit/Loss Report'
     )
 
+    # Schedule 50/50 investment expiry check every hour
+    def check_expired_investments():
+        """Mark investments older than 24 hours as Lost"""
+        try:
+            marked_count = sheets.mark_expired_investments_as_lost()
+            if marked_count > 0:
+                logger.info(f"Marked {marked_count} expired 50/50 investments as Lost")
+        except Exception as e:
+            logger.error(f"Error checking expired investments: {e}")
+
+    scheduler.add_job(
+        check_expired_investments,
+        trigger=CronTrigger(minute=0),  # Run every hour at :00
+        id='check_expired_investments',
+        name='Check Expired 50/50 Investments'
+    )
+
     # Start scheduler after application initializes
     async def post_init(application):
         scheduler.start()
         logger.info("Scheduler started - Daily reports will be sent at midnight (00:00) Maldives time")
+        logger.info("50/50 investment expiry check will run every hour")
 
     application.post_init = post_init
 
@@ -6792,6 +7149,7 @@ def main():
     logger.info("Bot started successfully!")
     print("🤖 Billionaires PPPoker Bot is running...")
     print("📊 Daily reports scheduled for midnight")
+    print("💎 50/50 investment expiry check runs every hour")
 
     # Run the bot
     application.run_polling(allowed_updates=Update.ALL_TYPES)

@@ -306,6 +306,16 @@ class SheetsManager:
                 'OPEN', self._get_timestamp(), 'SYSTEM', 'No', '', ''
             ])
 
+        # 50-50 Investments worksheet - tracks 50/50 chip investments with trusted players
+        try:
+            self.investments_sheet = self.spreadsheet.worksheet('50-50_Investments')
+        except gspread.WorksheetNotFound:
+            self.investments_sheet = self.spreadsheet.add_worksheet(title='50-50_Investments', rows=5000, cols=11)
+            self.investments_sheet.append_row([
+                'ID', 'PPPoker ID', 'Player Note', 'Investment Amount', 'Return Total',
+                'Profit', 'Player Share', 'Club Share', 'Status', 'Date Added', 'Date Returned'
+            ])
+
         # Run migration to add PPPoker ID columns if they don't exist
         self._migrate_add_pppoker_columns()
 
@@ -2320,4 +2330,304 @@ class SheetsManager:
         except Exception as e:
             print(f"Error getting saved poster: {e}")
             return None
+
+    # ===========================
+    # 50/50 INVESTMENT FUNCTIONS
+    # ===========================
+
+    def add_investment(self, pppoker_id: str, player_note: str, amount: float) -> bool:
+        """
+        Add a new 50/50 investment
+
+        Args:
+            pppoker_id: Player's PPPoker ID
+            player_note: Optional note about player
+            amount: Investment amount in MVR
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            all_values = self.investments_sheet.get_all_values()
+            next_id = len(all_values)  # Auto-increment ID
+
+            timestamp = self._get_timestamp()
+
+            self.investments_sheet.append_row([
+                next_id,                    # ID
+                pppoker_id,                 # PPPoker ID
+                player_note,                # Player Note
+                amount,                     # Investment Amount
+                '',                         # Return Total (empty)
+                '',                         # Profit (empty)
+                '',                         # Player Share (empty)
+                '',                         # Club Share (empty)
+                'Active',                   # Status
+                timestamp,                  # Date Added
+                ''                          # Date Returned (empty)
+            ])
+
+            print(f"✅ Investment added: {amount} MVR to {pppoker_id}")
+            return True
+        except Exception as e:
+            print(f"Error adding investment: {e}")
+            return False
+
+    def get_active_investments_by_id(self, pppoker_id: str) -> Dict:
+        """
+        Get all active investments for a specific PPPoker ID from last 24 hours
+
+        Args:
+            pppoker_id: Player's PPPoker ID
+
+        Returns:
+            Dict with investment details and total amount
+        """
+        try:
+            all_values = self.investments_sheet.get_all_values()
+
+            investments = []
+            total_amount = 0
+            current_time = datetime.datetime.now()
+
+            for row in all_values[1:]:  # Skip header
+                if len(row) >= 11:
+                    row_pppoker_id = row[1]
+                    status = row[8]
+                    date_added_str = row[9]
+
+                    # Check if same PPPoker ID and Active status
+                    if row_pppoker_id == pppoker_id and status == 'Active':
+                        # Parse date and check if within 24 hours
+                        try:
+                            date_added = datetime.datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S')
+                            hours_diff = (current_time - date_added).total_seconds() / 3600
+
+                            if hours_diff <= 24:
+                                investment = {
+                                    'id': row[0],
+                                    'pppoker_id': row[1],
+                                    'player_note': row[2],
+                                    'amount': float(row[3]),
+                                    'date_added': date_added_str
+                                }
+                                investments.append(investment)
+                                total_amount += float(row[3])
+                        except ValueError:
+                            continue
+
+            return {
+                'investments': investments,
+                'total_amount': total_amount,
+                'count': len(investments)
+            }
+        except Exception as e:
+            print(f"Error getting active investments: {e}")
+            return {'investments': [], 'total_amount': 0, 'count': 0}
+
+    def get_all_active_investments_summary(self) -> List[Dict]:
+        """
+        Get summary of all active investments (last 24 hours) grouped by PPPoker ID
+
+        Returns:
+            List of dicts with PPPoker ID, player note, total amount, and date
+        """
+        try:
+            all_values = self.investments_sheet.get_all_values()
+
+            # Group by PPPoker ID
+            grouped = {}
+            current_time = datetime.datetime.now()
+
+            for row in all_values[1:]:  # Skip header
+                if len(row) >= 11:
+                    pppoker_id = row[1]
+                    status = row[8]
+                    date_added_str = row[9]
+
+                    if status == 'Active':
+                        try:
+                            date_added = datetime.datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S')
+                            hours_diff = (current_time - date_added).total_seconds() / 3600
+
+                            if hours_diff <= 24:
+                                if pppoker_id not in grouped:
+                                    grouped[pppoker_id] = {
+                                        'pppoker_id': pppoker_id,
+                                        'player_note': row[2],
+                                        'total_amount': 0,
+                                        'first_date': date_added_str
+                                    }
+                                grouped[pppoker_id]['total_amount'] += float(row[3])
+                        except ValueError:
+                            continue
+
+            return list(grouped.values())
+        except Exception as e:
+            print(f"Error getting active investments summary: {e}")
+            return []
+
+    def record_investment_return(self, pppoker_id: str, return_amount: float) -> Dict:
+        """
+        Record return for all active investments of a PPPoker ID
+
+        Args:
+            pppoker_id: Player's PPPoker ID
+            return_amount: Total amount returned by player
+
+        Returns:
+            Dict with calculation details and success status
+        """
+        try:
+            # Get all active investments for this PPPoker ID
+            investments_data = self.get_active_investments_by_id(pppoker_id)
+
+            if investments_data['count'] == 0:
+                return {'success': False, 'error': 'No active investments found'}
+
+            total_investment = investments_data['total_amount']
+            net_profit = return_amount - total_investment
+            player_share = net_profit / 2
+            club_share = net_profit / 2
+
+            timestamp = self._get_timestamp()
+
+            # Update all investment rows for this PPPoker ID
+            all_values = self.investments_sheet.get_all_values()
+            updated_count = 0
+
+            for idx, row in enumerate(all_values[1:], start=2):  # Start from row 2 (skip header)
+                if len(row) >= 11:
+                    row_pppoker_id = row[1]
+                    status = row[8]
+
+                    if row_pppoker_id == pppoker_id and status == 'Active':
+                        # Update this row
+                        self.investments_sheet.update_cell(idx, 5, return_amount)      # Return Total
+                        self.investments_sheet.update_cell(idx, 6, net_profit)         # Profit
+                        self.investments_sheet.update_cell(idx, 7, player_share)       # Player Share
+                        self.investments_sheet.update_cell(idx, 8, club_share)         # Club Share
+                        self.investments_sheet.update_cell(idx, 9, 'Completed')        # Status
+                        self.investments_sheet.update_cell(idx, 11, timestamp)         # Date Returned
+                        updated_count += 1
+
+            print(f"✅ Investment return recorded: {updated_count} rows updated")
+
+            return {
+                'success': True,
+                'total_investment': total_investment,
+                'return_amount': return_amount,
+                'net_profit': net_profit,
+                'player_share': player_share,
+                'club_share': club_share,
+                'updated_rows': updated_count
+            }
+        except Exception as e:
+            print(f"Error recording investment return: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def mark_expired_investments_as_lost(self) -> int:
+        """
+        Mark investments older than 24 hours as 'Lost'
+
+        Returns:
+            Number of investments marked as lost
+        """
+        try:
+            all_values = self.investments_sheet.get_all_values()
+            current_time = datetime.datetime.now()
+            marked_count = 0
+
+            for idx, row in enumerate(all_values[1:], start=2):  # Start from row 2
+                if len(row) >= 11:
+                    status = row[8]
+                    date_added_str = row[9]
+
+                    if status == 'Active':
+                        try:
+                            date_added = datetime.datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S')
+                            hours_diff = (current_time - date_added).total_seconds() / 3600
+
+                            if hours_diff > 24:
+                                # Mark as Lost
+                                self.investments_sheet.update_cell(idx, 9, 'Lost')
+                                marked_count += 1
+                        except ValueError:
+                            continue
+
+            if marked_count > 0:
+                print(f"✅ Marked {marked_count} expired investments as Lost")
+
+            return marked_count
+        except Exception as e:
+            print(f"Error marking expired investments: {e}")
+            return 0
+
+    def get_investment_stats(self, start_date: str = None, end_date: str = None) -> Dict:
+        """
+        Get 50/50 investment statistics for reporting
+
+        Args:
+            start_date: Optional start date filter (YYYY-MM-DD)
+            end_date: Optional end date filter (YYYY-MM-DD)
+
+        Returns:
+            Dict with investment statistics
+        """
+        try:
+            all_values = self.investments_sheet.get_all_values()
+
+            stats = {
+                'active_count': 0,
+                'active_amount': 0,
+                'completed_count': 0,
+                'completed_profit': 0,
+                'lost_count': 0,
+                'lost_amount': 0,
+                'total_club_share': 0
+            }
+
+            for row in all_values[1:]:  # Skip header
+                if len(row) >= 11:
+                    status = row[8]
+                    date_added_str = row[9]
+
+                    # Check date filter if provided
+                    if start_date or end_date:
+                        try:
+                            date_added = datetime.datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S').date()
+                            if start_date:
+                                start = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+                                if date_added < start:
+                                    continue
+                            if end_date:
+                                end = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+                                if date_added > end:
+                                    continue
+                        except ValueError:
+                            continue
+
+                    if status == 'Active':
+                        stats['active_count'] += 1
+                        stats['active_amount'] += float(row[3]) if row[3] else 0
+                    elif status == 'Completed':
+                        stats['completed_count'] += 1
+                        stats['completed_profit'] += float(row[6]) if row[6] else 0
+                        stats['total_club_share'] += float(row[8]) if row[8] else 0
+                    elif status == 'Lost':
+                        stats['lost_count'] += 1
+                        stats['lost_amount'] += float(row[3]) if row[3] else 0
+
+            return stats
+        except Exception as e:
+            print(f"Error getting investment stats: {e}")
+            return {
+                'active_count': 0,
+                'active_amount': 0,
+                'completed_count': 0,
+                'completed_profit': 0,
+                'lost_count': 0,
+                'lost_amount': 0,
+                'total_club_share': 0
+            }
 
