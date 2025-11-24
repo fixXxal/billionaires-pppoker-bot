@@ -18,10 +18,21 @@
 **Files Modified:**
 - `sheets_manager.py` lines 319-349: Wrapped sheet initialization in try-except
 - `sheets_manager.py` lines 2670-2960: Added None checks to all balance functions
+- `sheets_manager.py` lines 2423, 2435, 2472, 2482, 2570, 2580, 2630, 2632, 2636: Fixed all datetime.datetime -> datetime
 - `bot.py` line 3792: Fixed datetime.datetime.now() -> datetime.now()
 - `bot.py` line 3949: Fixed datetime.datetime.now() -> datetime.now()
 
-### 2. /cancel Command Not Working
+### 2. Active Investments Not Showing
+**Problem:** After adding investment successfully, clicking "Record Return" showed "No Active Investments" even though investment was just added.
+
+**Root Cause:** Same datetime bug - `get_all_active_investments_summary()` and `get_active_investments_by_id()` were using `datetime.datetime.now()` and `datetime.datetime.strptime()` which caused exceptions.
+
+**Solution Applied:**
+- Fixed all datetime usage in investment functions (9 instances total)
+- Changed `datetime.datetime.now()` -> `datetime.now()`
+- Changed `datetime.datetime.strptime()` -> `datetime.strptime()`
+
+### 3. /cancel Command Not Working
 **Problem:** When user sent `/cancel` during conversation flows, it was treated as invalid input instead of canceling.
 
 **Root Cause:** All conversation handlers had empty fallbacks: `fallbacks=[]`

@@ -2420,7 +2420,7 @@ class SheetsManager:
 
             investments = []
             total_amount = 0
-            current_time = datetime.datetime.now()
+            current_time = datetime.now()
 
             for row in all_values[1:]:  # Skip header
                 if len(row) >= 11:
@@ -2432,7 +2432,7 @@ class SheetsManager:
                     if row_pppoker_id == pppoker_id and status == 'Active':
                         # Parse date and check if within 24 hours
                         try:
-                            date_added = datetime.datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S')
+                            date_added = datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S')
                             hours_diff = (current_time - date_added).total_seconds() / 3600
 
                             if hours_diff <= 24:
@@ -2469,7 +2469,7 @@ class SheetsManager:
 
             # Group by PPPoker ID
             grouped = {}
-            current_time = datetime.datetime.now()
+            current_time = datetime.now()
 
             for row in all_values[1:]:  # Skip header
                 if len(row) >= 11:
@@ -2479,7 +2479,7 @@ class SheetsManager:
 
                     if status == 'Active':
                         try:
-                            date_added = datetime.datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S')
+                            date_added = datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S')
                             hours_diff = (current_time - date_added).total_seconds() / 3600
 
                             if hours_diff <= 24:
@@ -2567,7 +2567,7 @@ class SheetsManager:
         """
         try:
             all_values = self.investments_sheet.get_all_values()
-            current_time = datetime.datetime.now()
+            current_time = datetime.now()
             marked_count = 0
 
             for idx, row in enumerate(all_values[1:], start=2):  # Start from row 2
@@ -2577,7 +2577,7 @@ class SheetsManager:
 
                     if status == 'Active':
                         try:
-                            date_added = datetime.datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S')
+                            date_added = datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S')
                             hours_diff = (current_time - date_added).total_seconds() / 3600
 
                             if hours_diff > 24:
@@ -2627,13 +2627,13 @@ class SheetsManager:
                     # Check date filter if provided
                     if start_date or end_date:
                         try:
-                            date_added = datetime.datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S').date()
+                            date_added = datetime.strptime(date_added_str, '%Y-%m-%d %H:%M:%S').date()
                             if start_date:
-                                start = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+                                start = datetime.strptime(start_date, '%Y-%m-%d').date()
                                 if date_added < start:
                                     continue
                             if end_date:
-                                end = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+                                end = datetime.strptime(end_date, '%Y-%m-%d').date()
                                 if date_added > end:
                                     continue
                         except ValueError:
