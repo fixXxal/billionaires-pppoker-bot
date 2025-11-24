@@ -2735,6 +2735,14 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
     for period_name, (start, end) in periods.items():
         deposits = sheets.get_deposits_by_date_range(start, end)
         withdrawals = sheets.get_withdrawals_by_date_range(start, end)
+        spins = sheets.get_spins_by_date_range(start, end)
+        bonuses = sheets.get_bonuses_by_date_range(start, end)
+        cashback = sheets.get_cashback_by_date_range(start, end)
+
+        # Calculate chip costs (money given to users as chips)
+        total_spin_rewards = sum([s['amount'] for s in spins])
+        total_bonuses = sum([b['amount'] for b in bonuses])
+        total_cashback = sum([c['amount'] for c in cashback])
 
         # Separate by currency
         mvr_deposits = sum([d['amount'] for d in deposits if d['method'] in ['BML', 'MIB']])
@@ -2746,7 +2754,7 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
         usdt_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USDT'])
 
         # Calculate profits per currency
-        mvr_profit = mvr_deposits - mvr_withdrawals
+        mvr_profit = mvr_deposits - (mvr_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
         usd_profit = usd_deposits - usd_withdrawals
         usdt_profit = usdt_deposits - usdt_withdrawals
 

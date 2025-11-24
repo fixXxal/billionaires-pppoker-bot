@@ -32,7 +32,21 @@
 - Changed `datetime.datetime.now()` -> `datetime.now()`
 - Changed `datetime.datetime.strptime()` -> `datetime.strptime()`
 
-### 3. /cancel Command Not Working
+### 3. /stats Command Error
+**Problem:** Running `/stats` command showed error: "name 'total_spin_rewards' is not defined"
+
+**Root Cause:** The `generate_stats_report()` function was missing code to fetch and calculate spin rewards, bonuses, and cashback for each period.
+
+**Solution Applied:**
+- Added missing lines to fetch spins, bonuses, cashback data
+- Added calculation of total_spin_rewards, total_bonuses, total_cashback
+- Updated MVR profit calculation to include these costs
+- Now matches the daily_stats_report logic
+
+**Files Modified:**
+- `bot.py` lines 2738-2757: Added missing data fetching and calculations
+
+### 4. /cancel Command Not Working
 **Problem:** When user sent `/cancel` during conversation flows, it was treated as invalid input instead of canceling.
 
 **Root Cause:** All conversation handlers had empty fallbacks: `fallbacks=[]`
