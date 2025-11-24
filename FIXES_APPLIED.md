@@ -2,20 +2,24 @@
 
 ## Issues Fixed
 
-### 1. 50/50 Investment System Error
-**Problem:** User got error when adding 50/50 investment because Club_Balances sheet wasn't initialized.
+### 1. 50/50 Investment System Error (FIXED - datetime bug)
+**Problem:** User got error "❌ An error occurred while processing your request" when adding 50/50 investment, BUT data was saving to Google Sheets successfully.
 
-**Root Cause:** Club_Balances sheet initialization was blocking other features if it failed.
+**Root Cause 1:** Club_Balances sheet initialization was blocking other features if it failed.
+**Root Cause 2 (MAIN BUG):** Code used `datetime.datetime.now()` instead of `datetime.now()` - AttributeError because import was `from datetime import datetime`
 
 **Solution Applied:**
 - Made Club_Balances and Inventory_Transactions sheet initialization OPTIONAL
 - Added try-except wrapper so failures don't break other features
 - Added None checks to all Club_Balances functions
+- **FIXED datetime bug:** Changed `datetime.datetime.now()` to `datetime.now()` in 2 places
 - 50/50 Investment system now works independently
 
 **Files Modified:**
 - `sheets_manager.py` lines 319-349: Wrapped sheet initialization in try-except
 - `sheets_manager.py` lines 2670-2960: Added None checks to all balance functions
+- `bot.py` line 3792: Fixed datetime.datetime.now() -> datetime.now()
+- `bot.py` line 3949: Fixed datetime.datetime.now() -> datetime.now()
 
 ### 2. /cancel Command Not Working
 **Problem:** When user sent `/cancel` during conversation flows, it was treated as invalid input instead of canceling.

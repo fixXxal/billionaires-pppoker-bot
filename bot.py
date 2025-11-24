@@ -3789,7 +3789,7 @@ async def investment_amount_received(update: Update, context: ContextTypes.DEFAU
                 f"✅ <b>Investment Added!</b>\n\n"
                 f"🎮 Player: {player_display}\n"
                 f"💰 Amount: {amount:.2f} MVR\n"
-                f"📅 Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+                f"📅 Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
                 f"⚠️ Will count as loss after 24 hours if not returned.",
                 parse_mode='HTML'
             )
@@ -3946,7 +3946,7 @@ async def return_amount_received(update: Update, context: ContextTypes.DEFAULT_T
             message += f"📊 <b>Financial Impact:</b>\n"
             message += f"✅ +{club_share:.2f} MVR added to Club Profit\n\n"
             message += f"🎮 {player_display}\n"
-            message += f"📅 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            message += f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
 
             await update.message.reply_text(message, parse_mode='HTML')
         else:
