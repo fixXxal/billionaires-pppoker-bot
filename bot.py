@@ -132,6 +132,18 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
 
     try:
+        # Check if counter is open
+        counter_status = sheets.get_counter_status()
+        if counter_status != 'OPEN':
+            await update.message.reply_text(
+                "🔒 *COUNTER IS CLOSED*\n\n"
+                "The spin wheel is currently unavailable\\.\n"
+                "Please try again when the counter reopens\\!\n\n"
+                "Thank you for your patience\\! 🙏",
+                parse_mode='MarkdownV2'
+            )
+            return
+
         # Get user's spin data
         user_data = spin_bot.sheets.get_spin_user(user.id)
 
@@ -1888,6 +1900,18 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
 async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start live support session"""
     user = update.effective_user
+
+    # Check if counter is open
+    counter_status = sheets.get_counter_status()
+    if counter_status != 'OPEN':
+        await update.message.reply_text(
+            "🔒 *COUNTER IS CLOSED*\n\n"
+            "Live support is currently unavailable\\.\n"
+            "Please try again when the counter reopens\\!\n\n"
+            "Thank you for your patience\\! 🙏",
+            parse_mode='MarkdownV2'
+        )
+        return ConversationHandler.END
 
     if user.id in support_mode_users:
         # Show End Support button
