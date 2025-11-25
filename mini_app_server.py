@@ -370,33 +370,41 @@ def spin():
 
         threading.Thread(target=update_user_data, daemon=True).start()
 
-        # Send notifications AFTER all spins are processed (in background - non-blocking)
+        # Queue notifications for async delivery (no waiting, no blocking, reliable)
         total_chips_won = sum(r.get('chips', 0) for r in results if isinstance(r, dict) and r.get('chips', 0) > 0)
 
         if total_chips_won > 0:
-            logger.info(f"💰 Total chips won: {total_chips_won} - Queuing notifications")
+            logger.info(f"💰 Total chips won: {total_chips_won} - Adding to notification queue")
 
-            # Calculate delay based on number of spins
-            # Single spin: 4 seconds animation
-            # Multi-spin: 2.5 seconds per spin
-            notification_delay = 4.5 if spin_count == 1 else (spin_count * 2.5) + 0.5
+            # Format messages
+            user_message = (
+                f"🎊 <b>CONGRATULATIONS!</b> 🎊\n\n"
+                f"🎰 <b>You won:</b> {total_chips_won} Chips\n"
+                f"💰 <b>Chips:</b> {total_chips_won}\n\n"
+                f"⏳ <b>Your reward is pending approval</b>\n\n"
+                f"✅ Our admin team will review and approve your chips shortly.\n"
+                f"📬 You'll receive a notification once approved!\n\n"
+                f"🎮 Your chips will be added to your PPPoker account.\n\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"Thank you for playing! 🎲"
+            )
 
-            # Run notifications in background thread to not block the response
-            import threading
-            def send_notifications():
-                try:
-                    # Wait for animation to complete before sending notifications
-                    import time
-                    time.sleep(notification_delay)
+            admin_message = (
+                f"🎰 <b>SPIN WHEEL WIN!</b> 🎰\n\n"
+                f"👤 User: {username} (ID: {user_id})\n"
+                f"🎁 Prize: {total_chips_won} Chips Total\n"
+                f"💰 Chips: {total_chips_won}\n"
+                f"🎮 PPPoker ID: {pppoker_id or 'Not set'}\n\n"
+                f"⏳ <b>Pending admin approval</b>"
+            )
 
-                    asyncio.run(notify_user_win(user_id, username, f"{total_chips_won} Chips", total_chips_won))
-                    asyncio.run(notify_admin(user_id, username, f"{total_chips_won} Chips Total", total_chips_won, pppoker_id))
-                    logger.info(f"✅ Notifications sent after {notification_delay}s delay")
-                except Exception as e:
-                    logger.error(f"❌ Failed to send notifications: {e}")
-
-            threading.Thread(target=send_notifications, daemon=True).start()
-            logger.info(f"✅ Notifications queued with {notification_delay}s delay")
+            # Add to notification queue (instant, reliable, non-blocking)
+            try:
+                sheets.add_notification(user_id, user_message, notification_type='user_prize', priority=3)
+                sheets.add_notification(ADMIN_USER_ID, admin_message, notification_type='admin_alert', priority=2)
+                logger.info(f"✅ Notifications added to queue successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to add notifications to queue: {e}")
 
         # Build response
         response = {

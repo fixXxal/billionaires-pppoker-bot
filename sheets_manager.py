@@ -348,6 +348,16 @@ class SheetsManager:
             print("✅ Other features will continue to work normally")
             self.inventory_transactions_sheet = None
 
+        # Notification_Queue worksheet - queues all notifications for reliable async delivery
+        try:
+            self.notification_queue_sheet = self.spreadsheet.worksheet('Notification_Queue')
+        except gspread.WorksheetNotFound:
+            self.notification_queue_sheet = self.spreadsheet.add_worksheet(title='Notification_Queue', rows=5000, cols=10)
+            self.notification_queue_sheet.append_row([
+                'ID', 'User ID', 'Message', 'Type', 'Status',
+                'Created At', 'Sent At', 'Retry Count', 'Error Message', 'Priority'
+            ])
+
         # Run migration to add PPPoker ID columns if they don't exist
         self._migrate_add_pppoker_columns()
 
@@ -2959,4 +2969,197 @@ class SheetsManager:
         except Exception as e:
             print(f"Error getting inventory transactions: {e}")
             return []
+
+    # ========== NOTIFICATION QUEUE METHODS ==========
+
+    def add_notification(self, user_id: int, message: str, notification_type: str = 'general', priority: int = 5) -> str:
+        """
+        Add a notification to the queue for async delivery
+
+        Args:
+            user_id: Telegram user ID to send notification to
+            message: Message text to send
+            notification_type: Type of notification (user_prize, admin_alert, general, etc.)
+            priority: Priority level 1-10 (1=highest, 10=lowest), default=5
+
+        Returns:
+            Notification ID (unique string)
+        """
+        try:
+            # Generate unique ID
+            notification_id = f"NOTIF_{int(datetime.now().timestamp() * 1000)}"
+
+            # Add to queue
+            self.notification_queue_sheet.append_row([
+                notification_id,
+                str(user_id),
+                message,
+                notification_type,
+                'pending',  # status
+                self._get_timestamp(),  # created_at
+                '',  # sent_at (empty for now)
+                0,  # retry_count
+                '',  # error_message (empty for now)
+                priority
+            ])
+
+            return notification_id
+
+        except Exception as e:
+            print(f"Error adding notification to queue: {e}")
+            return None
+
+    def get_pending_notifications(self, limit: int = 50) -> List[Dict]:
+        """
+        Get pending notifications from queue (ordered by priority, then oldest first)
+
+        Args:
+            limit: Maximum number of notifications to retrieve
+
+        Returns:
+            List of notification dicts
+        """
+        try:
+            all_values = self.notification_queue_sheet.get_all_values()
+
+            if len(all_values) <= 1:
+                return []
+
+            notifications = []
+            for row in all_values[1:]:  # Skip header
+                if len(row) >= 10 and row[4] == 'pending':  # status = pending
+                    notifications.append({
+                        'id': row[0],
+                        'user_id': int(row[1]),
+                        'message': row[2],
+                        'type': row[3],
+                        'status': row[4],
+                        'created_at': row[5],
+                        'sent_at': row[6],
+                        'retry_count': int(row[7]) if row[7] else 0,
+                        'error_message': row[8],
+                        'priority': int(row[9]) if row[9] else 5,
+                        'row_number': all_values.index(row) + 1  # Store row number for updates
+                    })
+
+            # Sort by priority (ascending, so 1 = highest), then by created_at (oldest first)
+            notifications.sort(key=lambda x: (x['priority'], x['created_at']))
+
+            return notifications[:limit]
+
+        except Exception as e:
+            print(f"Error getting pending notifications: {e}")
+            return []
+
+    def update_notification_status(self, notification_id: str, status: str, error_message: str = None, sent_at: str = None):
+        """
+        Update notification status in queue
+
+        Args:
+            notification_id: Notification ID to update
+            status: New status (sent, failed, pending)
+            error_message: Error message if failed
+            sent_at: Timestamp when sent (if successful)
+        """
+        try:
+            all_values = self.notification_queue_sheet.get_all_values()
+
+            for i, row in enumerate(all_values[1:], start=2):  # Start from row 2 (skip header)
+                if row[0] == notification_id:
+                    # Update status (column E)
+                    self.notification_queue_sheet.update_cell(i, 5, status)
+
+                    # Update sent_at if provided (column G)
+                    if sent_at:
+                        self.notification_queue_sheet.update_cell(i, 7, sent_at)
+
+                    # Update error_message if provided (column I)
+                    if error_message:
+                        self.notification_queue_sheet.update_cell(i, 9, error_message)
+
+                    # Increment retry_count if status is failed (column H)
+                    if status == 'failed':
+                        current_retry_count = int(row[7]) if row[7] else 0
+                        self.notification_queue_sheet.update_cell(i, 8, current_retry_count + 1)
+
+                    return True
+
+            return False
+
+        except Exception as e:
+            print(f"Error updating notification status: {e}")
+            return False
+
+    def get_failed_notifications_for_retry(self, max_retries: int = 3, retry_after_minutes: int = 1) -> List[Dict]:
+        """
+        Get failed notifications that should be retried
+
+        Args:
+            max_retries: Maximum retry attempts before giving up
+            retry_after_minutes: Wait this many minutes before retrying
+
+        Returns:
+            List of notification dicts ready for retry
+        """
+        try:
+            all_values = self.notification_queue_sheet.get_all_values()
+
+            if len(all_values) <= 1:
+                return []
+
+            notifications = []
+            current_time = datetime.now(self.timezone)
+
+            for row in all_values[1:]:  # Skip header
+                if len(row) >= 10:
+                    status = row[4]
+                    retry_count = int(row[7]) if row[7] else 0
+                    created_at_str = row[5]
+
+                    # Only retry if: status=failed, retry_count < max_retries, and enough time has passed
+                    if status == 'failed' and retry_count < max_retries:
+                        try:
+                            created_at = datetime.strptime(created_at_str, '%Y-%m-%d %H:%M:%S')
+                            created_at = self.timezone.localize(created_at)
+                            time_diff_minutes = (current_time - created_at).total_seconds() / 60
+
+                            if time_diff_minutes >= retry_after_minutes:
+                                notifications.append({
+                                    'id': row[0],
+                                    'user_id': int(row[1]),
+                                    'message': row[2],
+                                    'type': row[3],
+                                    'status': row[4],
+                                    'created_at': row[5],
+                                    'sent_at': row[6],
+                                    'retry_count': retry_count,
+                                    'error_message': row[8],
+                                    'priority': int(row[9]) if row[9] else 5
+                                })
+                        except Exception as e:
+                            print(f"Error parsing notification timestamp: {e}")
+                            continue
+
+            return notifications
+
+        except Exception as e:
+            print(f"Error getting failed notifications: {e}")
+            return []
+
+    def reset_notification_to_pending(self, notification_id: str):
+        """Reset a failed notification back to pending for retry"""
+        try:
+            all_values = self.notification_queue_sheet.get_all_values()
+
+            for i, row in enumerate(all_values[1:], start=2):
+                if row[0] == notification_id:
+                    # Update status to pending
+                    self.notification_queue_sheet.update_cell(i, 5, 'pending')
+                    return True
+
+            return False
+
+        except Exception as e:
+            print(f"Error resetting notification to pending: {e}")
+            return False
 
