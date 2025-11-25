@@ -6654,43 +6654,60 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
                 total_chips_earned=new_total
             )
 
+        # Escape HTML characters to prevent parsing errors
+        from html import escape
+        username_safe = escape(str(username))
+        approver_name_safe = escape(str(approver_name))
+
         # Edit the message to show approval success
         await query.edit_message_text(
-            f"✅ *APPROVED!*\n\n"
-            f"👤 User: {username}\n"
+            f"✅ <b>APPROVED!</b> ✅\n\n"
+            f"👤 User: {username_safe}\n"
             f"📦 Approved: {approved_count} rewards\n"
             f"💰 Total: {total_chips} chips\n\n"
             f"✨ User has been notified!\n"
-            f"👤 Approved by: {approver_name}",
-            parse_mode='Markdown'
+            f"👤 Approved by: {approver_name_safe}",
+            parse_mode='HTML'
         )
 
         # Notify the user with detailed message
         try:
             # Get PPPoker ID for the message
             pppoker_id = spin_bot.sheets.get_pppoker_id_from_deposits(target_user_id)
-            pppoker_msg = f"🎮 <b>PPPoker ID:</b> {pppoker_id}\n" if pppoker_id else ""
+            if pppoker_id:
+                pppoker_msg = f"🎮 <b>PPPoker ID:</b> {pppoker_id}\n"
+            else:
+                pppoker_msg = ""
+
+            notification_text = (
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"✅ <b>REWARDS APPROVED!</b> ✅\n"
+                f"━━━━━━━━━━━━━━━━━━\n\n"
+                f"🎊 <b>Congratulations!</b>\n\n"
+                f"💰 <b>Total Chips:</b> {total_chips}\n"
+                f"📦 <b>Rewards:</b> {approved_count}\n"
+            )
+
+            if pppoker_msg:
+                notification_text += pppoker_msg
+
+            notification_text += (
+                f"\n✨ <b>Your chips have been added to your account!</b>\n\n"
+                f"🎮 The chips are now available in your PPPoker account.\n"
+                f"💎 You can use them to play poker right away!\n\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"Thank you for playing! 🎰\n"
+                f"Good luck at the tables! 🃏"
+            )
 
             await context.bot.send_message(
                 chat_id=target_user_id,
-                text=f"━━━━━━━━━━━━━━━━━━\n"
-                     f"✅ <b>REWARDS APPROVED!</b> ✅\n"
-                     f"━━━━━━━━━━━━━━━━━━\n\n"
-                     f"🎊 <b>Congratulations!</b>\n\n"
-                     f"💰 <b>Total Chips:</b> {total_chips}\n"
-                     f"📦 <b>Rewards:</b> {approved_count}\n"
-                     f"{pppoker_msg}\n"
-                     f"✨ <b>Your chips have been added to your account!</b>\n\n"
-                     f"🎮 The chips are now available in your PPPoker account.\n"
-                     f"💎 You can use them to play poker right away!\n\n"
-                     f"━━━━━━━━━━━━━━━━━━\n"
-                     f"Thank you for playing! 🎰\n"
-                     f"Good luck at the tables! 🃏",
+                text=notification_text,
                 parse_mode='HTML'
             )
-            logger.info(f"✅ User {target_user_id} notified of approval: {total_chips} chips")
+            logger.info(f"✅ User {target_user_id} notified of approval from pending rewards: {total_chips} chips")
         except Exception as e:
-            logger.error(f"Failed to notify user: {e}")
+            logger.error(f"❌ Failed to notify user {target_user_id}: {e}")
             import traceback
             traceback.print_exc()
 
