@@ -346,13 +346,9 @@ def spin():
                 'chips': chips  # Store chips for notification later
             })
 
-            # Log to Google Sheets (in background to not block response)
-            import threading
-            threading.Thread(
-                target=sheets.log_spin_history,
-                args=(user_id, username, prize_display, chips, pppoker_id),
-                daemon=True
-            ).start()
+            # Log to Google Sheets SYNCHRONOUSLY (must complete before continuing)
+            # This ensures all spins are logged before notification is sent
+            sheets.log_spin_history(user_id, username, prize_display, chips, pppoker_id)
 
         # Update user spins
         new_available = available_spins - spin_count
