@@ -305,15 +305,17 @@ def spin():
         for idx, p in enumerate(wheel_prizes):
             logger.info(f"  {idx}: {p}")
 
-        # PRIZE WEIGHTS - Only chips and Try Again can be won
+        # PRIZE WEIGHTS - Optimized for 65% club profit margin
+        # Try Again: 82.489%, Win chips: 17.511%
+        # Average payout: 3.53 chips per spin
         prize_weights = {
-            "Try Again!": 60,
-            "10": 15,
-            "20": 12,
-            "50": 8,
-            "100": 3,
-            "250": 1.5,
-            "500": 0.5
+            "Try Again!": 82489,  # 82.489% - Most spins lose
+            "10": 10000,          # 10.000% - Common small win
+            "20": 5000,           # 5.000% - Uncommon small win
+            "50": 2000,           # 2.000% - Rare medium win
+            "100": 500,           # 0.500% - Very rare good win
+            "250": 10,            # 0.010% - Extremely rare big win
+            "500": 1              # 0.001% - Legendary jackpot (1 in 100k)
         }
 
         results = []
