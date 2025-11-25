@@ -134,7 +134,7 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         # Check if counter is open
         counter_status = sheets.get_counter_status()
-        if counter_status != 'OPEN':
+        if counter_status.get('status') != 'OPEN':
             await update.message.reply_text(
                 "🔒 *COUNTER IS CLOSED*\n\n"
                 "The spin wheel is currently unavailable\\.\n"
@@ -1903,7 +1903,7 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Check if counter is open
     counter_status = sheets.get_counter_status()
-    if counter_status != 'OPEN':
+    if counter_status.get('status') != 'OPEN':
         await update.message.reply_text(
             "🔒 *COUNTER IS CLOSED*\n\n"
             "Live support is currently unavailable\\.\n"
