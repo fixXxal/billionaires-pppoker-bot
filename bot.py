@@ -6733,12 +6733,17 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
                     total_chips = sum(int(s[3]) for s in user_spins if len(s) > 3 and s[3])
                     username = user_spins[-1][1] if len(user_spins[-1]) > 1 else 'User'
 
+                    # Escape HTML characters to prevent parsing errors
+                    from html import escape
+                    username_safe = escape(str(username))
+                    approved_by_safe = escape(str(approved_by))
+
                     await query.edit_message_text(
                         f"✅ <b>Already Approved!</b> ✅\n\n"
-                        f"👤 User: {username}\n"
+                        f"👤 User: {username_safe}\n"
                         f"💰 Total: {total_chips} chips\n"
                         f"📦 Approved Spins: {len(user_spins)}\n\n"
-                        f"✨ <b>Approved by:</b> {approved_by}",
+                        f"✨ <b>Approved by:</b> {approved_by_safe}",
                         parse_mode='HTML'
                     )
                 else:
@@ -6783,14 +6788,19 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
                 total_chips_earned=new_total
             )
 
+        # Escape HTML characters in names to prevent parsing errors
+        from html import escape
+        username_safe = escape(str(username))
+        approver_name_safe = escape(str(approver_name))
+
         # Edit the notification message to show approval
         await query.edit_message_text(
             f"✅ <b>APPROVED!</b> ✅\n\n"
-            f"👤 User: {username}\n"
+            f"👤 User: {username_safe}\n"
             f"💰 Total: {total_chips} chips\n"
             f"📦 Rewards: {approved_count}\n\n"
             f"✨ User has been notified!\n"
-            f"👤 Approved by: {approver_name}",
+            f"👤 Approved by: {approver_name_safe}",
             parse_mode='HTML'
         )
 

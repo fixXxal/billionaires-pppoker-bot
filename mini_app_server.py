@@ -374,29 +374,31 @@ def spin():
         total_chips_won = sum(r.get('chips', 0) for r in results if isinstance(r, dict) and r.get('chips', 0) > 0)
 
         if total_chips_won > 0:
-            logger.info(f"💰 Total chips won: {total_chips_won} - Queuing notifications")
-
-            # Calculate delay based on number of spins
-            # Single spin: 4 seconds animation
-            # Multi-spin: 2.5 seconds per spin
-            notification_delay = 4.5 if spin_count == 1 else (spin_count * 2.5) + 0.5
+            logger.info(f"💰 Total chips won: {total_chips_won} - Sending notifications")
 
             # Run notifications in background thread to not block the response
             import threading
             def send_notifications():
                 try:
-                    # Wait for animation to complete before sending notifications
+                    # Create new event loop for this thread
                     import time
-                    time.sleep(notification_delay)
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
 
-                    asyncio.run(notify_user_win(user_id, username, f"{total_chips_won} Chips", total_chips_won))
-                    asyncio.run(notify_admin(user_id, username, f"{total_chips_won} Chips Total", total_chips_won, pppoker_id))
-                    logger.info(f"✅ Notifications sent after {notification_delay}s delay")
+                    try:
+                        # Send notifications
+                        loop.run_until_complete(notify_user_win(user_id, username, f"{total_chips_won} Chips", total_chips_won))
+                        loop.run_until_complete(notify_admin(user_id, username, f"{total_chips_won} Chips Total", total_chips_won, pppoker_id))
+                        logger.info(f"✅ Notifications sent successfully")
+                    finally:
+                        loop.close()
                 except Exception as e:
                     logger.error(f"❌ Failed to send notifications: {e}")
+                    import traceback
+                    traceback.print_exc()
 
             threading.Thread(target=send_notifications, daemon=True).start()
-            logger.info(f"✅ Notifications queued with {notification_delay}s delay")
+            logger.info(f"✅ Notification thread started")
 
         # Build response
         response = {
