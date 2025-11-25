@@ -171,19 +171,46 @@
         .spin-100x { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; }
         .spin-all { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: white; }
 
-        #result {
+        /* Overlay background */
+        .result-overlay {
             display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .result-overlay.show {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        #result {
             background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-            padding: 25px 20px;
-            border-radius: 20px;
+            padding: 30px 25px;
+            border-radius: 25px;
             text-align: center;
             font-size: 1.15em;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
-            animation: resultPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            margin-top: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: resultPop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             border: 3px solid rgba(255,215,0,0.3);
             position: relative;
             overflow: hidden;
+            max-width: 90%;
+            width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
         }
 
         #result::before {
@@ -268,6 +295,28 @@
             color: #FFD700;
             font-weight: bold;
         }
+
+        .close-result-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .close-result-btn:active {
+            transform: scale(0.98);
+        }
+
+        .close-result-btn:hover {
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
     </style>
 </head>
 <body>
@@ -296,8 +345,11 @@
             <button class="spin-btn spin-100x" onclick="doSpin(100)" id="btn100x">🌟 Spin 100x</button>
             <button class="spin-btn spin-all" onclick="doSpin('all')" id="btnAll">🚀 Spin All</button>
         </div>
+    </div>
 
-        <div id="result"></div>
+    <!-- Result Overlay Modal -->
+    <div class="result-overlay" id="resultOverlay" onclick="closeResult(event)">
+        <div id="result" onclick="event.stopPropagation()"></div>
     </div>
 
     <script>
@@ -533,6 +585,13 @@
             });
         }
 
+        // ========== CLOSE RESULT ==========
+        function closeResult(event) {
+            // Close if clicking on overlay background (not the result box itself)
+            if (event && event.target.id !== 'resultOverlay') return;
+            document.getElementById('resultOverlay').classList.remove('show');
+        }
+
         // ========== DO SPIN ==========
         async function doSpin(count) {
             if (spinning || availableSpins === 0) return;
@@ -542,7 +601,7 @@
 
             spinning = true;
             updateButtons();
-            document.getElementById('result').style.display = 'none';
+            document.getElementById('resultOverlay').classList.remove('show');
 
             try {
                 const response = await fetch('https://billionaires-spins.up.railway.app/api/spin', {
@@ -591,6 +650,7 @@
         async function animateSpins(results) {
             const wheel = document.getElementById('wheelWrapper');
             const resultDiv = document.getElementById('result');
+            const overlay = document.getElementById('resultOverlay');
 
             for (let i = 0; i < results.length; i++) {
                 const spin = results[i];
@@ -637,8 +697,8 @@
                 console.log(`   \n   ✅ EXPECTED: Wheel stops with segment ${segmentIndex} at top`);
                 console.log(`   ✅ EXPECTED PRIZE: ${prizes[segmentIndex].display}\n`);
 
-                // Show suspense with glow effect
-                resultDiv.style.display = 'flex';
+                // Show suspense with glow effect in overlay
+                overlay.classList.add('show');
                 resultDiv.innerHTML = `<div class="suspense">🎰 Spinning... ${i + 1}/${results.length}</div>`;
 
                 // Add spinning glow
@@ -675,6 +735,7 @@
         // ========== SHOW FINAL RESULT ==========
         function showFinalResult(results) {
             const resultDiv = document.getElementById('result');
+            const overlay = document.getElementById('resultOverlay');
 
             if (results.length === 1) {
                 const prize = prizes[results[0].segment_index];
@@ -683,6 +744,7 @@
                         <span class="result-icon">🔄</span>
                         <div class="result-title">Try Again!</div>
                         <div class="result-subtitle">Better luck next spin! 🍀</div>
+                        <button class="close-result-btn" onclick="closeResult({target: {id: 'resultOverlay'}})">Close</button>
                     `;
                 } else {
                     resultDiv.innerHTML = `
@@ -690,6 +752,7 @@
                         <div class="result-title">🎊 Congratulations! 🎊</div>
                         <div class="result-prize">💰 ${prize.display}</div>
                         <div class="result-subtitle">⏳ Pending admin approval!</div>
+                        <button class="close-result-btn" onclick="closeResult({target: {id: 'resultOverlay'}})">Close</button>
                     `;
                 }
             } else {
@@ -706,10 +769,12 @@
                     <div class="result-title">${results.length} Spins Complete!</div>
                     <div class="result-prize">💰 Total: ${totalChips} Chips</div>
                     <div class="result-subtitle">⏳ Check pending approvals!</div>
+                    <button class="close-result-btn" onclick="closeResult({target: {id: 'resultOverlay'}})">Close</button>
                 `;
             }
 
-            resultDiv.style.display = 'block';
+            // Keep overlay shown
+            overlay.classList.add('show');
         }
 
         // ========== INITIALIZATION ==========
