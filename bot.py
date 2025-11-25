@@ -6797,34 +6797,55 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         # Notify the user
         try:
             pppoker_id = spin_bot.sheets.get_pppoker_id_from_deposits(target_user_id)
-            pppoker_msg = f"🎮 <b>PPPoker ID:</b> {pppoker_id}\n" if pppoker_id else ""
+            if pppoker_id:
+                pppoker_msg = f"🎮 <b>PPPoker ID:</b> {pppoker_id}\n"
+            else:
+                pppoker_msg = ""
+
+            notification_text = (
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"✅ <b>REWARDS APPROVED!</b> ✅\n"
+                f"━━━━━━━━━━━━━━━━━━\n\n"
+                f"🎊 <b>Congratulations!</b>\n\n"
+                f"💰 <b>Total Chips:</b> {total_chips}\n"
+                f"📦 <b>Rewards:</b> {approved_count}\n"
+            )
+
+            if pppoker_msg:
+                notification_text += pppoker_msg
+
+            notification_text += (
+                f"\n✨ <b>Your chips have been added to your account!</b>\n\n"
+                f"🎮 The chips are now available in your PPPoker account.\n"
+                f"💎 You can use them to play poker right away!\n\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"Thank you for playing! 🎰\n"
+                f"Good luck at the tables! 🃏"
+            )
 
             await context.bot.send_message(
                 chat_id=target_user_id,
-                text=f"━━━━━━━━━━━━━━━━━━\n"
-                     f"✅ <b>REWARDS APPROVED!</b> ✅\n"
-                     f"━━━━━━━━━━━━━━━━━━\n\n"
-                     f"🎊 <b>Congratulations!</b>\n\n"
-                     f"💰 <b>Total Chips:</b> {total_chips}\n"
-                     f"📦 <b>Rewards:</b> {approved_count}\n"
-                     f"{pppoker_msg}\n"
-                     f"✨ <b>Your chips have been added to your account!</b>\n\n"
-                     f"🎮 The chips are now available in your PPPoker account.\n"
-                     f"💎 You can use them to play poker right away!\n\n"
-                     f"━━━━━━━━━━━━━━━━━━\n"
-                     f"Thank you for playing! 🎰\n"
-                     f"Good luck at the tables! 🃏",
+                text=notification_text,
                 parse_mode='HTML'
             )
             logger.info(f"✅ User {target_user_id} notified of instant approval: {total_chips} chips")
         except Exception as e:
-            logger.error(f"Failed to notify user: {e}")
+            logger.error(f"Failed to notify user {target_user_id}: {e}")
+            import traceback
+            traceback.print_exc()
 
     except Exception as e:
         logger.error(f"Error in approve_instant_callback: {e}")
         import traceback
         traceback.print_exc()
-        await query.edit_message_text(f"❌ Error approving rewards: {str(e)}")
+        try:
+            await query.edit_message_text(
+                f"❌ Error approving rewards: {str(e)}",
+                parse_mode=None  # No parse mode to avoid HTML errors
+            )
+        except:
+            # If editing fails, just answer the query
+            await query.answer(f"❌ Error: {str(e)}", show_alert=True)
 
 
 # ========== CASHBACK APPROVAL HANDLERS ==========
