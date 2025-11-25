@@ -346,9 +346,29 @@ def spin():
                 'chips': chips  # Store chips for notification later
             })
 
-            # Log to Google Sheets SYNCHRONOUSLY (must complete before continuing)
-            # This ensures all spins are logged before notification is sent
-            sheets.log_spin_history(user_id, username, prize_display, chips, pppoker_id)
+        # Log ALL spins to Google Sheets in a single batch (after loop completes)
+        # This is faster than individual writes and ensures all spins are logged
+        import threading
+        spin_threads = []
+
+        for i, result in enumerate(results):
+            prize_display = result['prize']
+            chips = result['chips']
+
+            def log_spin(pd, ch):
+                try:
+                    sheets.log_spin_history(user_id, username, pd, ch, pppoker_id)
+                except Exception as e:
+                    logger.error(f"Failed to log spin to sheets: {e}")
+
+            # Start thread but keep reference (not daemon)
+            thread = threading.Thread(target=log_spin, args=(prize_display, chips))
+            thread.start()
+            spin_threads.append(thread)
+
+        # Wait for all logging threads to complete (max 5 seconds)
+        for thread in spin_threads:
+            thread.join(timeout=5.0)
 
         # Update user spins
         new_available = available_spins - spin_count
