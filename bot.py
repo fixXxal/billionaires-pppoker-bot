@@ -2538,21 +2538,20 @@ async def admin_end_inactive_support(update: Update, context: ContextTypes.DEFAU
 
 # Statistics and Reports
 def generate_daily_stats_report(timezone_str='Indian/Maldives'):
-    """Generate daily and weekly profit/loss statistics report for automatic notifications"""
+    """Generate daily and monthly profit/loss statistics report for automatic notifications"""
     tz = pytz.timezone(timezone_str)
     now = datetime.now(tz)
 
-    # Define date ranges - ONLY TODAY and THIS WEEK
+    # Define date ranges - ONLY TODAY and THIS MONTH
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = now
 
-    week_start = now - timedelta(days=now.weekday())
-    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # Get data from sheets - ONLY TODAY and THIS WEEK
+    # Get data from sheets - ONLY TODAY and THIS MONTH
     periods = {
         'TODAY': (today_start, today_end),
-        'THIS WEEK': (week_start, today_end)
+        'THIS MONTH': (month_start, today_end)
     }
 
     # Get exchange rates
@@ -2611,7 +2610,7 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
         total_mvr_profit = mvr_profit + usd_mvr_equiv + usdt_mvr_equiv
 
         # Save data for Google Sheets
-        prefix = 'today_' if period_name == 'TODAY' else 'week_'
+        prefix = 'today_' if period_name == 'TODAY' else 'month_'
         report_data[f'{prefix}mvr_deposits'] = mvr_deposits
         report_data[f'{prefix}mvr_withdrawals'] = mvr_withdrawals
         report_data[f'{prefix}spin_rewards'] = total_spin_rewards
