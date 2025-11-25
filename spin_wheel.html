@@ -197,7 +197,7 @@
         }
 
         #result {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             padding: 20px 18px;
@@ -206,27 +206,23 @@
             font-size: 1em;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             animation: resultPop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            border: 2px solid rgba(255,215,0,0.5);
+            border: 2px solid rgba(255,215,0,0.6);
             position: relative;
-            overflow: hidden;
             max-width: 85%;
             width: 280px;
-            max-height: 70vh;
-            overflow-y: auto;
         }
 
         #result::before {
             content: '';
             position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            background: linear-gradient(45deg, rgba(255,215,0,0.3), rgba(255,165,0,0.3), rgba(255,215,0,0.3), rgba(255,165,0,0.3));
-            background-size: 400% 400%;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,215,0,0.05) 100%);
             border-radius: 20px;
             z-index: -1;
-            animation: gradientShift 3s ease infinite;
+            pointer-events: none;
         }
 
         @keyframes resultPop {
@@ -241,11 +237,6 @@
                 opacity: 1;
                 transform: scale(1) translateY(0);
             }
-        }
-
-        @keyframes gradientShift {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
         }
 
         .result-icon {
@@ -318,6 +309,39 @@
         .close-result-btn:hover {
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
         }
+
+        .skip-btn {
+            display: none;
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #FF6B6B 0%, #FF4757 100%);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.5);
+            z-index: 2000;
+            animation: skipPulse 2s infinite;
+        }
+
+        .skip-btn.show {
+            display: block;
+        }
+
+        .skip-btn:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+
+        @keyframes skipPulse {
+            0%, 100% { transform: translateX(-50%) scale(1); box-shadow: 0 4px 15px rgba(255, 71, 87, 0.5); }
+            50% { transform: translateX(-50%) scale(1.05); box-shadow: 0 6px 25px rgba(255, 71, 87, 0.8); }
+        }
     </style>
 </head>
 <body>
@@ -348,6 +372,9 @@
         </div>
     </div>
 
+    <!-- Skip Button (for multiple spins) -->
+    <button class="skip-btn" id="skipBtn" onclick="skipSpins()">⏩ Skip</button>
+
     <!-- Result Overlay Modal -->
     <div class="result-overlay" id="resultOverlay" onclick="closeResult(event)">
         <div id="result" onclick="event.stopPropagation()"></div>
@@ -366,6 +393,8 @@
 
         // Track spinning state
         let spinning = false;
+        let shouldSkip = false;
+        let currentResults = null;
 
         // ========== PRIZE CONFIGURATION ==========
         // PRIZE CONFIGURATION - 16 segments (4 are display-only, never winnable)
@@ -586,6 +615,12 @@
             });
         }
 
+        // ========== SKIP SPINS ==========
+        function skipSpins() {
+            shouldSkip = true;
+            document.getElementById('skipBtn').classList.remove('show');
+        }
+
         // ========== CLOSE RESULT ==========
         function closeResult(event) {
             // Close if clicking on overlay background (not the result box itself)
@@ -600,9 +635,21 @@
             const spinCount = count === 'all' ? availableSpins : count;
             if (spinCount > availableSpins) return;
 
+            // Reset skip state
+            shouldSkip = false;
+            currentResults = null;
+
             spinning = true;
             updateButtons();
             document.getElementById('resultOverlay').classList.remove('show');
+
+            // Show skip button if 10+ spins
+            const skipBtn = document.getElementById('skipBtn');
+            if (spinCount >= 10) {
+                skipBtn.classList.add('show');
+            } else {
+                skipBtn.classList.remove('show');
+            }
 
             try {
                 const response = await fetch('https://billionaires-spins.up.railway.app/api/spin', {
@@ -626,8 +673,14 @@
                 // DEBUG: Log complete backend response
                 console.log('📨 BACKEND RESPONSE:', JSON.stringify(result, null, 2));
 
+                // Store results for skip functionality
+                currentResults = result.results;
+
                 // Animate spins
                 await animateSpins(result.results);
+
+                // Hide skip button after animation completes
+                document.getElementById('skipBtn').classList.remove('show');
 
                 // Update spins
                 availableSpins = result.available_spins;
@@ -654,6 +707,12 @@
             const overlay = document.getElementById('resultOverlay');
 
             for (let i = 0; i < results.length; i++) {
+                // Check if user clicked skip
+                if (shouldSkip) {
+                    console.log('⏩ User skipped animations');
+                    break;
+                }
+
                 const spin = results[i];
                 const segmentIndex = spin.segment_index;
                 const prize = prizes[segmentIndex];
