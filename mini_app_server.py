@@ -16,6 +16,7 @@ from telegram.error import TelegramError
 import random
 import time
 from collections import defaultdict
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -346,29 +347,48 @@ def spin():
                 'chips': chips  # Store chips for notification later
             })
 
-        # Log ALL spins to Google Sheets in a single batch (after loop completes)
-        # This is faster than individual writes and ensures all spins are logged
+        # Log ALL spins to Google Sheets as a BATCH (much faster than individual writes)
+        # For 100 spins: 1 batch write (~2 sec) vs 100 individual writes (~200 sec)
         import threading
-        spin_threads = []
 
-        for i, result in enumerate(results):
-            prize_display = result['prize']
-            chips = result['chips']
+        def log_all_spins():
+            try:
+                # Prepare all rows for batch insert
+                timestamp = datetime.now(sheets.timezone).strftime('%Y-%m-%d %H:%M:%S')
+                rows_to_add = []
 
-            def log_spin(pd, ch):
-                try:
-                    sheets.log_spin_history(user_id, username, pd, ch, pppoker_id)
-                except Exception as e:
-                    logger.error(f"Failed to log spin to sheets: {e}")
+                for result in results:
+                    prize_display = result['prize']
+                    chips = result['chips']
+                    status = "Auto" if chips == 0 else "Pending"
 
-            # Start thread but keep reference (not daemon)
-            thread = threading.Thread(target=log_spin, args=(prize_display, chips))
-            thread.start()
-            spin_threads.append(thread)
+                    rows_to_add.append([
+                        user_id,
+                        username,
+                        prize_display,
+                        chips,
+                        timestamp,
+                        pppoker_id,
+                        status,  # Status: Pending, Approved, Auto
+                        '',      # Approved By
+                        ''       # Approved At
+                    ])
 
-        # Wait for all logging threads to complete (max 5 seconds)
-        for thread in spin_threads:
-            thread.join(timeout=5.0)
+                # Batch insert all rows at once (MUCH faster)
+                sheets.spin_history_sheet.append_rows(rows_to_add)
+                logger.info(f"✅ Logged {len(rows_to_add)} spins to Google Sheets in batch")
+
+            except Exception as e:
+                logger.error(f"❌ Failed to batch log spins: {e}")
+                import traceback
+                traceback.print_exc()
+
+        # Start logging thread (non-daemon so it completes)
+        log_thread = threading.Thread(target=log_all_spins)
+        log_thread.start()
+
+        # Wait for logging to complete (max 10 seconds for even 100+ spins)
+        log_thread.join(timeout=10.0)
 
         # Update user spins
         new_available = available_spins - spin_count
