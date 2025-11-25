@@ -197,19 +197,21 @@
         }
 
         #result {
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-            padding: 30px 25px;
-            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 20px 18px;
+            border-radius: 20px;
             text-align: center;
-            font-size: 1.15em;
+            font-size: 1em;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             animation: resultPop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            border: 3px solid rgba(255,215,0,0.3);
+            border: 2px solid rgba(255,215,0,0.5);
             position: relative;
             overflow: hidden;
-            max-width: 90%;
-            width: 350px;
-            max-height: 80vh;
+            max-width: 85%;
+            width: 280px;
+            max-height: 70vh;
             overflow-y: auto;
         }
 
@@ -220,7 +222,7 @@
             left: -2px;
             right: -2px;
             bottom: -2px;
-            background: linear-gradient(45deg, #FFD700, #FFA500, #FFD700, #FFA500);
+            background: linear-gradient(45deg, rgba(255,215,0,0.3), rgba(255,165,0,0.3), rgba(255,215,0,0.3), rgba(255,165,0,0.3));
             background-size: 400% 400%;
             border-radius: 20px;
             z-index: -1;
@@ -247,8 +249,8 @@
         }
 
         .result-icon {
-            font-size: 3.5em;
-            margin-bottom: 10px;
+            font-size: 2.5em;
+            margin-bottom: 8px;
             animation: iconBounce 0.6s ease;
             display: block;
         }
@@ -261,48 +263,47 @@
         }
 
         .result-title {
-            font-size: 1.4em;
+            font-size: 1.1em;
             font-weight: bold;
-            margin-bottom: 15px;
-            background: linear-gradient(135deg, #0a4d3c, #1a365d);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            margin-bottom: 10px;
+            color: #ffffff;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
         }
 
         .result-prize {
-            font-size: 2.2em;
+            font-size: 1.6em;
             font-weight: bold;
             color: #FFD700;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-            margin: 15px 0;
+            text-shadow: 0 2px 10px rgba(255,215,0,0.8), 0 0 20px rgba(255,215,0,0.5);
+            margin: 10px 0;
             animation: prizeGlow 1.5s ease-in-out infinite;
         }
 
         @keyframes prizeGlow {
-            0%, 100% { filter: drop-shadow(0 0 5px #FFD700); }
-            50% { filter: drop-shadow(0 0 15px #FFD700); }
+            0%, 100% { filter: drop-shadow(0 0 8px #FFD700); }
+            50% { filter: drop-shadow(0 0 18px #FFD700); }
         }
 
         .result-subtitle {
-            color: #666;
-            font-size: 0.95em;
-            margin-top: 10px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.85em;
+            margin-top: 8px;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.5);
         }
 
         .suspense {
-            font-size: 1.3em;
+            font-size: 1.1em;
             color: #FFD700;
             font-weight: bold;
         }
 
         .close-result-btn {
-            margin-top: 20px;
-            padding: 12px 30px;
-            font-size: 1em;
+            margin-top: 15px;
+            padding: 10px 24px;
+            font-size: 0.9em;
             font-weight: bold;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             cursor: pointer;
@@ -697,9 +698,9 @@
                 console.log(`   \n   ✅ EXPECTED: Wheel stops with segment ${segmentIndex} at top`);
                 console.log(`   ✅ EXPECTED PRIZE: ${prizes[segmentIndex].display}\n`);
 
-                // Show suspense with glow effect in overlay
-                overlay.classList.add('show');
-                resultDiv.innerHTML = `<div class="suspense">🎰 Spinning... ${i + 1}/${results.length}</div>`;
+                // Don't show overlay during spinning - let users watch the wheel
+                // overlay.classList.add('show');
+                // resultDiv.innerHTML = `<div class="suspense">🎰 Spinning... ${i + 1}/${results.length}</div>`;
 
                 // Add spinning glow
                 wheel.classList.add('spinning');
