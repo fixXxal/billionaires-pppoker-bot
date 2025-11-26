@@ -18,7 +18,8 @@
       "Bash(/mnt/c/Program Files/Git/bin/git.exe push)",
       "Bash(/mnt/c/Program Files/Git/bin/git.exe add api/admin.py)",
       "Bash(/mnt/c/Program Files/Git/bin/git.exe commit -m \"Register all 18 models in Django admin panel\n\n- Add admin configurations for all models\n- Enable search, filtering, and sorting for each model\n- Add custom displays for better readability\n- Restrict CounterStatus to single instance\n- Ready for admin panel management\")",
-      "Bash(/mnt/c/Program Files/Git/bin/git.exe commit:*)"
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe commit:*)",
+      "Bash(pip3 list:*)"
     ],
     "deny": [],
     "ask": []
