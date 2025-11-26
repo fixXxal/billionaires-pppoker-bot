@@ -89,7 +89,7 @@ class SheetsToDjango:
 
             for row in records:
                 try:
-                    telegram_id = self.safe_int(row.get('Telegram ID'))
+                    telegram_id = self.safe_int(row.get('User ID'))
                     if not telegram_id:
                         continue
 
@@ -98,8 +98,8 @@ class SheetsToDjango:
                         defaults={
                             'username': row.get('Username', ''),
                             'pppoker_id': row.get('PPPoker ID', ''),
-                            'balance': self.safe_decimal(row.get('Balance', 0)),
-                            'club_balance': self.safe_decimal(row.get('Club Balance', 0)),
+                            'balance': 0,  # Balance will be calculated from deposits/withdrawals
+                            'club_balance': 0,
                         }
                     )
 
@@ -124,7 +124,7 @@ class SheetsToDjango:
 
             for row in records:
                 try:
-                    telegram_id = self.safe_int(row.get('Telegram ID'))
+                    telegram_id = self.safe_int(row.get('Admin ID'))
                     if not telegram_id:
                         continue
 
@@ -132,8 +132,8 @@ class SheetsToDjango:
                         telegram_id=telegram_id,
                         defaults={
                             'username': row.get('Username', ''),
-                            'role': row.get('Role', 'Admin'),
-                            'is_active': row.get('Active', 'Yes') == 'Yes',
+                            'role': 'Admin',
+                            'is_active': True,
                         }
                     )
 
@@ -153,21 +153,21 @@ class SheetsToDjango:
         """Import Payment Accounts from Google Sheets"""
         print("\n📥 Importing Payment Accounts...")
         try:
-            worksheet = self.sheets.spreadsheet.worksheet('Payment_Accounts')
+            worksheet = self.sheets.spreadsheet.worksheet('Payment Accounts')
             records = worksheet.get_all_records()
 
             for row in records:
                 try:
-                    method = row.get('Method', '')
-                    if not method:
+                    method = row.get('Payment Method', '')
+                    if not method or not row.get('Account Number'):
                         continue
 
                     account, created = PaymentAccount.objects.get_or_create(
                         method=method,
                         defaults={
-                            'account_name': row.get('Account Name', ''),
+                            'account_name': method,  # Use method as name if not provided
                             'account_number': row.get('Account Number', ''),
-                            'is_active': row.get('Active', 'Yes') == 'Yes',
+                            'is_active': True,
                         }
                     )
 
@@ -193,28 +193,33 @@ class SheetsToDjango:
             for row in records:
                 try:
                     telegram_id = self.safe_int(row.get('Telegram ID'))
-                    if not telegram_id:
+                    if not telegram_id or not row.get('Amount'):
                         continue
 
                     # Get or create user
                     user, _ = User.objects.get_or_create(
                         telegram_id=telegram_id,
-                        defaults={'username': row.get('Username', '')}
+                        defaults={'username': row.get('Telegram Username', '')}
                     )
+
+                    # Skip if deposit already exists (check by user, amount, and timestamp)
+                    timestamp = self.safe_datetime(row.get('Timestamp'))
+                    if not timestamp:
+                        continue
 
                     deposit, created = Deposit.objects.get_or_create(
                         user=user,
                         amount=self.safe_decimal(row.get('Amount', 0)),
-                        created_at=self.safe_datetime(row.get('Created At')) or datetime.now(),
+                        created_at=timestamp,
                         defaults={
-                            'method': row.get('Method', ''),
-                            'account_name': row.get('Account Name', ''),
-                            'proof_image_path': row.get('Proof Image', ''),
+                            'method': row.get('Payment Method', ''),
+                            'account_name': user.username,
+                            'proof_image_path': row.get('Payment Proof / TXID', ''),
                             'pppoker_id': row.get('PPPoker ID', ''),
                             'status': row.get('Status', 'Pending'),
-                            'approved_at': self.safe_datetime(row.get('Approved At')),
-                            'approved_by': self.safe_int(row.get('Approved By'), None),
-                            'rejection_reason': row.get('Rejection Reason', ''),
+                            'approved_at': None,
+                            'approved_by': None,
+                            'rejection_reason': '',
                         }
                     )
 
@@ -240,27 +245,31 @@ class SheetsToDjango:
             for row in records:
                 try:
                     telegram_id = self.safe_int(row.get('Telegram ID'))
-                    if not telegram_id:
+                    if not telegram_id or not row.get('Amount'):
                         continue
 
                     user, _ = User.objects.get_or_create(
                         telegram_id=telegram_id,
-                        defaults={'username': row.get('Username', '')}
+                        defaults={'username': row.get('Telegram Username', '')}
                     )
+
+                    timestamp = self.safe_datetime(row.get('Timestamp'))
+                    if not timestamp:
+                        continue
 
                     withdrawal, created = Withdrawal.objects.get_or_create(
                         user=user,
                         amount=self.safe_decimal(row.get('Amount', 0)),
-                        created_at=self.safe_datetime(row.get('Created At')) or datetime.now(),
+                        created_at=timestamp,
                         defaults={
-                            'method': row.get('Method', ''),
-                            'account_name': row.get('Account Name', ''),
-                            'account_number': row.get('Account Number', ''),
+                            'method': row.get('Payment Method', ''),
+                            'account_name': user.username,
+                            'account_number': row.get('Destination Account', ''),
                             'pppoker_id': row.get('PPPoker ID', ''),
                             'status': row.get('Status', 'Pending'),
-                            'approved_at': self.safe_datetime(row.get('Approved At')),
-                            'approved_by': self.safe_int(row.get('Approved By'), None),
-                            'rejection_reason': row.get('Rejection Reason', ''),
+                            'approved_at': None,
+                            'approved_by': None,
+                            'rejection_reason': '',
                         }
                     )
 
@@ -280,12 +289,12 @@ class SheetsToDjango:
         """Import Spin Users from Google Sheets"""
         print("\n📥 Importing Spin Users...")
         try:
-            worksheet = self.sheets.spreadsheet.worksheet('Spin_Users')
+            worksheet = self.sheets.spreadsheet.worksheet('Spin Users')
             records = worksheet.get_all_records()
 
             for row in records:
                 try:
-                    telegram_id = self.safe_int(row.get('Telegram ID'))
+                    telegram_id = self.safe_int(row.get('User ID'))
                     if not telegram_id:
                         continue
 
