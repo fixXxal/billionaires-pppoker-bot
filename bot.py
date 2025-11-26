@@ -17,9 +17,9 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-# DJANGO MIGRATION: Using Django API instead of direct Google Sheets
-# from sheets_manager import SheetsManager
+# Using Django API with Google Sheets compatibility layer
 from sheets_manager_compat import SheetsManagerCompat as SheetsManager
+from django_api import DjangoAPI
 import admin_panel
 import vision_api
 from spin_bot import SpinBot
@@ -84,12 +84,12 @@ async def send_counter_closed_message(update: Update) -> bool:
         )
         return True
     return False
-SPREADSHEET_NAME = os.getenv('SPREADSHEET_NAME', 'Billionaires_PPPoker_Bot')
-CREDENTIALS_FILE = os.getenv('GOOGLE_SHEETS_CREDENTIALS_FILE', 'credentials.json')
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
+DJANGO_API_URL = os.getenv('DJANGO_API_URL', 'http://localhost:8000/api')
 
-# Initialize Sheets Manager
-sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
+# Initialize Django API and Sheets Compat Layer
+api = DjangoAPI(DJANGO_API_URL)
+sheets = SheetsManager()  # Uses Django API internally
 
 # Initialize Spin Bot
 spin_bot = SpinBot(sheets, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
