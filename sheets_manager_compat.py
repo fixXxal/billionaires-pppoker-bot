@@ -304,7 +304,10 @@ class SheetsManagerCompat:
                     data['account_name'] = account_holder
                 self.api._put(f'payment-accounts/{account["id"]}/', data)
                 return True
-        return False
+
+        # Account doesn't exist, create it
+        self.api.create_payment_account(method, account_holder or 'Account Holder', account_number)
+        return True
 
     def clear_payment_account(self, method: str):
         """Clear payment account"""
