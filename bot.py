@@ -17,9 +17,8 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-# Using Django API with Google Sheets compatibility layer
-from sheets_manager_compat import SheetsManagerCompat as SheetsManager
-from django_api import DjangoAPI
+# Using Django API with compatibility layer (No Google Sheets files needed)
+from sheets_compat import SheetsCompat
 import admin_panel
 import vision_api
 from spin_bot import SpinBot
@@ -87,12 +86,14 @@ async def send_counter_closed_message(update: Update) -> bool:
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
 DJANGO_API_URL = os.getenv('DJANGO_API_URL', 'http://localhost:8000/api')
 
-# Initialize Django API and Sheets Compat Layer
+# Initialize Django API ONLY
 api = DjangoAPI(DJANGO_API_URL)
-sheets = SheetsManager()  # Uses Django API internally
 
-# Initialize Spin Bot
-spin_bot = SpinBot(sheets, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
+# Compatibility layer - makes Django API work like old sheets code
+sheets = SheetsCompat()
+
+# Initialize Spin Bot with Django API
+spin_bot = SpinBot(api, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
 
 # Conversation states
 (DEPOSIT_METHOD, DEPOSIT_AMOUNT, DEPOSIT_PPPOKER_ID, DEPOSIT_ACCOUNT_NAME,
