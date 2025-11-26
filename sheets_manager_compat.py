@@ -351,8 +351,11 @@ class SheetsManagerCompat:
 
     def is_counter_open(self) -> bool:
         """Check if counter is open"""
-        status = self.api.get_counter_status()
-        return status.get('is_open', False)
+        try:
+            status = self.api.get_counter_status()
+            return status.get('is_open', True)  # Default to True if not set
+        except:
+            return True  # Default to open if no status exists
 
     def get_counter_status(self) -> Dict:
         """Get counter status"""
