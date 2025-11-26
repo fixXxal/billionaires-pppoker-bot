@@ -8,7 +8,8 @@ from flask_cors import CORS
 import os
 import logging
 from dotenv import load_dotenv
-from sheets_manager import SheetsManager
+# DJANGO MIGRATION: Using Django API
+from sheets_manager_compat import SheetsManagerCompat as SheetsManager
 import pytz
 import asyncio
 from telegram import Bot
@@ -63,10 +64,10 @@ def get_managers():
 user_last_spin = defaultdict(float)
 SPIN_COOLDOWN = 1.0  # seconds
 
-# Simple cache for user data (1 minute TTL)
+# Simple cache for user data (5 minute TTL for better performance during high load)
 user_data_cache = {}
 cache_timestamps = {}
-CACHE_TTL = 60  # seconds
+CACHE_TTL = 300  # seconds (5 minutes - increased for launch to reduce Sheets API calls)
 
 
 def get_cached_user_data(user_id):

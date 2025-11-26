@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pgrep:*)"
+      "Bash(pgrep:*)",
+      "Bash(pip3 --version:*)",
+      "Bash(pip3 install:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(python manage.py:*)",
+      "Bash(python:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

@@ -9,7 +9,8 @@ from telegram.ext import (
     CommandHandler, CallbackQueryHandler, MessageHandler,
     ConversationHandler, ContextTypes, filters
 )
-from sheets_manager import SheetsManager
+# DJANGO MIGRATION: Using Django API
+from sheets_manager_compat import SheetsManagerCompat as SheetsManager
 from dotenv import load_dotenv
 
 load_dotenv()

@@ -1,0 +1,452 @@
+"""
+Django API Wrapper for Telegram Bot
+Provides simple interface to interact with Django REST API
+Replaces direct Google Sheets access with fast database queries
+"""
+
+import os
+import requests
+from typing import Dict, List, Optional, Any
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Get Django API URL from environment or use default
+DJANGO_API_URL = os.getenv('DJANGO_API_URL', 'http://localhost:8000/api')
+
+
+class DjangoAPI:
+    """Wrapper class for Django REST API endpoints"""
+
+    def __init__(self, base_url: str = DJANGO_API_URL):
+        self.base_url = base_url.rstrip('/')
+        self.session = requests.Session()
+
+    def _get(self, endpoint: str, params: Optional[Dict] = None) -> Any:
+        """Make GET request to API"""
+        url = f"{self.base_url}/{endpoint}"
+        response = self.session.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        return response.json()
+
+    def _post(self, endpoint: str, data: Optional[Dict] = None) -> Any:
+        """Make POST request to API"""
+        url = f"{self.base_url}/{endpoint}"
+        response = self.session.post(url, json=data, timeout=10)
+        response.raise_for_status()
+        return response.json()
+
+    def _put(self, endpoint: str, data: Optional[Dict] = None) -> Any:
+        """Make PUT request to API"""
+        url = f"{self.base_url}/{endpoint}"
+        response = self.session.put(url, json=data, timeout=10)
+        response.raise_for_status()
+        return response.json()
+
+    def _delete(self, endpoint: str) -> Any:
+        """Make DELETE request to API"""
+        url = f"{self.base_url}/{endpoint}"
+        response = self.session.delete(url, timeout=10)
+        response.raise_for_status()
+        return response.json() if response.text else {}
+
+    # ==================== USER METHODS ====================
+
+    def get_user_by_telegram_id(self, telegram_id: int) -> Optional[Dict]:
+        """Get user by Telegram ID"""
+        try:
+            return self._get(f'users/by_telegram_id/', params={'telegram_id': telegram_id})
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                return None
+            raise
+
+    def create_user(self, telegram_id: int, username: str, pppoker_id: str = '') -> Dict:
+        """Create or get user by Telegram ID"""
+        data = {
+            'telegram_id': telegram_id,
+            'username': username,
+            'pppoker_id': pppoker_id
+        }
+        result = self._post('users/by_telegram_id/', data)
+        return result.get('user')
+
+    def get_or_create_user(self, telegram_id: int, username: str, pppoker_id: str = '') -> Dict:
+        """Get existing user or create new one"""
+        return self.create_user(telegram_id, username, pppoker_id)
+
+    def update_user_balance(self, user_id: int, new_balance: float) -> Dict:
+        """Update user's balance"""
+        data = {'balance': new_balance}
+        return self._put(f'users/{user_id}/', data)
+
+    def get_all_users(self) -> List[Dict]:
+        """Get all users"""
+        return self._get('users/')
+
+    # ==================== DEPOSIT METHODS ====================
+
+    def create_deposit(self, user_id: int, amount: float, method: str, account_name: str,
+                      proof_image_path: str, pppoker_id: str) -> Dict:
+        """Create new deposit request"""
+        data = {
+            'user': user_id,
+            'amount': amount,
+            'method': method,
+            'account_name': account_name,
+            'proof_image_path': proof_image_path,
+            'pppoker_id': pppoker_id,
+            'status': 'Pending'
+        }
+        return self._post('deposits/', data)
+
+    def get_pending_deposits(self) -> List[Dict]:
+        """Get all pending deposits"""
+        return self._get('deposits/pending/')
+
+    def approve_deposit(self, deposit_id: int, admin_id: int) -> Dict:
+        """Approve a deposit"""
+        data = {'admin_id': admin_id}
+        return self._post(f'deposits/{deposit_id}/approve/', data)
+
+    def reject_deposit(self, deposit_id: int, admin_id: int, reason: str = '') -> Dict:
+        """Reject a deposit"""
+        data = {'admin_id': admin_id, 'reason': reason}
+        return self._post(f'deposits/{deposit_id}/reject/', data)
+
+    def get_all_deposits(self) -> List[Dict]:
+        """Get all deposits"""
+        return self._get('deposits/')
+
+    # ==================== WITHDRAWAL METHODS ====================
+
+    def create_withdrawal(self, user_id: int, amount: float, method: str,
+                         account_name: str, account_number: str, pppoker_id: str) -> Dict:
+        """Create new withdrawal request"""
+        data = {
+            'user': user_id,
+            'amount': amount,
+            'method': method,
+            'account_name': account_name,
+            'account_number': account_number,
+            'pppoker_id': pppoker_id,
+            'status': 'Pending'
+        }
+        return self._post('withdrawals/', data)
+
+    def get_pending_withdrawals(self) -> List[Dict]:
+        """Get all pending withdrawals"""
+        return self._get('withdrawals/pending/')
+
+    def approve_withdrawal(self, withdrawal_id: int, admin_id: int) -> Dict:
+        """Approve a withdrawal"""
+        data = {'admin_id': admin_id}
+        return self._post(f'withdrawals/{withdrawal_id}/approve/', data)
+
+    def reject_withdrawal(self, withdrawal_id: int, admin_id: int, reason: str = '') -> Dict:
+        """Reject a withdrawal"""
+        data = {'admin_id': admin_id, 'reason': reason}
+        return self._post(f'withdrawals/{withdrawal_id}/reject/', data)
+
+    def get_all_withdrawals(self) -> List[Dict]:
+        """Get all withdrawals"""
+        return self._get('withdrawals/')
+
+    # ==================== SPIN USER METHODS ====================
+
+    def get_or_create_spin_user(self, telegram_id: int) -> Dict:
+        """Get or create spin user by Telegram ID"""
+        data = {'telegram_id': telegram_id}
+        result = self._post('spin-users/by_telegram_id/', data)
+        return result.get('spin_user')
+
+    def add_spins(self, spin_user_id: int, spins: int) -> Dict:
+        """Add spins to user"""
+        data = {'spins': spins}
+        return self._post(f'spin-users/{spin_user_id}/add_spins/', data)
+
+    def get_spin_user(self, spin_user_id: int) -> Dict:
+        """Get spin user by ID"""
+        return self._get(f'spin-users/{spin_user_id}/')
+
+    # ==================== SPIN HISTORY METHODS ====================
+
+    def process_spin(self, telegram_id: int, results: List[Dict]) -> Dict:
+        """Process one or more spins"""
+        data = {
+            'telegram_id': telegram_id,
+            'spin_count': len(results),
+            'results': results
+        }
+        return self._post('spin-history/process_spin/', data)
+
+    def get_pending_spin_rewards(self) -> List[Dict]:
+        """Get all pending spin rewards"""
+        return self._get('spin-history/pending/')
+
+    def approve_spin_reward(self, spin_id: int, admin_id: int) -> Dict:
+        """Approve a spin reward"""
+        data = {'admin_id': admin_id}
+        return self._post(f'spin-history/{spin_id}/approve/', data)
+
+    def get_all_spin_history(self) -> List[Dict]:
+        """Get all spin history"""
+        return self._get('spin-history/')
+
+    # ==================== JOIN REQUEST METHODS ====================
+
+    def create_join_request(self, user_id: int, pppoker_id: str) -> Dict:
+        """Create new join request"""
+        data = {
+            'user': user_id,
+            'pppoker_id': pppoker_id,
+            'status': 'Pending'
+        }
+        return self._post('join-requests/', data)
+
+    def get_pending_join_requests(self) -> List[Dict]:
+        """Get all pending join requests"""
+        return self._get('join-requests/pending/')
+
+    def get_all_join_requests(self) -> List[Dict]:
+        """Get all join requests"""
+        return self._get('join-requests/')
+
+    # ==================== SEAT REQUEST METHODS ====================
+
+    def create_seat_request(self, user_id: int, amount: float, slip_image_path: str, pppoker_id: str) -> Dict:
+        """Create new seat request"""
+        data = {
+            'user': user_id,
+            'amount': amount,
+            'slip_image_path': slip_image_path,
+            'pppoker_id': pppoker_id,
+            'status': 'Pending'
+        }
+        return self._post('seat-requests/', data)
+
+    def get_pending_seat_requests(self) -> List[Dict]:
+        """Get all pending seat requests"""
+        return self._get('seat-requests/pending/')
+
+    def get_all_seat_requests(self) -> List[Dict]:
+        """Get all seat requests"""
+        return self._get('seat-requests/')
+
+    # ==================== CASHBACK REQUEST METHODS ====================
+
+    def create_cashback_request(self, user_id: int, week_start: str, week_end: str,
+                               investment_amount: float, cashback_amount: float,
+                               cashback_percentage: float, pppoker_id: str) -> Dict:
+        """Create new cashback request"""
+        data = {
+            'user': user_id,
+            'week_start': week_start,
+            'week_end': week_end,
+            'investment_amount': investment_amount,
+            'cashback_amount': cashback_amount,
+            'cashback_percentage': cashback_percentage,
+            'pppoker_id': pppoker_id,
+            'status': 'Pending'
+        }
+        return self._post('cashback-requests/', data)
+
+    def get_pending_cashback_requests(self) -> List[Dict]:
+        """Get all pending cashback requests"""
+        return self._get('cashback-requests/pending/')
+
+    def get_all_cashback_requests(self) -> List[Dict]:
+        """Get all cashback requests"""
+        return self._get('cashback-requests/')
+
+    # ==================== PAYMENT ACCOUNT METHODS ====================
+
+    def get_active_payment_accounts(self) -> List[Dict]:
+        """Get all active payment accounts"""
+        return self._get('payment-accounts/active/')
+
+    def create_payment_account(self, method: str, account_name: str, account_number: str) -> Dict:
+        """Create new payment account"""
+        data = {
+            'method': method,
+            'account_name': account_name,
+            'account_number': account_number,
+            'is_active': True
+        }
+        return self._post('payment-accounts/', data)
+
+    def get_all_payment_accounts(self) -> List[Dict]:
+        """Get all payment accounts"""
+        return self._get('payment-accounts/')
+
+    # ==================== ADMIN METHODS ====================
+
+    def is_admin(self, telegram_id: int) -> bool:
+        """Check if telegram_id is an admin"""
+        result = self._get('admins/check/', params={'telegram_id': telegram_id})
+        return result.get('is_admin', False)
+
+    def create_admin(self, telegram_id: int, username: str, role: str = 'Admin') -> Dict:
+        """Create new admin"""
+        data = {
+            'telegram_id': telegram_id,
+            'username': username,
+            'role': role,
+            'is_active': True
+        }
+        return self._post('admins/', data)
+
+    def get_all_admins(self) -> List[Dict]:
+        """Get all admins"""
+        return self._get('admins/')
+
+    # ==================== COUNTER STATUS METHODS ====================
+
+    def get_counter_status(self) -> Dict:
+        """Get current counter status"""
+        return self._get('counter-status/current/')
+
+    def toggle_counter(self, admin_id: int) -> Dict:
+        """Toggle counter open/close"""
+        data = {'admin_id': admin_id}
+        return self._post('counter-status/toggle/', data)
+
+    # ==================== PROMO CODE METHODS ====================
+
+    def get_active_promo_codes(self) -> List[Dict]:
+        """Get all active promo codes"""
+        return self._get('promo-codes/active/')
+
+    def create_promo_code(self, code: str, percentage: float, start_date: str, end_date: str) -> Dict:
+        """Create new promo code"""
+        data = {
+            'code': code,
+            'percentage': percentage,
+            'start_date': start_date,
+            'end_date': end_date,
+            'is_active': True
+        }
+        return self._post('promo-codes/', data)
+
+    def get_all_promo_codes(self) -> List[Dict]:
+        """Get all promo codes"""
+        return self._get('promo-codes/')
+
+    # ==================== SUPPORT MESSAGE METHODS ====================
+
+    def create_support_message(self, user_id: int, message: str, is_from_user: bool = True,
+                              replied_by: Optional[int] = None) -> Dict:
+        """Create new support message"""
+        data = {
+            'user': user_id,
+            'message': message,
+            'is_from_user': is_from_user,
+            'replied_by': replied_by
+        }
+        return self._post('support-messages/', data)
+
+    def get_all_support_messages(self) -> List[Dict]:
+        """Get all support messages"""
+        return self._get('support-messages/')
+
+    # ==================== USER CREDIT METHODS ====================
+
+    def create_user_credit(self, user_id: int, amount: float, credit_type: str,
+                          description: str, created_by: int) -> Dict:
+        """Create new user credit record"""
+        data = {
+            'user': user_id,
+            'amount': amount,
+            'credit_type': credit_type,
+            'description': description,
+            'created_by': created_by
+        }
+        return self._post('user-credits/', data)
+
+    def get_all_user_credits(self) -> List[Dict]:
+        """Get all user credits"""
+        return self._get('user-credits/')
+
+    # ==================== EXCHANGE RATE METHODS ====================
+
+    def get_active_exchange_rates(self) -> List[Dict]:
+        """Get all active exchange rates"""
+        return self._get('exchange-rates/active/')
+
+    def create_exchange_rate(self, currency_from: str, currency_to: str, rate: float) -> Dict:
+        """Create new exchange rate"""
+        data = {
+            'currency_from': currency_from,
+            'currency_to': currency_to,
+            'rate': rate,
+            'is_active': True
+        }
+        return self._post('exchange-rates/', data)
+
+    def get_all_exchange_rates(self) -> List[Dict]:
+        """Get all exchange rates"""
+        return self._get('exchange-rates/')
+
+    # ==================== 50-50 INVESTMENT METHODS ====================
+
+    def get_active_investments(self) -> List[Dict]:
+        """Get all active investments"""
+        return self._get('investments/active/')
+
+    def create_investment(self, user_id: int, investment_amount: float, start_date: str,
+                         notes: str = '') -> Dict:
+        """Create new 50-50 investment"""
+        data = {
+            'user': user_id,
+            'investment_amount': investment_amount,
+            'profit_share': 0,
+            'loss_share': 0,
+            'status': 'Active',
+            'start_date': start_date,
+            'notes': notes
+        }
+        return self._post('investments/', data)
+
+    def get_all_investments(self) -> List[Dict]:
+        """Get all investments"""
+        return self._get('investments/')
+
+    # ==================== CLUB BALANCE METHODS ====================
+
+    def create_club_balance(self, user_id: int, balance: float, notes: str = '') -> Dict:
+        """Create or update club balance"""
+        data = {
+            'user': user_id,
+            'balance': balance,
+            'notes': notes
+        }
+        return self._post('club-balances/', data)
+
+    def get_all_club_balances(self) -> List[Dict]:
+        """Get all club balances"""
+        return self._get('club-balances/')
+
+    # ==================== INVENTORY TRANSACTION METHODS ====================
+
+    def create_inventory_transaction(self, item_name: str, quantity: int, transaction_type: str,
+                                    price_per_unit: float, total_amount: float,
+                                    created_by: int, notes: str = '') -> Dict:
+        """Create new inventory transaction"""
+        data = {
+            'item_name': item_name,
+            'quantity': quantity,
+            'transaction_type': transaction_type,
+            'price_per_unit': price_per_unit,
+            'total_amount': total_amount,
+            'notes': notes,
+            'created_by': created_by
+        }
+        return self._post('inventory-transactions/', data)
+
+    def get_all_inventory_transactions(self) -> List[Dict]:
+        """Get all inventory transactions"""
+        return self._get('inventory-transactions/')
+
+
+# Create singleton instance
+api = DjangoAPI()

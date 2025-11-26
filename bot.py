@@ -17,7 +17,9 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sheets_manager import SheetsManager
+# DJANGO MIGRATION: Using Django API instead of direct Google Sheets
+# from sheets_manager import SheetsManager
+from sheets_manager_compat import SheetsManagerCompat as SheetsManager
 import admin_panel
 import vision_api
 from spin_bot import SpinBot
