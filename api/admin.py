@@ -6,9 +6,10 @@ Registers all models to the admin panel for easy management
 from django.contrib import admin
 from .models import (
     User, Deposit, Withdrawal, SpinUser, SpinHistory,
-    PaymentAccount, CounterStatus, Admin, ClubJoinRequest,
-    ClubMember, ClubDeposit, ClubWithdrawal, Transaction,
-    Notification, SystemLog, BotConfig, DepositSlip, WithdrawalProof
+    PaymentAccount, CounterStatus, Admin, JoinRequest,
+    SeatRequest, CashbackRequest, PromoCode, SupportMessage,
+    UserCredit, ExchangeRate, FiftyFiftyInvestment, ClubBalance,
+    InventoryTransaction
 )
 
 
@@ -81,8 +82,8 @@ class AdminUserAdmin(admin.ModelAdmin):
     ordering = ['-created_at']
 
 
-@admin.register(ClubJoinRequest)
-class ClubJoinRequestAdmin(admin.ModelAdmin):
+@admin.register(JoinRequest)
+class JoinRequestAdmin(admin.ModelAdmin):
     list_display = ['id', 'user', 'pppoker_id', 'status', 'created_at', 'approved_by']
     list_filter = ['status', 'created_at']
     search_fields = ['user__username', 'pppoker_id']
@@ -90,16 +91,17 @@ class ClubJoinRequestAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'approved_at']
 
 
-@admin.register(ClubMember)
-class ClubMemberAdmin(admin.ModelAdmin):
-    list_display = ['user', 'pppoker_id', 'joined_at', 'is_active']
-    list_filter = ['is_active', 'joined_at']
-    search_fields = ['user__username', 'pppoker_id']
-    ordering = ['-joined_at']
+@admin.register(SeatRequest)
+class SeatRequestAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'status', 'created_at', 'approved_by']
+    list_filter = ['status', 'created_at']
+    search_fields = ['user__username']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at', 'approved_at']
 
 
-@admin.register(ClubDeposit)
-class ClubDepositAdmin(admin.ModelAdmin):
+@admin.register(CashbackRequest)
+class CashbackRequestAdmin(admin.ModelAdmin):
     list_display = ['id', 'user', 'amount', 'status', 'created_at', 'approved_by']
     list_filter = ['status', 'created_at']
     search_fields = ['user__username']
@@ -107,73 +109,57 @@ class ClubDepositAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'approved_at']
 
 
-@admin.register(ClubWithdrawal)
-class ClubWithdrawalAdmin(admin.ModelAdmin):
-    list_display = ['id', 'user', 'amount', 'status', 'created_at', 'approved_by']
+@admin.register(PromoCode)
+class PromoCodeAdmin(admin.ModelAdmin):
+    list_display = ['code', 'bonus_amount', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['code']
+    ordering = ['-created_at']
+
+
+@admin.register(SupportMessage)
+class SupportMessageAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'status', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['user__username', 'message']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at', 'resolved_at']
+
+
+@admin.register(UserCredit)
+class UserCreditAdmin(admin.ModelAdmin):
+    list_display = ['user', 'credit_amount', 'updated_at']
+    search_fields = ['user__username']
+    ordering = ['-updated_at']
+
+
+@admin.register(ExchangeRate)
+class ExchangeRateAdmin(admin.ModelAdmin):
+    list_display = ['from_currency', 'to_currency', 'rate', 'updated_at']
+    list_filter = ['from_currency', 'to_currency']
+    ordering = ['-updated_at']
+
+
+@admin.register(FiftyFiftyInvestment)
+class FiftyFiftyInvestmentAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'investment_amount', 'status', 'created_at']
     list_filter = ['status', 'created_at']
     search_fields = ['user__username']
     ordering = ['-created_at']
-    readonly_fields = ['created_at', 'approved_at']
+    readonly_fields = ['created_at', 'settled_at']
 
 
-@admin.register(Transaction)
-class TransactionAdmin(admin.ModelAdmin):
-    list_display = ['id', 'user', 'transaction_type', 'amount', 'balance_type', 'timestamp']
-    list_filter = ['transaction_type', 'balance_type', 'timestamp']
+@admin.register(ClubBalance)
+class ClubBalanceAdmin(admin.ModelAdmin):
+    list_display = ['user', 'balance', 'updated_at']
+    search_fields = ['user__username']
+    ordering = ['-updated_at']
+
+
+@admin.register(InventoryTransaction)
+class InventoryTransactionAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'transaction_type', 'amount', 'timestamp']
+    list_filter = ['transaction_type', 'timestamp']
     search_fields = ['user__username', 'description']
     ordering = ['-timestamp']
     readonly_fields = ['timestamp']
-
-
-@admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'user', 'message_preview', 'is_read', 'created_at']
-    list_filter = ['is_read', 'created_at']
-    search_fields = ['user__username', 'message']
-    ordering = ['-created_at']
-    readonly_fields = ['created_at']
-
-    def message_preview(self, obj):
-        return obj.message[:50] + '...' if len(obj.message) > 50 else obj.message
-    message_preview.short_description = 'Message'
-
-
-@admin.register(SystemLog)
-class SystemLogAdmin(admin.ModelAdmin):
-    list_display = ['id', 'log_type', 'message_preview', 'created_at']
-    list_filter = ['log_type', 'created_at']
-    search_fields = ['message', 'metadata']
-    ordering = ['-created_at']
-    readonly_fields = ['created_at']
-
-    def message_preview(self, obj):
-        return obj.message[:100] + '...' if len(obj.message) > 100 else obj.message
-    message_preview.short_description = 'Message'
-
-
-@admin.register(BotConfig)
-class BotConfigAdmin(admin.ModelAdmin):
-    list_display = ['key', 'value_preview', 'updated_at']
-    search_fields = ['key', 'value']
-    ordering = ['key']
-    readonly_fields = ['updated_at']
-
-    def value_preview(self, obj):
-        return obj.value[:50] + '...' if len(obj.value) > 50 else obj.value
-    value_preview.short_description = 'Value'
-
-
-@admin.register(DepositSlip)
-class DepositSlipAdmin(admin.ModelAdmin):
-    list_display = ['id', 'deposit', 'file_name', 'uploaded_at']
-    search_fields = ['deposit__user__username', 'file_name']
-    ordering = ['-uploaded_at']
-    readonly_fields = ['uploaded_at']
-
-
-@admin.register(WithdrawalProof)
-class WithdrawalProofAdmin(admin.ModelAdmin):
-    list_display = ['id', 'withdrawal', 'file_name', 'uploaded_at']
-    search_fields = ['withdrawal__user__username', 'file_name']
-    ordering = ['-uploaded_at']
-    readonly_fields = ['uploaded_at']
