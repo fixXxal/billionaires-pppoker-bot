@@ -9,7 +9,13 @@
       "Bash(pip install:*)",
       "Bash(python manage.py:*)",
       "Bash(python:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe add billionaires_backend/settings.py)",
+      "Bash(/mnt/c/Program\\ Files/Git/bin/git.exe commit:*)",
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe push)"
     ],
     "deny": [],
     "ask": []
