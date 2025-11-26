@@ -165,6 +165,18 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
+# CSRF Trusted Origins - Fix CSRF 403 errors on Railway
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.railway.app',
+    'https://billionaires-mv.up.railway.app',
+]
+
+# Session and CSRF settings for production
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+
 # Logging Configuration
 LOGGING = {
     'version': 1,
