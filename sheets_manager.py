@@ -1424,9 +1424,10 @@ class SheetsManager:
             # Club gives out: withdrawals + spins + bonuses + cashback + credit seats
             club_profit = total_deposits - (total_withdrawals + total_spin_rewards + total_bonuses + total_cashback + total_credit_seats)
 
-            # User's loss is club's profit (negative club profit = user loss)
-            user_loss = -club_profit if club_profit < 0 else 0
-            user_profit = club_profit if club_profit > 0 else 0
+            # User's loss is club's profit (positive club profit = user lost money)
+            # User's profit is club's loss (negative club profit = user gained money)
+            user_loss = club_profit if club_profit > 0 else 0
+            user_profit = -club_profit if club_profit < 0 else 0
 
             return {
                 'total_deposits': total_deposits,
@@ -1662,9 +1663,10 @@ class SheetsManager:
         # AND must still be at an overall loss
         effective_new_deposits = current_deposits - last_claim_deposits
 
-        # User is at a REAL loss if club_profit is negative
-        # This means: deposits < (withdrawals + spins + bonuses + cashback)
-        user_at_loss = club_profit < 0
+        # User is at a REAL loss if club_profit is POSITIVE
+        # This means: deposits > (withdrawals + spins + bonuses + cashback)
+        # When club made profit, user lost money
+        user_at_loss = club_profit > 0
 
         # Effective deposits must exceed minimum requirement
         has_min_effective_deposits = effective_new_deposits >= min_deposit
