@@ -280,8 +280,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [KeyboardButton("📋 Admin Panel"), KeyboardButton("🎰 Spin Management")],
             [KeyboardButton("📊 View Deposits"), KeyboardButton("💸 View Withdrawals")],
-            [KeyboardButton("🎮 View Join Requests"), KeyboardButton("💳 Payment Accounts")],
-            [KeyboardButton("🎲 Free Spins"), KeyboardButton("👤 User Mode")]
+            [KeyboardButton("🎮 View Join Requests"), KeyboardButton("💳 Payment Accounts")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -297,8 +296,6 @@ Welcome back, Admin {user.first_name}! 👨‍💼
 💸 <b>View Withdrawals</b> - Manage withdrawal requests
 🎮 <b>View Join Requests</b> - Approve/reject club joins
 💳 <b>Payment Accounts</b> - Update payment details
-🎲 <b>Free Spins</b> - Play spin wheel
-👤 <b>User Mode</b> - Switch to regular user view
 
 Select an option to get started:
 """
@@ -339,33 +336,6 @@ Please select an option from the menu below:
             reply_markup=channel_markup,
             parse_mode='HTML'
         )
-
-
-# User Mode - Switch admin to user view
-async def user_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Switch admin to regular user mode"""
-    user = update.effective_user
-
-    if not is_admin(user.id):
-        await update.message.reply_text("This command is for admins only.")
-        return
-
-    keyboard = [
-        [KeyboardButton("💰 Deposit"), KeyboardButton("💸 Withdrawal")],
-        [KeyboardButton("🪑 Seat"), KeyboardButton("🎮 Join Club")],
-        [KeyboardButton("🎲 Free Spins"), KeyboardButton("💬 Live Support")],
-        [KeyboardButton("📊 My Info"), KeyboardButton("❓ Help")],
-        [KeyboardButton("🔙 Back to Admin")]
-    ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-    await update.message.reply_text(
-        "👤 <b>Switched to User Mode</b>\n\n"
-        "You're now viewing the bot as a regular user.\n"
-        "Use <b>🔙 Back to Admin</b> to return to admin panel.",
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
 
 
 # Help Command
@@ -7219,10 +7189,6 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return await admin_panel.admin_view_joins(update, context)
     elif text == "💳 Payment Accounts" and is_admin(user_id):
         return await admin_panel.admin_view_accounts(update, context)
-    elif text == "👤 User Mode":
-        return await user_mode(update, context)
-    elif text == "🔙 Back to Admin":
-        return await start(update, context)
     # Regular user menu buttons
     elif text == "💰 Deposit":
         return await deposit_start(update, context)
