@@ -19,9 +19,12 @@ class SheetsManagerCompat:
 
     # ==================== USER METHODS ====================
 
-    def create_or_update_user(self, telegram_id: int, username: str, pppoker_id: str = ''):
+    def create_or_update_user(self, telegram_id: int, username: str, first_name: str = '', last_name: str = ''):
         """Create or update user"""
-        user = self.api.get_or_create_user(telegram_id, username, pppoker_id)
+        # Combine first_name and last_name for username if username is empty
+        if not username:
+            username = f"{first_name} {last_name}".strip() or str(telegram_id)
+        user = self.api.get_or_create_user(telegram_id, username, '')
         return user
 
     def get_user(self, telegram_id: int) -> Optional[Dict]:
