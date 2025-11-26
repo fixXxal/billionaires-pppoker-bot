@@ -492,3 +492,51 @@ class InventoryTransaction(models.Model):
 
     def __str__(self):
         return f"Inventory {self.id} - {self.item_name} - {self.transaction_type} - {self.quantity}"
+
+
+class CashbackEligibility(models.Model):
+    """Cashback Eligibility model - tracks which users received cashback from promotions"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cashback_eligibility')
+    promotion = models.ForeignKey(PromoCode, on_delete=models.CASCADE, related_name='cashback_recipients')
+    cashback_request = models.ForeignKey(CashbackRequest, on_delete=models.SET_NULL, null=True, blank=True, related_name='eligibility_records')
+    loss_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    cashback_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    received_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, default='')
+    synced_to_sheets = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'cashback_eligibility'
+        indexes = [
+            models.Index(fields=['user', 'promotion']),
+            models.Index(fields=['received_at']),
+            models.Index(fields=['synced_to_sheets']),
+        ]
+        ordering = ['-received_at']
+
+    def __str__(self):
+        return f"Cashback {self.id} - {self.user.username} - {self.cashback_amount} from {self.promotion.code}"
+
+
+class PromotionEligibility(models.Model):
+    """Promotion Eligibility model - tracks which users received deposit bonuses from promotions"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='promotion_eligibility')
+    promotion = models.ForeignKey(PromoCode, on_delete=models.CASCADE, related_name='bonus_recipients')
+    deposit = models.ForeignKey(Deposit, on_delete=models.SET_NULL, null=True, blank=True, related_name='eligibility_records')
+    deposit_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    bonus_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    received_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, default='')
+    synced_to_sheets = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'promotion_eligibility'
+        indexes = [
+            models.Index(fields=['user', 'promotion']),
+            models.Index(fields=['received_at']),
+            models.Index(fields=['synced_to_sheets']),
+        ]
+        ordering = ['-received_at']
+
+    def __str__(self):
+        return f"Bonus {self.id} - {self.user.username} - {self.bonus_amount} from {self.promotion.code}"

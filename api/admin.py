@@ -9,7 +9,7 @@ from .models import (
     PaymentAccount, CounterStatus, Admin, JoinRequest,
     SeatRequest, CashbackRequest, PromoCode, SupportMessage,
     UserCredit, ExchangeRate, FiftyFiftyInvestment, ClubBalance,
-    InventoryTransaction
+    InventoryTransaction, CashbackEligibility, PromotionEligibility
 )
 
 
@@ -163,3 +163,21 @@ class InventoryTransactionAdmin(admin.ModelAdmin):
     search_fields = ['item_name', 'notes']
     ordering = ['-created_at']
     readonly_fields = ['created_at']
+
+
+@admin.register(CashbackEligibility)
+class CashbackEligibilityAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'promotion', 'loss_amount', 'cashback_amount', 'received_at']
+    list_filter = ['promotion', 'received_at']
+    search_fields = ['user__username', 'user__telegram_id', 'promotion__code']
+    ordering = ['-received_at']
+    readonly_fields = ['received_at']
+
+
+@admin.register(PromotionEligibility)
+class PromotionEligibilityAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'promotion', 'deposit_amount', 'bonus_amount', 'received_at']
+    list_filter = ['promotion', 'received_at']
+    search_fields = ['user__username', 'user__telegram_id', 'promotion__code']
+    ordering = ['-received_at']
+    readonly_fields = ['received_at']

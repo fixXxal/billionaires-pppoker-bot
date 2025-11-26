@@ -1,21 +1,36 @@
-Flask==3.0.0
-flask-cors==4.0.0
-python-dotenv==1.0.0
-gspread==5.12.0
-oauth2client==4.1.3
-gunicorn==21.2.0
-pytz==2024.1
-python-telegram-bot==21.5
-apscheduler==3.10.4
-Pillow==10.1.0
-google-cloud-vision==3.4.5
-requests==2.31.0
+# Core Framework
 Django==5.1.3
 djangorestframework==3.15.2
-psycopg2-binary==2.9.9
 django-cors-headers==4.3.1
+whitenoise==6.11.0
+
+# Database
+psycopg2-binary==2.9.9
+dj-database-url==2.1.0
+
+# Telegram Bot
+python-telegram-bot==21.5
+python-dotenv==1.0.0
+
+# Web Server
+gunicorn==21.2.0
+
+# Image Processing
+Pillow==10.1.0
+google-cloud-vision==3.4.5
+
+# Utilities
+requests==2.31.0
+pytz==2024.1
+
+# Background Tasks (if needed)
 celery==5.3.4
 redis==5.0.1
-dj-database-url==2.1.0
-schedule==1.2.0
-whitenoise==6.11.0
+apscheduler==3.10.4
+
+# Removed - No longer using Google Sheets:
+# gspread==5.12.0
+# oauth2client==4.1.3
+# schedule==1.2.0
+# Flask==3.0.0
+# flask-cors==4.0.0

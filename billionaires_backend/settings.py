@@ -222,8 +222,8 @@ LOGGING = {
     },
 }
 
-# Google Sheets Sync Configuration
-SHEETS_SYNC_ENABLED = os.getenv('SHEETS_SYNC_ENABLED', 'True') == 'True'
-SHEETS_SYNC_INTERVAL = int(os.getenv('SHEETS_SYNC_INTERVAL', '30'))  # seconds
-SPREADSHEET_NAME = os.getenv('SPREADSHEET_NAME', 'Billionaires_PPPoker_Bot')
-GOOGLE_SHEETS_CREDENTIALS_FILE = os.getenv('GOOGLE_SHEETS_CREDENTIALS_FILE', 'credentials.json')
+# Google Sheets Sync Configuration - DISABLED (Using Django Only)
+SHEETS_SYNC_ENABLED = False  # Google Sheets sync is disabled - using Django database only
+# SHEETS_SYNC_INTERVAL = int(os.getenv('SHEETS_SYNC_INTERVAL', '30'))  # seconds
+# SPREADSHEET_NAME = os.getenv('SPREADSHEET_NAME', 'Billionaires_PPPoker_Bot')
+# GOOGLE_SHEETS_CREDENTIALS_FILE = os.getenv('GOOGLE_SHEETS_CREDENTIALS_FILE', 'credentials.json')
