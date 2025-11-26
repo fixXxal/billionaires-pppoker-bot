@@ -8,8 +8,8 @@ from flask_cors import CORS
 import os
 import logging
 from dotenv import load_dotenv
-# DJANGO MIGRATION: Using Django API
-from sheets_manager_compat import SheetsManagerCompat as SheetsManager
+# DJANGO MIGRATION: Using Django API only (No Google Sheets)
+from sheets_compat import SheetsCompat
 import pytz
 import asyncio
 from telegram import Bot
@@ -35,8 +35,6 @@ CORS(app)
 # Configuration
 ADMIN_USER_ID = int(os.getenv('ADMIN_USER_ID'))
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
-SPREADSHEET_NAME = os.getenv('SPREADSHEET_NAME', 'Billionaires_PPPoker_Bot')
-CREDENTIALS_FILE = os.getenv('GOOGLE_SHEETS_CREDENTIALS_FILE', 'credentials.json')
 BOT_TOKEN = os.getenv('BOT_TOKEN') or os.getenv('TELEGRAM_BOT_TOKEN')
 
 # Verify critical config
@@ -55,7 +53,7 @@ def get_managers():
     """Lazy load sheets and bot"""
     global sheets, bot
     if sheets is None:
-        sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
+        sheets = SheetsCompat()
         bot = Bot(token=BOT_TOKEN)
     return sheets, bot
 

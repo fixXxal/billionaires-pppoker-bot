@@ -9,18 +9,16 @@ from telegram.ext import (
     CommandHandler, CallbackQueryHandler, MessageHandler,
     ConversationHandler, ContextTypes, filters
 )
-# DJANGO MIGRATION: Using Django API
-from sheets_manager_compat import SheetsManagerCompat as SheetsManager
+# DJANGO MIGRATION: Using Django API only (No Google Sheets)
+from sheets_compat import SheetsCompat
 from dotenv import load_dotenv
 
 load_dotenv()
 
 ADMIN_USER_ID = int(os.getenv('ADMIN_USER_ID'))
-SPREADSHEET_NAME = os.getenv('SPREADSHEET_NAME', 'Billionaires_PPPoker_Bot')
-CREDENTIALS_FILE = os.getenv('GOOGLE_SHEETS_CREDENTIALS_FILE', 'credentials.json')
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
 
-sheets = SheetsManager(CREDENTIALS_FILE, SPREADSHEET_NAME, TIMEZONE)
+sheets = SheetsCompat()
 
 # Conversation states
 ADMIN_NOTES, UPDATE_ACCOUNT_NUMBER = range(2)
