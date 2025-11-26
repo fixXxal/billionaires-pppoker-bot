@@ -25,7 +25,8 @@
       "Bash(/mnt/c/Program Files/Git/bin/git.exe diff requirements.txt)",
       "Bash(/mnt/c/Program Files/Git/bin/git.exe add bot.py requirements.txt sheets_compat.py)",
       "Bash(/mnt/c/Program Files/Git/bin/git.exe add -u)",
-      "Bash(/mnt/c/Program Files/Git/bin/git.exe log -5 --oneline)"
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe log -5 --oneline)",
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe add admin_panel.py mini_app_server.py)"
     ],
     "deny": [],
     "ask": []
