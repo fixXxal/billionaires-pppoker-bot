@@ -6801,10 +6801,15 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
 
         # Approve each pending spin
         for reward in user_pending:
-            row_number = reward.get('row_number')
+            spin_id = reward.get('id')  # Use 'id' field from Django API, not 'row_number'
             chips = reward.get('chips', 0)
 
-            success = spin_bot.api.approve_spin_reward(row_number, approver_name)
+            # Skip if spin_id is None
+            if not spin_id:
+                logger.warning(f"Skipping reward with no id: {reward}")
+                continue
+
+            success = spin_bot.api.approve_spin_reward(spin_id, user.id)  # Pass admin user ID, not name
             if success:
                 approved_count += 1
                 total_chips += chips
@@ -6952,10 +6957,15 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
 
         # Approve each pending spin
         for reward in user_pending:
-            row_number = reward.get('row_number')
+            spin_id = reward.get('id')  # Use 'id' field from Django API, not 'row_number'
             chips = reward.get('chips', 0)
 
-            success = spin_bot.api.approve_spin_reward(row_number, approver_name)
+            # Skip if spin_id is None
+            if not spin_id:
+                logger.warning(f"Skipping reward with no id: {reward}")
+                continue
+
+            success = spin_bot.api.approve_spin_reward(spin_id, user.id)  # Pass admin user ID, not name
             if success:
                 approved_count += 1
                 total_chips += chips

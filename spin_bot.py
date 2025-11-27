@@ -964,6 +964,12 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
         user_rewards = {}
         for reward in pending:
             user_id = reward.get('user_id')
+
+            # Skip if user_id is None or invalid
+            if not user_id:
+                logger.warning(f"Skipping reward with no user_id: {reward}")
+                continue
+
             if user_id not in user_rewards:
                 user_rewards[user_id] = {
                     'username': reward.get('username', 'Unknown'),
