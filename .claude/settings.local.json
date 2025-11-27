@@ -41,7 +41,9 @@
       "Bash(/mnt/c/Program\\ Files/Git/bin/git.exe ls-remote:*)",
       "Bash(/mnt/c/Program Files/Git/bin/git.exe log --oneline -10)",
       "Bash(/mnt/c/Program\\ Files/Git/bin/git.exe show:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe diff start.sh)",
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe add:*)"
     ],
     "deny": [],
     "ask": []
