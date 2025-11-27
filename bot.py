@@ -5237,6 +5237,22 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
                 parse_mode='Markdown'
             )
             logger.error(f"Deposit request {request_id} not found")
+            # Clean up processing lock
+            if request_id in processing_requests:
+                del processing_requests[request_id]
+            return
+
+        # Check if already approved
+        if deposit.get('status') != 'Pending':
+            status = deposit.get('status', 'Unknown')
+            await query.edit_message_text(
+                f"{query.message.text}\n\n✅ <b>Already {status}</b>\n\nThis request was already processed by another admin.",
+                parse_mode='HTML'
+            )
+            logger.info(f"Deposit {request_id} already {status}")
+            # Clean up processing lock
+            if request_id in processing_requests:
+                del processing_requests[request_id]
             return
 
         # Update status using Django API
@@ -5368,6 +5384,13 @@ async def quick_reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
         return
 
+    # Check if deposit still pending
+    deposit = api.get_deposit_request(request_id)
+    if not deposit or deposit.get('status') != 'Pending':
+        status = deposit.get('status', 'Not found') if deposit else 'Not found'
+        await query.answer(f"⛔ Request already {status}", show_alert=True)
+        return
+
     # Lock this request to this admin
     processing_requests[request_id] = query.from_user.id
     await query.answer()
@@ -5440,6 +5463,17 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
             del processing_requests[request_id]
         return
 
+    # Check if already processed
+    if withdrawal.get('status') != 'Pending':
+        status = withdrawal.get('status', 'Unknown')
+        await query.edit_message_text(
+            f"{query.message.text}\n\n✅ <b>Already {status}</b>\n\nThis request was already processed by another admin.",
+            parse_mode='HTML'
+        )
+        if request_id in processing_requests:
+            del processing_requests[request_id]
+        return
+
     # Update status using Django API
     api.approve_withdrawal(request_id, query.from_user.id)
 
@@ -5496,6 +5530,13 @@ async def quick_reject_withdrawal(update: Update, context: ContextTypes.DEFAULT_
     # Check if another admin is already processing this request
     if request_id in processing_requests:
         await query.answer("⛔ Another admin is already processing this request.", show_alert=True)
+        return
+
+    # Check if withdrawal still pending
+    withdrawal = api.get_withdrawal_request(request_id)
+    if not withdrawal or withdrawal.get('status') != 'Pending':
+        status = withdrawal.get('status', 'Not found') if withdrawal else 'Not found'
+        await query.answer(f"⛔ Request already {status}", show_alert=True)
         return
 
     # Lock this request to this admin
