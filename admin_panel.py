@@ -114,13 +114,15 @@ async def show_deposit_details(query, context, deposit):
     # Handle both dict (Django API) and list (legacy Sheets) format
     if isinstance(deposit, dict):
         request_id = deposit.get('id')
-        user_id = deposit.get('telegram_id')
-        username = deposit.get('username', 'No username')
+        # Get user details from nested user_details object
+        user_details = deposit.get('user_details', {})
+        user_id = user_details.get('telegram_id')
+        username = user_details.get('username', 'No username')
         pppoker_id = deposit.get('pppoker_id')
         amount = deposit.get('amount')
         method = deposit.get('method')
         account_name = deposit.get('account_name')
-        transaction_ref = deposit.get('transaction_ref', 'N/A')
+        transaction_ref = deposit.get('proof_image_path', 'N/A')
     else:
         # Legacy array format
         request_id = deposit[0]
@@ -499,8 +501,10 @@ async def show_withdrawal_details(query, context, withdrawal):
     # Handle both dict (Django API) and list (legacy Sheets) format
     if isinstance(withdrawal, dict):
         request_id = withdrawal.get('id')
-        user_id = withdrawal.get('telegram_id')
-        username = withdrawal.get('username', 'No username')
+        # Get user details from nested user_details object
+        user_details = withdrawal.get('user_details', {})
+        user_id = user_details.get('telegram_id')
+        username = user_details.get('username', 'No username')
         pppoker_id = withdrawal.get('pppoker_id')
         amount = withdrawal.get('amount')
         method = withdrawal.get('method')
@@ -1047,10 +1051,12 @@ async def show_join_details(query, context, join_req):
     # Handle both dict (Django API) and list (legacy Sheets) format
     if isinstance(join_req, dict):
         request_id = join_req.get('id')
-        user_id = join_req.get('telegram_id')
-        username = join_req.get('username', 'No username')
-        first_name = join_req.get('first_name', '')
-        last_name = join_req.get('last_name', '')
+        # Get user details from nested user_details object
+        user_details = join_req.get('user_details', {})
+        user_id = user_details.get('telegram_id')
+        username = user_details.get('username', 'No username')
+        first_name = user_details.get('first_name', '')
+        last_name = user_details.get('last_name', '')
         pppoker_id = join_req.get('pppoker_id')
     else:
         request_id = join_req[0]
