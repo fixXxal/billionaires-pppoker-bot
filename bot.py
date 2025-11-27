@@ -678,7 +678,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         api.update_user_account_name(user.id, extracted_details['sender_name'])
 
     # Create deposit request
-    request_id = api.create_deposit_request(
+    deposit_response = api.create_deposit_request(
         telegram_id=user.id,
         amount=amount,
         method=method,
@@ -686,6 +686,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         proof_image_path=transaction_ref,
         pppoker_id=pppoker_id
     )
+    request_id = deposit_response.get('id') if isinstance(deposit_response, dict) else deposit_response
 
     # Send confirmation to user
     currency = 'MVR' if method != 'USDT' else 'USD'
@@ -1235,7 +1236,7 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     account_name = user_data['account_name']
 
     # Create withdrawal request
-    request_id = api.create_withdrawal_request(
+    withdrawal_response = api.create_withdrawal_request(
         telegram_id=user.id,
         amount=amount,
         method=method,
@@ -1243,6 +1244,7 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
         account_number=account_number,
         pppoker_id=pppoker_id
     )
+    request_id = withdrawal_response.get('id') if isinstance(withdrawal_response, dict) else withdrawal_response
 
     # Send confirmation to user
     currency = 'MVR' if method != 'USDT' else 'USD'
@@ -1373,10 +1375,11 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
         return JOIN_PPPOKER_ID
 
     # Create join request
-    request_id = api.create_join_request(
+    join_response = api.create_join_request(
         user_id=user.id,
         pppoker_id=pppoker_id
     )
+    request_id = join_response.get('id') if isinstance(join_response, dict) else join_response
 
     # Update user's PPPoker ID
     api.update_user_pppoker_id(user.id, pppoker_id)
@@ -1814,12 +1817,13 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
         pppoker_id = user_data.get('pppoker_id')
 
         # Create seat request
-        request_id = api.create_seat_request(
+        seat_response = api.create_seat_request(
             user_id=user.id,
             amount=amount,
             slip_image_path='',  # Seat requests don't have slip initially
             pppoker_id=pppoker_id
         )
+        request_id = seat_response.get('id') if isinstance(seat_response, dict) else seat_response
 
         # Store in context for later use
         context.user_data['seat_request_id'] = request_id
