@@ -28,23 +28,35 @@ class DjangoAPI:
     def _get(self, endpoint: str, params: Optional[Dict] = None) -> Any:
         """Make GET request to API"""
         url = f"{self.base_url}/{endpoint}"
-        response = self.session.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = self.session.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"GET {url} failed: {e}, Response: {response.text if 'response' in locals() else 'N/A'}")
+            raise
 
     def _post(self, endpoint: str, data: Optional[Dict] = None) -> Any:
         """Make POST request to API"""
         url = f"{self.base_url}/{endpoint}"
-        response = self.session.post(url, json=data, timeout=10)
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = self.session.post(url, json=data, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"POST {url} failed: {e}, Response: {response.text if 'response' in locals() else 'N/A'}")
+            raise
 
     def _put(self, endpoint: str, data: Optional[Dict] = None) -> Any:
         """Make PUT request to API"""
         url = f"{self.base_url}/{endpoint}"
-        response = self.session.put(url, json=data, timeout=10)
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = self.session.put(url, json=data, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"PUT {url} failed: {e}, Response: {response.text if 'response' in locals() else 'N/A'}")
+            raise
 
     def _delete(self, endpoint: str) -> Any:
         """Make DELETE request to API"""
