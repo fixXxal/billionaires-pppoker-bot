@@ -152,7 +152,12 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # Get user's spin data
-        user_data = spin_bot.api.get_spin_user(user.id)
+        user_data = None
+        try:
+            user_data = spin_bot.api.get_spin_user(user.id)
+        except Exception as e:
+            # User doesn't exist yet (no spins)
+            logger.info(f"User {user.id} doesn't exist in spin users yet")
 
         if not user_data or user_data.get('available_spins', 0) == 0:
             # Create deposit button
