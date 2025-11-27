@@ -1237,9 +1237,9 @@ async def admin_view_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     for method, details in accounts.items():
         if isinstance(details, dict):
-            # New format with account_number and account_holder
+            # New format with account_number and account_name
             account_num = details.get('account_number', 'Not set')
-            holder = details.get('account_holder', 'Not set')
+            holder = details.get('account_name', 'Not set')
 
             message_text += f"💳 <b>{method}</b>\n"
             message_text += f"   Account: <code>{account_num}</code>\n"
@@ -1453,16 +1453,15 @@ async def admin_counter_status(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
 
     status = api.get_counter_status()
-    is_open = status['status'] == 'OPEN'
+    is_open = status.get('is_open', True)
 
     status_emoji = "🟢" if is_open else "🔴"
     status_text = "OPEN" if is_open else "CLOSED"
 
     message = f"{status_emoji} <b>COUNTER STATUS</b>\n\n"
     message += f"Status: <b>{status_text}</b>\n"
-    message += f"Changed At: {status['changed_at']}\n"
-    message += f"Changed By: {status['changed_by']}\n"
-    message += f"Announcement: {status['announcement_sent']}\n"
+    message += f"Updated At: {status.get('updated_at', 'N/A')}\n"
+    message += f"Updated By: {status.get('updated_by', 'N/A')}\n"
 
     keyboard = [[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]]
 
