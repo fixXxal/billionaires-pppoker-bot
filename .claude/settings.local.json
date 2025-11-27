@@ -32,7 +32,13 @@
       "Bash(timeout 10 python3:*)",
       "Bash(/mnt/c/Program Files/Git/bin/git.exe diff bot.py)",
       "Bash(/mnt/c/Program Files/Git/bin/git.exe diff django_api.py)",
-      "Bash(/mnt/c/Program\\ Files/Git/bin/git.exe add:*)"
+      "Bash(/mnt/c/Program\\ Files/Git/bin/git.exe add:*)",
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe log --oneline -3)",
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe add Procfile)",
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe add railway.toml)",
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe log --oneline -5)",
+      "Bash(/mnt/c/Program Files/Git/bin/git.exe remote -v)",
+      "Bash(/mnt/c/Program\\ Files/Git/bin/git.exe ls-remote:*)"
     ],
     "deny": [],
     "ask": []
