@@ -259,7 +259,14 @@ async def send_admin_notification(context: ContextTypes.DEFAULT_TYPE, message: s
 
     # Send to all regular admins
     try:
-        admins = api.get_all_admins()
+        admins_response = api.get_all_admins()
+
+        # Handle paginated response from Django API
+        if isinstance(admins_response, dict) and 'results' in admins_response:
+            admins = admins_response['results']
+        else:
+            admins = admins_response
+
         for admin in admins:
             try:
                 await context.bot.send_message(chat_id=admin['telegram_id'], text=message, parse_mode='HTML')
@@ -1740,7 +1747,14 @@ async def notify_admins_cashback_request(context, user_id: int, username: str, r
 
         # Send to all regular admins
         try:
-            admins = api.get_all_admins()
+            admins_response = api.get_all_admins()
+
+            # Handle paginated response from Django API
+            if isinstance(admins_response, dict) and 'results' in admins_response:
+                admins = admins_response['results']
+            else:
+                admins = admins_response
+
             for admin in admins:
                 try:
                     await context.bot.send_message(
@@ -1892,7 +1906,14 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
         # Send to all admins
         all_admin_ids = [ADMIN_USER_ID]
         try:
-            regular_admins = api.get_all_admins()
+            regular_admins_response = api.get_all_admins()
+
+            # Handle paginated response from Django API
+            if isinstance(regular_admins_response, dict) and 'results' in regular_admins_response:
+                regular_admins = regular_admins_response['results']
+            else:
+                regular_admins = regular_admins_response
+
             all_admin_ids.extend([admin['telegram_id'] for admin in regular_admins])
         except Exception as e:
             logger.error(f"Failed to get admin list: {e}")
@@ -1977,7 +1998,14 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_support_message_ids[user.id] = [msg.message_id]
 
     # Notify ALL admins
-    all_admins = api.get_all_admins()
+    all_admins_response = api.get_all_admins()
+
+    # Handle paginated response from Django API
+    if isinstance(all_admins_response, dict) and 'results' in all_admins_response:
+        all_admins = all_admins_response['results']
+    else:
+        all_admins = all_admins_response
+
     admin_ids = [ADMIN_USER_ID]  # Start with super admin
     for admin in all_admins:
         if admin['telegram_id'] != ADMIN_USER_ID:
@@ -2055,7 +2083,14 @@ async def live_support_message(update: Update, context: ContextTypes.DEFAULT_TYP
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Send to all admins and track message IDs
-        all_admins = api.get_all_admins()
+        all_admins_response = api.get_all_admins()
+
+        # Handle paginated response from Django API
+        if isinstance(all_admins_response, dict) and 'results' in all_admins_response:
+            all_admins = all_admins_response['results']
+        else:
+            all_admins = all_admins_response
+
         admin_ids = [ADMIN_USER_ID]  # Start with super admin
         for admin in all_admins:
             if admin['telegram_id'] != ADMIN_USER_ID:
@@ -2097,7 +2132,14 @@ async def end_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Support session ended. Thank you!")
 
         # Notify ALL admins
-        all_admins = api.get_all_admins()
+        all_admins_response = api.get_all_admins()
+
+        # Handle paginated response from Django API
+        if isinstance(all_admins_response, dict) and 'results' in all_admins_response:
+            all_admins = all_admins_response['results']
+        else:
+            all_admins = all_admins_response
+
         admin_ids = [ADMIN_USER_ID]  # Start with super admin
         for admin in all_admins:
             if admin['telegram_id'] != ADMIN_USER_ID:
@@ -2133,7 +2175,14 @@ async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAU
         handling_admin = active_support_handlers[user_id]
         if handling_admin != query.from_user.id:
             # Get admin info for better messaging
-            handling_admin_info = api.get_all_admins()
+            handling_admin_info_response = api.get_all_admins()
+
+            # Handle paginated response from Django API
+            if isinstance(handling_admin_info_response, dict) and 'results' in handling_admin_info_response:
+                handling_admin_info = handling_admin_info_response['results']
+            else:
+                handling_admin_info = handling_admin_info_response
+
             handler_name = "Another admin"
             for admin in handling_admin_info:
                 if admin['telegram_id'] == handling_admin:
@@ -2161,7 +2210,14 @@ async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAU
     logger.info(f"Admin {query.from_user.id} ({query.from_user.first_name}) locked support session with user {user_id}")
 
     # Notify other admins that this session is now locked
-    all_admins = api.get_all_admins()
+    all_admins_response = api.get_all_admins()
+
+    # Handle paginated response from Django API
+    if isinstance(all_admins_response, dict) and 'results' in all_admins_response:
+        all_admins = all_admins_response['results']
+    else:
+        all_admins = all_admins_response
+
     admin_ids = [ADMIN_USER_ID]  # Start with super admin
     for admin in all_admins:
         if admin['telegram_id'] != ADMIN_USER_ID:
@@ -2267,7 +2323,14 @@ async def admin_end_support_button(update: Update, context: ContextTypes.DEFAULT
         handling_admin = active_support_handlers[user_id]
         if handling_admin != query.from_user.id:
             # Get admin info for better messaging
-            handling_admin_info = api.get_all_admins()
+            handling_admin_info_response = api.get_all_admins()
+
+            # Handle paginated response from Django API
+            if isinstance(handling_admin_info_response, dict) and 'results' in handling_admin_info_response:
+                handling_admin_info = handling_admin_info_response['results']
+            else:
+                handling_admin_info = handling_admin_info_response
+
             handler_name = "Another admin"
             for admin in handling_admin_info:
                 if admin['telegram_id'] == handling_admin:
@@ -2399,7 +2462,14 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
         )
 
         # Notify ALL admins
-        all_admins = api.get_all_admins()
+        all_admins_response = api.get_all_admins()
+
+        # Handle paginated response from Django API
+        if isinstance(all_admins_response, dict) and 'results' in all_admins_response:
+            all_admins = all_admins_response['results']
+        else:
+            all_admins = all_admins_response
+
         admin_ids = [ADMIN_USER_ID]  # Start with super admin
         for admin in all_admins:
             if admin['telegram_id'] != ADMIN_USER_ID:
@@ -2553,7 +2623,14 @@ async def admin_end_inactive_support(update: Update, context: ContextTypes.DEFAU
             logger.error(f"Failed to notify user {user_id}: {e}")
 
         # Notify all admins
-        all_admins = api.get_all_admins()
+        all_admins_response = api.get_all_admins()
+
+        # Handle paginated response from Django API
+        if isinstance(all_admins_response, dict) and 'results' in all_admins_response:
+            all_admins = all_admins_response['results']
+        else:
+            all_admins = all_admins_response
+
         admin_ids = [ADMIN_USER_ID]
         for admin in all_admins:
             if admin['telegram_id'] != ADMIN_USER_ID:
@@ -3188,7 +3265,13 @@ async def listadmins_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     try:
         # Get all admins
-        admins = api.get_all_admins()
+        admins_response = api.get_all_admins()
+
+        # Handle paginated response from Django API
+        if isinstance(admins_response, dict) and 'results' in admins_response:
+            admins = admins_response['results']
+        else:
+            admins = admins_response
 
         message = "👥 <b>ADMIN LIST</b>\n\n"
         message += f"🔱 <b>Super Admin:</b>\n"
@@ -3475,7 +3558,14 @@ async def send_daily_report(application):
 
         # Send to all regular admins
         try:
-            admins = api.get_all_admins()
+            admins_response = api.get_all_admins()
+
+            # Handle paginated response from Django API
+            if isinstance(admins_response, dict) and 'results' in admins_response:
+                admins = admins_response['results']
+            else:
+                admins = admins_response
+
             for admin in admins:
                 try:
                     await application.bot.send_message(
@@ -6626,7 +6716,14 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     logger.error(f"Failed to notify super admin: {e}")
 
             # Send to all other admins
-            admins = spin_bot.api.get_all_admins()
+            admins_response = spin_bot.api.get_all_admins()
+
+            # Handle paginated response from Django API
+            if isinstance(admins_response, dict) and 'results' in admins_response:
+                admins = admins_response['results']
+            else:
+                admins = admins_response
+
             for admin in admins:
                 # Don't notify the admin who approved it
                 if admin['telegram_id'] != user.id:
@@ -6930,7 +7027,14 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
 
         # Send to all regular admins (except the one who approved)
         try:
-            regular_admins = api.get_all_admins()
+            regular_admins_response = api.get_all_admins()
+
+            # Handle paginated response from Django API
+            if isinstance(regular_admins_response, dict) and 'results' in regular_admins_response:
+                regular_admins = regular_admins_response['results']
+            else:
+                regular_admins = regular_admins_response
+
             for admin in regular_admins:
                 if admin['telegram_id'] != user.id:
                     try:

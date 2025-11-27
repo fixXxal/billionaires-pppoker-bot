@@ -175,18 +175,25 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
 
         # Send to all regular admins
         try:
-            admins = api.get_all_admins()
+            admins_response = api.get_all_admins()
+
+            # Handle paginated response from Django API
+            if isinstance(admins_response, dict) and 'results' in admins_response:
+                admins = admins_response['results']
+            else:
+                admins = admins_response
+
             for admin in admins:
                 try:
                     await bot.send_message(
-                        chat_id=admin['admin_id'],
+                        chat_id=admin['telegram_id'],
                         text=message,
                         parse_mode='HTML',
                         reply_markup=reply_markup
                     )
-                    logger.info(f"✅ Admin {admin['admin_id']} notified: {username} won {prize}")
+                    logger.info(f"✅ Admin {admin['telegram_id']} notified: {username} won {prize}")
                 except Exception as e:
-                    logger.error(f"❌ Failed to notify admin {admin['admin_id']}: {e}")
+                    logger.error(f"❌ Failed to notify admin {admin['telegram_id']}: {e}")
         except Exception as e:
             logger.error(f"❌ Failed to get admin list: {e}")
 
