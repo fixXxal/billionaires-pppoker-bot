@@ -1,6 +1,7 @@
 """
 Billionaires PPPoker Club Telegram Bot
 Main bot file with all handlers and logic
+Version: 2.0 - Django API Migration Complete
 """
 
 import os
