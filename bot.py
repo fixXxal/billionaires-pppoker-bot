@@ -1231,13 +1231,12 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
 
     # Create withdrawal request
     request_id = api.create_withdrawal_request(
-        user.id,
-        user.username,
-        pppoker_id,
-        amount,
-        method,
-        account_name,
-        account_number
+        telegram_id=user.id,
+        amount=amount,
+        method=method,
+        account_name=account_name,
+        account_number=account_number,
+        pppoker_id=pppoker_id
     )
 
     # Send confirmation to user
@@ -1370,11 +1369,8 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
 
     # Create join request
     request_id = api.create_join_request(
-        user.id,
-        user.username,
-        user.first_name,
-        user.last_name,
-        pppoker_id
+        user_id=user.id,
+        pppoker_id=pppoker_id
     )
 
     # Update user's PPPoker ID
@@ -1814,10 +1810,10 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
 
         # Create seat request
         request_id = api.create_seat_request(
-            user.id,
-            user.username,
-            pppoker_id,
-            amount
+            user_id=user.id,
+            amount=amount,
+            slip_image_path='',  # Seat requests don't have slip initially
+            pppoker_id=pppoker_id
         )
 
         # Store in context for later use
