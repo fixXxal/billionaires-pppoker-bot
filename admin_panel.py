@@ -10,8 +10,8 @@ from telegram.ext import (
     CommandHandler, CallbackQueryHandler, MessageHandler,
     ConversationHandler, ContextTypes, filters
 )
-# DJANGO MIGRATION: Using Django API only (No Google Sheets)
-from django_api import DjangoAPI
+# DJANGO MIGRATION: Using SheetsCompatAPI for backward compatibility
+from sheets_compat import SheetsCompatAPI
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,7 +23,7 @@ ADMIN_USER_ID = int(os.getenv('ADMIN_USER_ID'))
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
 DJANGO_API_URL = os.getenv('DJANGO_API_URL', 'http://localhost:8000/api')
 
-api = DjangoAPI(DJANGO_API_URL)
+api = SheetsCompatAPI(DJANGO_API_URL)
 
 # Conversation states
 ADMIN_NOTES, UPDATE_ACCOUNT_NUMBER = range(2)
