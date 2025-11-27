@@ -51,7 +51,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Get current counter status
     counter_status = api.get_counter_status()
-    is_open = counter_status['status'] == 'OPEN'
+    is_open = counter_status.get('is_open', True)  # Django API returns {'is_open': True/False}
     counter_button_text = "🔴 Close Counter" if is_open else "🟢 Open Counter"
     counter_callback = "admin_close_counter" if is_open else "admin_open_counter"
 
@@ -90,9 +90,8 @@ async def admin_view_deposits(update: Update, context: ContextTypes.DEFAULT_TYPE
         query = update
         edit_func = update.message.reply_text
 
-    # Get all deposits from sheet
-    all_deposits = api.deposits_sheet.get_all_values()[1:]  # Skip header
-    pending_deposits = [d for d in all_deposits if len(d) > 8 and d[8] == 'Pending']
+    # Get pending deposits from Django API
+    pending_deposits = api.get_pending_deposits()
 
     if not pending_deposits:
         await edit_func(
@@ -110,16 +109,28 @@ async def admin_view_deposits(update: Update, context: ContextTypes.DEFAULT_TYPE
     await show_deposit_details(query, context, pending_deposits[0])
 
 
-async def show_deposit_details(query, context, deposit_row):
+async def show_deposit_details(query, context, deposit):
     """Display deposit details with approval buttons"""
-    request_id = deposit_row[0]
-    user_id = deposit_row[1]
-    username = deposit_row[2]
-    pppoker_id = deposit_row[3]
-    amount = deposit_row[4]
-    method = deposit_row[5]
-    account_name = deposit_row[6]
-    transaction_ref = deposit_row[7]
+    # Handle both dict (Django API) and list (legacy Sheets) format
+    if isinstance(deposit, dict):
+        request_id = deposit.get('id')
+        user_id = deposit.get('telegram_id')
+        username = deposit.get('username', 'No username')
+        pppoker_id = deposit.get('pppoker_id')
+        amount = deposit.get('amount')
+        method = deposit.get('method')
+        account_name = deposit.get('account_name')
+        transaction_ref = deposit.get('transaction_ref', 'N/A')
+    else:
+        # Legacy array format
+        request_id = deposit[0]
+        user_id = deposit[1]
+        username = deposit[2]
+        pppoker_id = deposit[3]
+        amount = deposit[4]
+        method = deposit[5]
+        account_name = deposit[6]
+        transaction_ref = deposit[7]
 
     current_index = context.user_data.get('current_deposit_index', 0)
     total = len(context.user_data.get('pending_deposits', []))
@@ -465,8 +476,8 @@ async def admin_view_withdrawals(update: Update, context: ContextTypes.DEFAULT_T
         query = update
         edit_func = update.message.reply_text
 
-    all_withdrawals = api.withdrawals_sheet.get_all_values()[1:]
-    pending_withdrawals = [w for w in all_withdrawals if len(w) > 8 and w[8] == 'Pending']
+    # Get pending withdrawals from Django API
+    pending_withdrawals = api.get_pending_withdrawals()
 
     if not pending_withdrawals:
         await edit_func(
@@ -483,16 +494,27 @@ async def admin_view_withdrawals(update: Update, context: ContextTypes.DEFAULT_T
     await show_withdrawal_details(query, context, pending_withdrawals[0])
 
 
-async def show_withdrawal_details(query, context, withdrawal_row):
+async def show_withdrawal_details(query, context, withdrawal):
     """Display withdrawal details with approval buttons"""
-    request_id = withdrawal_row[0]
-    user_id = withdrawal_row[1]
-    username = withdrawal_row[2]
-    pppoker_id = withdrawal_row[3]
-    amount = withdrawal_row[4]
-    method = withdrawal_row[5]
-    account_name = withdrawal_row[6]
-    account_number = withdrawal_row[7]
+    # Handle both dict (Django API) and list (legacy Sheets) format
+    if isinstance(withdrawal, dict):
+        request_id = withdrawal.get('id')
+        user_id = withdrawal.get('telegram_id')
+        username = withdrawal.get('username', 'No username')
+        pppoker_id = withdrawal.get('pppoker_id')
+        amount = withdrawal.get('amount')
+        method = withdrawal.get('method')
+        account_name = withdrawal.get('account_name')
+        account_number = withdrawal.get('account_number')
+    else:
+        request_id = withdrawal[0]
+        user_id = withdrawal[1]
+        username = withdrawal[2]
+        pppoker_id = withdrawal[3]
+        amount = withdrawal[4]
+        method = withdrawal[5]
+        account_name = withdrawal[6]
+        account_number = withdrawal[7]
 
     current_index = context.user_data.get('current_withdrawal_index', 0)
     total = len(context.user_data.get('pending_withdrawals', []))
@@ -1002,8 +1024,8 @@ async def admin_view_joins(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update
         edit_func = update.message.reply_text
 
-    all_joins = api.join_requests_sheet.get_all_values()[1:]
-    pending_joins = [j for j in all_joins if len(j) > 6 and j[6] == 'Pending']
+    # Get pending join requests from Django API
+    pending_joins = api.get_pending_join_requests()
 
     if not pending_joins:
         await edit_func(
@@ -1020,14 +1042,23 @@ async def admin_view_joins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_join_details(query, context, pending_joins[0])
 
 
-async def show_join_details(query, context, join_row):
+async def show_join_details(query, context, join_req):
     """Display join request details with approval buttons"""
-    request_id = join_row[0]
-    user_id = join_row[1]
-    username = join_row[2]
-    first_name = join_row[3]
-    last_name = join_row[4]
-    pppoker_id = join_row[5]
+    # Handle both dict (Django API) and list (legacy Sheets) format
+    if isinstance(join_req, dict):
+        request_id = join_req.get('id')
+        user_id = join_req.get('telegram_id')
+        username = join_req.get('username', 'No username')
+        first_name = join_req.get('first_name', '')
+        last_name = join_req.get('last_name', '')
+        pppoker_id = join_req.get('pppoker_id')
+    else:
+        request_id = join_req[0]
+        user_id = join_req[1]
+        username = join_req[2]
+        first_name = join_req[3]
+        last_name = join_req[4]
+        pppoker_id = join_req[5]
 
     current_index = context.user_data.get('current_join_index', 0)
     total = len(context.user_data.get('pending_joins', []))
