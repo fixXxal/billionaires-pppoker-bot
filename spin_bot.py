@@ -841,16 +841,16 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
                     try:
                         await rate_limiter.wait_for_send()
                         msg = await context.bot.send_message(
-                            chat_id=admin['admin_id'],
+                            chat_id=admin['telegram_id'],
                             text=admin_message,
                             parse_mode='HTML',
                             reply_markup=reply_markup
                         )
                         # Store message ID
-                        context.bot_data['spin_notification_messages'][notification_key].append((admin['admin_id'], msg.message_id))
-                        logger.info(f"Stored spin notification message ID for admin {admin['admin_id']}")
+                        context.bot_data['spin_notification_messages'][notification_key].append((admin['telegram_id'], msg.message_id))
+                        logger.info(f"Stored spin notification message ID for admin {admin['telegram_id']}")
                     except Exception as e:
-                        logger.error(f"Failed to notify admin {admin['admin_id']}: {e}")
+                        logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
             except Exception as e:
                 logger.error(f"Failed to get admin list: {e}")
                 import traceback
@@ -1159,15 +1159,15 @@ async def approvespin_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             for admin in admins:
                 # Don't notify the admin who approved it
-                if admin['admin_id'] != user.id:
+                if admin['telegram_id'] != user.id:
                     try:
                         await context.bot.send_message(
-                            chat_id=admin['admin_id'],
+                            chat_id=admin['telegram_id'],
                             text=admin_notification,
                             parse_mode='HTML'
                         )
                     except Exception as e:
-                        logger.error(f"Failed to notify admin {admin['admin_id']}: {e}")
+                        logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
         except Exception as e:
             logger.error(f"Error notifying other admins: {e}")
 

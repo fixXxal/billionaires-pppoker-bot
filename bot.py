@@ -262,9 +262,9 @@ async def send_admin_notification(context: ContextTypes.DEFAULT_TYPE, message: s
         admins = api.get_all_admins()
         for admin in admins:
             try:
-                await context.bot.send_message(chat_id=admin['admin_id'], text=message, parse_mode='HTML')
+                await context.bot.send_message(chat_id=admin['telegram_id'], text=message, parse_mode='HTML')
             except Exception as e:
-                logger.error(f"Failed to send notification to admin {admin['admin_id']}: {e}")
+                logger.error(f"Failed to send notification to admin {admin['telegram_id']}: {e}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
 
@@ -837,7 +837,7 @@ Player ID: <code>{pppoker_id}</code>
             regular_admins = regular_admins_response
 
         logger.info(f"Found {len(regular_admins)} regular admins in database")
-        all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+        all_admin_ids.extend([admin['telegram_id'] for admin in regular_admins])
         logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
@@ -1303,7 +1303,7 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
             regular_admins = regular_admins_response
 
         logger.info(f"Found {len(regular_admins)} regular admins in database")
-        all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+        all_admin_ids.extend([admin['telegram_id'] for admin in regular_admins])
         logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
@@ -1443,7 +1443,7 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
             regular_admins = regular_admins_response
 
         logger.info(f"Found {len(regular_admins)} regular admins in database")
-        all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+        all_admin_ids.extend([admin['telegram_id'] for admin in regular_admins])
         logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
@@ -1744,14 +1744,14 @@ async def notify_admins_cashback_request(context, user_id: int, username: str, r
             for admin in admins:
                 try:
                     await context.bot.send_message(
-                        chat_id=admin['admin_id'],
+                        chat_id=admin['telegram_id'],
                         text=message,
                         parse_mode='HTML',
                         reply_markup=reply_markup
                     )
-                    logger.info(f"✅ Admin {admin['admin_id']} notified about cashback request {request_id}")
+                    logger.info(f"✅ Admin {admin['telegram_id']} notified about cashback request {request_id}")
                 except Exception as e:
-                    logger.error(f"❌ Failed to notify admin {admin['admin_id']}: {e}")
+                    logger.error(f"❌ Failed to notify admin {admin['telegram_id']}: {e}")
         except Exception as e:
             logger.error(f"❌ Failed to get admin list: {e}")
 
@@ -1893,7 +1893,7 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
         all_admin_ids = [ADMIN_USER_ID]
         try:
             regular_admins = api.get_all_admins()
-            all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+            all_admin_ids.extend([admin['telegram_id'] for admin in regular_admins])
         except Exception as e:
             logger.error(f"Failed to get admin list: {e}")
 
@@ -1980,8 +1980,8 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     all_admins = api.get_all_admins()
     admin_ids = [ADMIN_USER_ID]  # Start with super admin
     for admin in all_admins:
-        if admin['admin_id'] != ADMIN_USER_ID:
-            admin_ids.append(admin['admin_id'])
+        if admin['telegram_id'] != ADMIN_USER_ID:
+            admin_ids.append(admin['telegram_id'])
 
     for admin_id in admin_ids:
         try:
@@ -2058,8 +2058,8 @@ async def live_support_message(update: Update, context: ContextTypes.DEFAULT_TYP
         all_admins = api.get_all_admins()
         admin_ids = [ADMIN_USER_ID]  # Start with super admin
         for admin in all_admins:
-            if admin['admin_id'] != ADMIN_USER_ID:
-                admin_ids.append(admin['admin_id'])
+            if admin['telegram_id'] != ADMIN_USER_ID:
+                admin_ids.append(admin['telegram_id'])
 
         # Initialize tracking list if not exists
         if user.id not in support_message_ids:
@@ -2100,8 +2100,8 @@ async def end_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
         all_admins = api.get_all_admins()
         admin_ids = [ADMIN_USER_ID]  # Start with super admin
         for admin in all_admins:
-            if admin['admin_id'] != ADMIN_USER_ID:
-                admin_ids.append(admin['admin_id'])
+            if admin['telegram_id'] != ADMIN_USER_ID:
+                admin_ids.append(admin['telegram_id'])
 
         for admin_id in admin_ids:
             try:
@@ -2136,7 +2136,7 @@ async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAU
             handling_admin_info = api.get_all_admins()
             handler_name = "Another admin"
             for admin in handling_admin_info:
-                if admin['admin_id'] == handling_admin:
+                if admin['telegram_id'] == handling_admin:
                     handler_name = admin.get('name', 'Another admin')
                     break
 
@@ -2164,8 +2164,8 @@ async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAU
     all_admins = api.get_all_admins()
     admin_ids = [ADMIN_USER_ID]  # Start with super admin
     for admin in all_admins:
-        if admin['admin_id'] != ADMIN_USER_ID:
-            admin_ids.append(admin['admin_id'])
+        if admin['telegram_id'] != ADMIN_USER_ID:
+            admin_ids.append(admin['telegram_id'])
 
     admin_name = query.from_user.first_name
     for admin_id in admin_ids:
@@ -2270,7 +2270,7 @@ async def admin_end_support_button(update: Update, context: ContextTypes.DEFAULT
             handling_admin_info = api.get_all_admins()
             handler_name = "Another admin"
             for admin in handling_admin_info:
-                if admin['admin_id'] == handling_admin:
+                if admin['telegram_id'] == handling_admin:
                     handler_name = admin.get('name', 'Another admin')
                     break
 
@@ -2402,8 +2402,8 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
         all_admins = api.get_all_admins()
         admin_ids = [ADMIN_USER_ID]  # Start with super admin
         for admin in all_admins:
-            if admin['admin_id'] != ADMIN_USER_ID:
-                admin_ids.append(admin['admin_id'])
+            if admin['telegram_id'] != ADMIN_USER_ID:
+                admin_ids.append(admin['telegram_id'])
 
         for admin_id in admin_ids:
             try:
@@ -2556,8 +2556,8 @@ async def admin_end_inactive_support(update: Update, context: ContextTypes.DEFAU
         all_admins = api.get_all_admins()
         admin_ids = [ADMIN_USER_ID]
         for admin in all_admins:
-            if admin['admin_id'] != ADMIN_USER_ID:
-                admin_ids.append(admin['admin_id'])
+            if admin['telegram_id'] != ADMIN_USER_ID:
+                admin_ids.append(admin['telegram_id'])
 
         for admin_id in admin_ids:
             try:
@@ -3198,7 +3198,7 @@ async def listadmins_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             message += f"👤 <b>Regular Admins ({len(admins)}):</b>\n\n"
             for admin in admins:
                 message += f"━━━━━━━━━━━━━━━━━━\n"
-                message += f"<b>ID:</b> <code>{admin['admin_id']}</code>\n"
+                message += f"<b>ID:</b> <code>{admin['telegram_id']}</code>\n"
                 if admin.get('username'):
                     message += f"<b>Username:</b> @{admin['username']}\n"
                 if admin.get('name'):
@@ -3479,12 +3479,12 @@ async def send_daily_report(application):
             for admin in admins:
                 try:
                     await application.bot.send_message(
-                        chat_id=admin['admin_id'],
+                        chat_id=admin['telegram_id'],
                         text=report,
                         parse_mode='HTML'
                     )
                 except Exception as e:
-                    logger.error(f"Failed to send daily report to admin {admin['admin_id']}: {e}")
+                    logger.error(f"Failed to send daily report to admin {admin['telegram_id']}: {e}")
         except Exception as e:
             logger.error(f"Failed to get admin list for daily report: {e}")
 
@@ -5148,8 +5148,8 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
             logger.error(f"Deposit request {request_id} not found")
             return
 
-        # Update status
-        api.update_deposit_status(request_id, 'Approved', query.from_user.id, 'Quick approved')
+        # Update status using Django API
+        api.approve_deposit(request_id, query.from_user.id)
         logger.info(f"Deposit {request_id} status updated to Approved")
 
         # Add free spins based on deposit amount
@@ -5349,8 +5349,8 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
             del processing_requests[request_id]
         return
 
-    # Update status
-    api.update_withdrawal_status(request_id, 'Completed', query.from_user.id, 'Quick approved')
+    # Update status using Django API
+    api.approve_withdrawal(request_id, query.from_user.id)
 
     # Notify user with club link button
     club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
@@ -5608,7 +5608,7 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
     if request_type == 'deposit':
         deposit = api.get_deposit_request(request_id)
         if deposit:
-            api.update_deposit_status(request_id, 'Rejected', admin_id, reason)
+            api.reject_deposit(request_id, admin_id, reason)
 
             try:
                 await context.bot.send_message(
@@ -5626,7 +5626,7 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
     elif request_type == 'withdrawal':
         withdrawal = api.get_withdrawal_request(request_id)
         if withdrawal:
-            api.update_withdrawal_status(request_id, 'Rejected', admin_id, reason)
+            api.reject_withdrawal(request_id, admin_id, reason)
 
             try:
                 await context.bot.send_message(
@@ -6067,7 +6067,7 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
             regular_admins = regular_admins_response
 
         logger.info(f"Found {len(regular_admins)} regular admins in database")
-        all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+        all_admin_ids.extend([admin['telegram_id'] for admin in regular_admins])
         logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
@@ -6629,15 +6629,15 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
             admins = spin_bot.api.get_all_admins()
             for admin in admins:
                 # Don't notify the admin who approved it
-                if admin['admin_id'] != user.id:
+                if admin['telegram_id'] != user.id:
                     try:
                         await context.bot.send_message(
-                            chat_id=admin['admin_id'],
+                            chat_id=admin['telegram_id'],
                             text=admin_notification,
                             parse_mode='HTML'
                         )
                     except Exception as e:
-                        logger.error(f"Failed to notify admin {admin['admin_id']}: {e}")
+                        logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
         except Exception as e:
             logger.error(f"Error notifying other admins: {e}")
 
@@ -6932,15 +6932,15 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         try:
             regular_admins = api.get_all_admins()
             for admin in regular_admins:
-                if admin['admin_id'] != user.id:
+                if admin['telegram_id'] != user.id:
                     try:
                         await context.bot.send_message(
-                            chat_id=admin['admin_id'],
+                            chat_id=admin['telegram_id'],
                             text=admin_notification,
                             parse_mode='HTML'
                         )
                     except Exception as e:
-                        logger.error(f"Failed to notify admin {admin['admin_id']}: {e}")
+                        logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
         except Exception as e:
             logger.error(f"Failed to get admin list: {e}")
 
