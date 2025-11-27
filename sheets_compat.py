@@ -290,9 +290,19 @@ class SheetsCompatAPI(DjangoAPI):
     def get_all_payment_accounts(self) -> Dict:
         """Get all payment accounts in legacy format (dict keyed by method)"""
         try:
-            # Get list from Django API
-            accounts_list = super().get_all_payment_accounts()
-            logger.info(f"Raw accounts_list from Django API: {accounts_list}, type: {type(accounts_list)}")
+            # Get response from Django API
+            response = super().get_all_payment_accounts()
+            logger.info(f"Raw response from Django API: {response}, type: {type(response)}")
+
+            # Handle paginated response from Django REST framework
+            if isinstance(response, dict) and 'results' in response:
+                accounts_list = response['results']
+                logger.info(f"Extracted {len(accounts_list)} accounts from paginated response")
+            elif isinstance(response, list):
+                accounts_list = response
+            else:
+                logger.warning(f"Unexpected response format: {response}")
+                return {}
 
             # Handle empty or None response
             if not accounts_list:
