@@ -212,7 +212,7 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer("Processing approval...")
 
-    request_id = query.data.split('_')[-1]
+    request_id = int(query.data.split('_')[-1])
     admin_id = query.from_user.id
 
     # Clear any cached state first
@@ -291,7 +291,7 @@ async def deposit_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    request_id = query.data.split('_')[-1]
+    request_id = int(query.data.split('_')[-1])
     context.user_data['pending_action'] = ('deposit', 'reject', request_id)
 
     await query.edit_message_text(
@@ -590,7 +590,7 @@ async def withdrawal_approve(update: Update, context: ContextTypes.DEFAULT_TYPE)
     query = update.callback_query
     await query.answer("Processing approval...")
 
-    request_id = query.data.split('_')[-1]
+    request_id = int(query.data.split('_')[-1])
     admin_id = query.from_user.id
 
     # Clear any cached state first
@@ -668,7 +668,7 @@ async def withdrawal_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    request_id = query.data.split('_')[-1]
+    request_id = int(query.data.split('_')[-1])
     context.user_data['pending_action'] = ('withdrawal', 'reject', request_id)
 
     await query.edit_message_text(
@@ -1132,7 +1132,7 @@ async def join_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer("Processing approval...")
 
-    request_id = query.data.split('_')[-1]
+    request_id = int(query.data.split('_')[-1])
     admin_id = query.from_user.id
 
     # Clear any cached state first
@@ -1212,7 +1212,7 @@ async def join_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    request_id = query.data.split('_')[-1]
+    request_id = int(query.data.split('_')[-1])
     context.user_data['pending_action'] = ('join', 'reject', request_id)
 
     await query.edit_message_text(

@@ -5092,7 +5092,7 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
             await query.answer("❌ Not authorized", show_alert=True)
             return
 
-        request_id = query.data.split('_')[-1]
+        request_id = int(query.data.split('_')[-1])
 
         # Check if another admin is already processing this request
         if request_id in processing_requests:
@@ -5219,7 +5219,7 @@ async def quick_reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    request_id = query.data.split('_')[-1]
+    request_id = int(query.data.split('_')[-1])
 
     # Check if another admin is already processing this request
     if request_id in processing_requests:
@@ -5268,7 +5268,7 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    request_id = query.data.split('_')[-1]
+    request_id = int(query.data.split('_')[-1])
 
     # Check if another admin is already processing this request
     if request_id in processing_requests:
@@ -5338,7 +5338,7 @@ async def quick_reject_withdrawal(update: Update, context: ContextTypes.DEFAULT_
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    request_id = query.data.split('_')[-1]
+    request_id = int(query.data.split('_')[-1])
 
     # Check if another admin is already processing this request
     if request_id in processing_requests:
@@ -5382,7 +5382,7 @@ async def quick_approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    request_id = query.data.split('_')[-1]
+    request_id = int(query.data.split('_')[-1])
 
     # Check if another admin is already processing this request
     if request_id in processing_requests:
@@ -5442,7 +5442,7 @@ async def quick_reject_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    request_id = query.data.split('_')[-1]
+    request_id = int(query.data.split('_')[-1])
 
     # Check if another admin is already processing this request
     if request_id in processing_requests:
