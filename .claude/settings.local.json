@@ -40,7 +40,8 @@
       "Bash(/mnt/c/Program Files/Git/bin/git.exe remote -v)",
       "Bash(/mnt/c/Program\\ Files/Git/bin/git.exe ls-remote:*)",
       "Bash(/mnt/c/Program Files/Git/bin/git.exe log --oneline -10)",
-      "Bash(/mnt/c/Program\\ Files/Git/bin/git.exe show:*)"
+      "Bash(/mnt/c/Program\\ Files/Git/bin/git.exe show:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

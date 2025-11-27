@@ -4,11 +4,12 @@ All API endpoints for Billionaires PPPoker Bot
 """
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
+from django.http import JsonResponse
 
 from .models import (
     User, Deposit, Withdrawal, SpinUser, SpinHistory,
@@ -26,6 +27,11 @@ from .serializers import (
     FiftyFiftyInvestmentSerializer, ClubBalanceSerializer,
     InventoryTransactionSerializer
 )
+
+
+def health_check(request):
+    """Simple health check endpoint for Railway deployment"""
+    return JsonResponse({'status': 'healthy', 'service': 'billionaires-api'})
 
 
 class UserViewSet(viewsets.ModelViewSet):

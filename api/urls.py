@@ -31,4 +31,5 @@ router.register(r'inventory-transactions', views.InventoryTransactionViewSet, ba
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('health/', views.health_check, name='health_check'),
 ]
