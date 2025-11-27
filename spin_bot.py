@@ -1188,46 +1188,12 @@ async def addspins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, s
             await update.message.reply_text("❌ Spins must be positive!")
             return
 
-        # Get or create user
-        user_data = None
-        try:
-            user_data = spin_bot.api.get_spin_user(target_user_id)
-        except Exception as e:
-            # User doesn't exist yet, will create below
-            logger.info(f"User {target_user_id} doesn't exist in spin users, will create new")
+        # Get or create spin user (Django API handles this)
+        spin_user = spin_bot.api.get_or_create_spin_user(target_user_id)
+        spin_user_id = spin_user.get('id')
 
-        # Try to get username from Telegram
-        target_username = "Unknown"
-        try:
-            target_chat = await context.bot.get_chat(target_user_id)
-            target_username = target_chat.username or target_chat.first_name or "Unknown"
-        except:
-            # If can't fetch, try to get from existing user data
-            if user_data:
-                target_username = user_data.get('username', 'Unknown')
-
-        # Try to get PPPoker ID from Deposits sheet
-        pppoker_id = None
-        try:
-            pppoker_id = spin_bot.api.get_pppoker_id_from_deposits(target_user_id)
-        except Exception as e:
-            logger.warning(f"Could not fetch PPPoker ID for user {target_user_id}: {e}")
-
-        if user_data:
-            new_available = user_data.get('available_spins', 0) + spins_to_add
-            spin_bot.api.update_spin_user(
-                user_id=target_user_id,
-                username=target_username,
-                available_spins=new_available,
-                pppoker_id=pppoker_id if pppoker_id else None  # Only update if found
-            )
-        else:
-            spin_bot.api.create_spin_user(
-                user_id=target_user_id,
-                username=target_username,
-                available_spins=spins_to_add,
-                pppoker_id=pppoker_id  # Store PPPoker ID if found
-            )
+        # Add spins using the Django API endpoint
+        spin_bot.api.add_spins(spin_user_id, spins_to_add)
 
         await update.message.reply_text(
             f"✅ Added {spins_to_add} spins to user {target_user_id}!"
