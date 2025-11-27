@@ -9,7 +9,7 @@ import os
 import logging
 from dotenv import load_dotenv
 # DJANGO MIGRATION: Using Django API only (No Google Sheets)
-from sheets_compat import SheetsCompat
+from django_api import DjangoAPI
 import pytz
 import asyncio
 from telegram import Bot
@@ -46,16 +46,17 @@ else:
     logger.info(f"✅ Admin notifications will be sent to user ID: {ADMIN_USER_ID}")
 
 # Lazy load managers
-sheets = None
+api = None
 bot = None
 
 def get_managers():
-    """Lazy load sheets and bot"""
-    global sheets, bot
-    if sheets is None:
-        sheets = SheetsCompat()
+    """Lazy load api and bot"""
+    global api, bot
+    if api is None:
+        django_api_url = os.getenv('DJANGO_API_URL', 'http://localhost:8000/api')
+        api = DjangoAPI(django_api_url)
         bot = Bot(token=BOT_TOKEN)
-    return sheets, bot
+    return api, bot
 
 
 # Rate limiting - max 1 spin per second per user
@@ -79,9 +80,9 @@ def get_cached_user_data(user_id):
             return user_data_cache[user_id]
 
     # Fetch fresh data
-    logger.info(f"🔄 Cache miss for user {user_id}, fetching from sheets")
-    sheets, _ = get_managers()
-    user_data = sheets.get_spin_user(user_id)
+    logger.info(f"🔄 Cache miss for user {user_id}, fetching from api")
+    api, _ = get_managers()
+    user_data = api.get_spin_user(user_id)
 
     # Update cache
     user_data_cache[user_id] = user_data
@@ -137,7 +138,7 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
             bot = Bot(token=BOT_TOKEN)
 
         # Get ALL pending chips for this user (including this new win)
-        pending_rewards = sheets.get_pending_spin_rewards()
+        pending_rewards = api.get_pending_spin_rewards()
         user_pending = [p for p in pending_rewards if str(p.get('user_id')) == str(user_id)]
         total_pending_chips = sum(p.get('chips', 0) for p in user_pending)
         pending_count = len(user_pending)
@@ -173,7 +174,7 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
 
         # Send to all regular admins
         try:
-            admins = sheets.get_all_admins()
+            admins = api.get_all_admins()
             for admin in admins:
                 try:
                     await bot.send_message(
@@ -262,7 +263,7 @@ def spin():
         # Update last spin time
         user_last_spin[user_id] = current_time
 
-        sheets, _ = get_managers()
+        api, _ = get_managers()
         # Use cached data for faster response
         user_data = get_cached_user_data(user_id)
 
@@ -279,7 +280,7 @@ def spin():
         # Try to get from deposits only if empty (fast lookup, no updates)
         if not pppoker_id:
             try:
-                pppoker_id = sheets.get_pppoker_id_from_deposits(user_id)
+                pppoker_id = api.get_pppoker_id_from_deposits(user_id)
             except:
                 pppoker_id = ''
 
@@ -355,7 +356,7 @@ def spin():
         def log_all_spins():
             try:
                 # Prepare all rows for batch insert
-                timestamp = datetime.now(sheets.timezone).strftime('%Y-%m-%d %H:%M:%S')
+                timestamp = datetime.now(api.timezone).strftime('%Y-%m-%d %H:%M:%S')
                 rows_to_add = []
 
                 for result in results:
@@ -376,7 +377,7 @@ def spin():
                     ])
 
                 # Batch insert all rows at once (MUCH faster)
-                sheets.spin_history_sheet.append_rows(rows_to_add)
+                api.spin_history_sheet.append_rows(rows_to_add)
                 logger.info(f"✅ Logged {len(rows_to_add)} spins to Google Sheets in batch")
 
             except Exception as e:
@@ -397,7 +398,7 @@ def spin():
 
         # Update in background thread (Google Sheets is slow)
         def update_user_data():
-            sheets.update_spin_user(
+            api.update_spin_user(
                 user_id=user_id,
                 available_spins=new_available,
                 total_spins_used=total_used

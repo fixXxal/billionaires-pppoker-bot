@@ -17,8 +17,8 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-# Using Django API with compatibility layer (No Google Sheets files needed)
-from sheets_compat import SheetsCompat
+# Using Django API (migrated from Google Sheets)
+from django_api import DjangoAPI
 import admin_panel
 import vision_api
 from spin_bot import SpinBot
@@ -67,7 +67,7 @@ def clean_pppoker_id(raw_input: str) -> str:
 
 def is_counter_closed() -> bool:
     """Check if counter is currently closed"""
-    return not sheets.is_counter_open()
+    return not api.is_counter_open()
 
 async def send_counter_closed_message(update: Update) -> bool:
     """
@@ -86,11 +86,8 @@ async def send_counter_closed_message(update: Update) -> bool:
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
 DJANGO_API_URL = os.getenv('DJANGO_API_URL', 'http://localhost:8000/api')
 
-# Initialize Django API ONLY
+# Initialize Django API (migrated from Google Sheets)
 api = DjangoAPI(DJANGO_API_URL)
-
-# Compatibility layer - makes Django API work like old sheets code
-sheets = SheetsCompat()
 
 # Initialize Spin Bot with Django API
 spin_bot = SpinBot(api, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
@@ -126,7 +123,7 @@ seat_reminder_jobs: Dict[int, object] = {}  # user_id: job (tracks seat reminder
 # Helper Functions
 def is_admin(user_id: int) -> bool:
     """Check if user is admin (super admin or regular admin)"""
-    return sheets.is_admin(user_id, ADMIN_USER_ID)
+    return api.is_admin(user_id, ADMIN_USER_ID)
 
 
 # Spin Bot Wrapper Functions
@@ -136,7 +133,7 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # Check if counter is open
-        counter_status = sheets.get_counter_status()
+        counter_status = api.get_counter_status()
         if counter_status.get('status') != 'OPEN':
             await update.message.reply_text(
                 "🔒 *COUNTER IS CLOSED*\n\n"
@@ -148,7 +145,7 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # Get user's spin data
-        user_data = spin_bot.sheets.get_spin_user(user.id)
+        user_data = spin_bot.api.get_spin_user(user.id)
 
         if not user_data or user_data.get('available_spins', 0) == 0:
             # Create deposit button
@@ -255,7 +252,7 @@ async def send_admin_notification(context: ContextTypes.DEFAULT_TYPE, message: s
 
     # Send to all regular admins
     try:
-        admins = sheets.get_all_admins()
+        admins = api.get_all_admins()
         for admin in admins:
             try:
                 await context.bot.send_message(chat_id=admin['admin_id'], text=message, parse_mode='HTML')
@@ -271,7 +268,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
 
     # Create or update user in database
-    sheets.create_or_update_user(
+    api.create_or_update_user(
         user.id,
         user.username,
         user.first_name,
@@ -488,10 +485,10 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await send_counter_closed_message(update):
         return ConversationHandler.END
 
-    user_data = sheets.get_user(update.effective_user.id)
+    user_data = api.get_user(update.effective_user.id)
 
     # Get all configured payment accounts
-    payment_accounts = sheets.get_all_payment_accounts()
+    payment_accounts = api.get_all_payment_accounts()
 
     # Build keyboard with only configured payment methods
     keyboard = []
@@ -537,8 +534,8 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
     context.user_data['deposit_method'] = method
 
     # Get payment account details
-    account = sheets.get_payment_account(method)
-    account_holder = sheets.get_payment_account_holder(method)
+    account = api.get_payment_account(method)
+    account_holder = api.get_payment_account_holder(method)
 
     if not account:
         await query.edit_message_text(
@@ -553,7 +550,7 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
         message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
 
         # Show exchange rate for USDT
-        usdt_rate = sheets.get_exchange_rate('USDT')
+        usdt_rate = api.get_exchange_rate('USDT')
         if usdt_rate:
             message += f"💱 <b>Current Rate:</b> 1 USDT = {usdt_rate:.2f} MVR\n\n"
 
@@ -567,7 +564,7 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
         message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
 
         # Show exchange rate for USD
-        usd_rate = sheets.get_exchange_rate('USD')
+        usd_rate = api.get_exchange_rate('USD')
         if usd_rate:
             message += f"💱 <b>Current Rate:</b> 1 USD = {usd_rate:.2f} MVR\n\n"
 
@@ -636,7 +633,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         return DEPOSIT_PPPOKER_ID
 
     # Update user's PPPoker ID
-    sheets.update_user_pppoker_id(user.id, pppoker_id)
+    api.update_user_pppoker_id(user.id, pppoker_id)
 
     # Get stored data from context
     method = context.user_data['deposit_method']
@@ -649,10 +646,10 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
 
     # Update user's account name if we extracted it
     if extracted_details and extracted_details['sender_name']:
-        sheets.update_user_account_name(user.id, extracted_details['sender_name'])
+        api.update_user_account_name(user.id, extracted_details['sender_name'])
 
     # Create deposit request
-    request_id = sheets.create_deposit_request(
+    request_id = api.create_deposit_request(
         user.id,
         user.username,
         pppoker_id,
@@ -702,7 +699,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     name_validation_warning = ""
     if extracted_details and extracted_details['receiver_name']:
         # Get stored account holder name for this payment method
-        stored_holder_name = sheets.get_payment_account_holder(verified_bank)
+        stored_holder_name = api.get_payment_account_holder(verified_bank)
 
         if stored_holder_name:
             # Normalize names for comparison (case-insensitive, remove extra spaces)
@@ -719,7 +716,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     account_validation_warning = ""
     if extracted_details and extracted_details.get('receiver_account_number'):
         # Get stored account number for this payment method
-        stored_account_number = sheets.get_payment_account(verified_bank)
+        stored_account_number = api.get_payment_account(verified_bank)
 
         if stored_account_number:
             # Normalize account numbers (remove spaces, dashes)
@@ -741,11 +738,11 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     # Check for active promotion and user eligibility
     promotion_info = ""
     promotion_bonus = 0
-    active_promotion = sheets.get_active_promotion()
+    active_promotion = api.get_active_promotion()
 
     if active_promotion and verified_amount > 0:
         # Check if user is eligible (first deposit during promotion period)
-        is_eligible = sheets.check_user_promotion_eligibility(
+        is_eligible = api.check_user_promotion_eligibility(
             user.id,
             pppoker_id,
             active_promotion['promotion_id']
@@ -807,7 +804,7 @@ Player ID: <code>{pppoker_id}</code>
     # Get all admin IDs
     all_admin_ids = [ADMIN_USER_ID]
     try:
-        regular_admins = sheets.get_all_admins()
+        regular_admins = api.get_all_admins()
         all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
@@ -859,7 +856,7 @@ async def deposit_account_name_received(update: Update, context: ContextTypes.DE
     context.user_data['deposit_account_name'] = account_name
 
     # Update user's account name
-    sheets.update_user_account_name(update.effective_user.id, account_name)
+    api.update_user_account_name(update.effective_user.id, account_name)
 
     method = context.user_data['deposit_method']
 
@@ -1049,7 +1046,7 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     # Check if user has outstanding credit
-    user_credit = sheets.get_user_credit(user_id)
+    user_credit = api.get_user_credit(user_id)
     if user_credit and user_credit['amount'] > 0:
         await update.message.reply_text(
             f"❌ <b>Cannot Withdraw - Outstanding Credit</b>\n\n"
@@ -1062,7 +1059,7 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
-    user_data = sheets.get_user(user_id)
+    user_data = api.get_user(user_id)
 
     if not user_data or not user_data.get('account_name'):
         await update.message.reply_text(
@@ -1072,7 +1069,7 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     # Get all configured payment accounts
-    payment_accounts = sheets.get_all_payment_accounts()
+    payment_accounts = api.get_all_payment_accounts()
 
     # Build keyboard with only configured payment methods
     keyboard = []
@@ -1125,11 +1122,11 @@ async def withdrawal_method_selected(update: Update, context: ContextTypes.DEFAU
 
     # Show exchange rate for USD/USDT
     if method == 'USD':
-        usd_rate = sheets.get_exchange_rate('USD')
+        usd_rate = api.get_exchange_rate('USD')
         if usd_rate:
             message += f"💱 <b>Current Rate:</b> 1 USD = {usd_rate:.2f} MVR\n\n"
     elif method == 'USDT':
-        usdt_rate = sheets.get_exchange_rate('USDT')
+        usdt_rate = api.get_exchange_rate('USDT')
         if usdt_rate:
             message += f"💱 <b>Current Rate:</b> 1 USDT = {usdt_rate:.2f} MVR\n\n"
 
@@ -1201,7 +1198,7 @@ async def withdrawal_pppoker_id_received(update: Update, context: ContextTypes.D
 async def withdrawal_account_number_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle withdrawal account number input"""
     user = update.effective_user
-    user_data = sheets.get_user(user.id)
+    user_data = api.get_user(user.id)
 
     account_number = update.message.text.strip()
     method = context.user_data['withdrawal_method']
@@ -1210,7 +1207,7 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     account_name = user_data['account_name']
 
     # Create withdrawal request
-    request_id = sheets.create_withdrawal_request(
+    request_id = api.create_withdrawal_request(
         user.id,
         user.username,
         pppoker_id,
@@ -1262,7 +1259,7 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     # Send notification to all admins
     all_admin_ids = [ADMIN_USER_ID]
     try:
-        regular_admins = sheets.get_all_admins()
+        regular_admins = api.get_all_admins()
         all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
@@ -1349,7 +1346,7 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
         return JOIN_PPPOKER_ID
 
     # Create join request
-    request_id = sheets.create_join_request(
+    request_id = api.create_join_request(
         user.id,
         user.username,
         user.first_name,
@@ -1358,7 +1355,7 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
     )
 
     # Update user's PPPoker ID
-    sheets.update_user_pppoker_id(user.id, pppoker_id)
+    api.update_user_pppoker_id(user.id, pppoker_id)
 
     # Send confirmation to user
     await update.message.reply_text(
@@ -1393,7 +1390,7 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
     # Send notification to all admins
     all_admin_ids = [ADMIN_USER_ID]
     try:
-        regular_admins = sheets.get_all_admins()
+        regular_admins = api.get_all_admins()
         all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
@@ -1432,7 +1429,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Check if user has outstanding credit
     try:
-        user_credit = sheets.get_user_credit(user.id)
+        user_credit = api.get_user_credit(user.id)
         if user_credit and user_credit['amount'] > 0:
             await update.message.reply_text(
                 f"❌ <b>Cannot Request Cashback - Outstanding Credit</b>\n\n"
@@ -1449,7 +1446,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # Check if there's an active CASHBACK promotion (separate from bonus)
-        cashback_promo = sheets.get_active_cashback_promotion()
+        cashback_promo = api.get_active_cashback_promotion()
     except Exception as e:
         logger.error(f"Error getting active cashback promotion: {e}")
         await update.message.reply_text(
@@ -1474,7 +1471,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # Check if user already has a pending cashback request for this promotion
-        pending_requests = sheets.get_user_pending_cashback(user.id)
+        pending_requests = api.get_user_pending_cashback(user.id)
         pending_for_promo = [r for r in pending_requests if r.get('promotion_id') == promotion_id]
     except Exception as e:
         logger.error(f"Error getting pending cashback requests: {e}")
@@ -1500,7 +1497,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # Check eligibility (both loss requirement and if already claimed)
-        eligibility = sheets.check_cashback_eligibility(user.id, promotion_id, min_deposit=500)
+        eligibility = api.check_cashback_eligibility(user.id, promotion_id, min_deposit=500)
     except Exception as e:
         import traceback
         logger.error(f"Error checking cashback eligibility: {e}")
@@ -1607,7 +1604,7 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
     promotion_id = context.user_data.get('cashback_promotion_id')
 
     # Create cashback request
-    request_id = sheets.create_cashback_request(
+    request_id = api.create_cashback_request(
         user_id=user.id,
         username=user.username or user.first_name,
         pppoker_id=pppoker_id,
@@ -1688,7 +1685,7 @@ async def notify_admins_cashback_request(context, user_id: int, username: str, r
 
         # Send to all regular admins
         try:
-            admins = sheets.get_all_admins()
+            admins = api.get_all_admins()
             for admin in admins:
                 try:
                     await context.bot.send_message(
@@ -1711,7 +1708,7 @@ async def notify_admins_cashback_request(context, user_id: int, username: str, r
 async def my_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Display user information"""
     user = update.effective_user
-    user_data = sheets.get_user(user.id)
+    user_data = api.get_user(user.id)
 
     if not user_data:
         await update.message.reply_text("❌ No user data found. Please use /start first.")
@@ -1742,7 +1739,7 @@ async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user = update.effective_user
 
     # Check if user has active credit
-    existing_credit = sheets.get_user_credit(user.id)
+    existing_credit = api.get_user_credit(user.id)
     if existing_credit:
         await update.message.reply_text(
             f"⚠️ **You already have an active credit!**\n\n"
@@ -1755,7 +1752,7 @@ async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
 
     # Get user's last PPPoker ID from deposits
-    user_data = sheets.get_user(user.id)
+    user_data = api.get_user(user.id)
     if not user_data or not user_data.get('pppoker_id'):
         await update.message.reply_text(
             "❌ **No PPPoker ID found!**\n\n"
@@ -1789,11 +1786,11 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
             return SEAT_AMOUNT
 
         # Get user's PPPoker ID
-        user_data = sheets.get_user(user.id)
+        user_data = api.get_user(user.id)
         pppoker_id = user_data.get('pppoker_id')
 
         # Create seat request
-        request_id = sheets.create_seat_request(
+        request_id = api.create_seat_request(
             user.id,
             user.username,
             pppoker_id,
@@ -1839,7 +1836,7 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
         # Send to all admins
         all_admin_ids = [ADMIN_USER_ID]
         try:
-            regular_admins = sheets.get_all_admins()
+            regular_admins = api.get_all_admins()
             all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
         except Exception as e:
             logger.error(f"Failed to get admin list: {e}")
@@ -1875,7 +1872,7 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user = update.effective_user
 
     # Check if counter is open
-    counter_status = sheets.get_counter_status()
+    counter_status = api.get_counter_status()
     if counter_status.get('status') != 'OPEN':
         await update.message.reply_text(
             "🔒 *COUNTER IS CLOSED*\n\n"
@@ -1924,7 +1921,7 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_support_message_ids[user.id] = [msg.message_id]
 
     # Notify ALL admins
-    all_admins = sheets.get_all_admins()
+    all_admins = api.get_all_admins()
     admin_ids = [ADMIN_USER_ID]  # Start with super admin
     for admin in all_admins:
         if admin['admin_id'] != ADMIN_USER_ID:
@@ -2002,7 +1999,7 @@ async def live_support_message(update: Update, context: ContextTypes.DEFAULT_TYP
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Send to all admins and track message IDs
-        all_admins = sheets.get_all_admins()
+        all_admins = api.get_all_admins()
         admin_ids = [ADMIN_USER_ID]  # Start with super admin
         for admin in all_admins:
             if admin['admin_id'] != ADMIN_USER_ID:
@@ -2044,7 +2041,7 @@ async def end_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Support session ended. Thank you!")
 
         # Notify ALL admins
-        all_admins = sheets.get_all_admins()
+        all_admins = api.get_all_admins()
         admin_ids = [ADMIN_USER_ID]  # Start with super admin
         for admin in all_admins:
             if admin['admin_id'] != ADMIN_USER_ID:
@@ -2080,7 +2077,7 @@ async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAU
         handling_admin = active_support_handlers[user_id]
         if handling_admin != query.from_user.id:
             # Get admin info for better messaging
-            handling_admin_info = sheets.get_all_admins()
+            handling_admin_info = api.get_all_admins()
             handler_name = "Another admin"
             for admin in handling_admin_info:
                 if admin['admin_id'] == handling_admin:
@@ -2108,7 +2105,7 @@ async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAU
     logger.info(f"Admin {query.from_user.id} ({query.from_user.first_name}) locked support session with user {user_id}")
 
     # Notify other admins that this session is now locked
-    all_admins = sheets.get_all_admins()
+    all_admins = api.get_all_admins()
     admin_ids = [ADMIN_USER_ID]  # Start with super admin
     for admin in all_admins:
         if admin['admin_id'] != ADMIN_USER_ID:
@@ -2214,7 +2211,7 @@ async def admin_end_support_button(update: Update, context: ContextTypes.DEFAULT
         handling_admin = active_support_handlers[user_id]
         if handling_admin != query.from_user.id:
             # Get admin info for better messaging
-            handling_admin_info = sheets.get_all_admins()
+            handling_admin_info = api.get_all_admins()
             handler_name = "Another admin"
             for admin in handling_admin_info:
                 if admin['admin_id'] == handling_admin:
@@ -2346,7 +2343,7 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
         )
 
         # Notify ALL admins
-        all_admins = sheets.get_all_admins()
+        all_admins = api.get_all_admins()
         admin_ids = [ADMIN_USER_ID]  # Start with super admin
         for admin in all_admins:
             if admin['admin_id'] != ADMIN_USER_ID:
@@ -2500,7 +2497,7 @@ async def admin_end_inactive_support(update: Update, context: ContextTypes.DEFAU
             logger.error(f"Failed to notify user {user_id}: {e}")
 
         # Notify all admins
-        all_admins = sheets.get_all_admins()
+        all_admins = api.get_all_admins()
         admin_ids = [ADMIN_USER_ID]
         for admin in all_admins:
             if admin['admin_id'] != ADMIN_USER_ID:
@@ -2552,8 +2549,8 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
     }
 
     # Get exchange rates
-    usd_rate = sheets.get_exchange_rate('USD') or 15.40
-    usdt_rate = sheets.get_exchange_rate('USDT') or 15.40
+    usd_rate = api.get_exchange_rate('USD') or 15.40
+    usdt_rate = api.get_exchange_rate('USDT') or 15.40
 
     report = "📊 <b>PROFIT/LOSS REPORT</b>\n\n"
     report += f"💱 <b>Current Exchange Rates:</b>\n"
@@ -2565,16 +2562,16 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
     report_data = {}
 
     for period_name, (start, end) in periods.items():
-        deposits = sheets.get_deposits_by_date_range(start, end)
-        withdrawals = sheets.get_withdrawals_by_date_range(start, end)
-        spins = sheets.get_spins_by_date_range(start, end)
-        bonuses = sheets.get_bonuses_by_date_range(start, end)
-        cashback = sheets.get_cashback_by_date_range(start, end)
+        deposits = api.get_deposits_by_date_range(start, end)
+        withdrawals = api.get_withdrawals_by_date_range(start, end)
+        spins = api.get_spins_by_date_range(start, end)
+        bonuses = api.get_bonuses_by_date_range(start, end)
+        cashback = api.get_cashback_by_date_range(start, end)
 
         # Get 50/50 investment stats for this period
         start_date_str = start.strftime('%Y-%m-%d')
         end_date_str = end.strftime('%Y-%m-%d')
-        investment_stats = sheets.get_investment_stats(start_date_str, end_date_str)
+        investment_stats = api.get_investment_stats(start_date_str, end_date_str)
 
         # Calculate chip costs (money given to users as chips)
         total_spin_rewards = sum([s['amount'] for s in spins])
@@ -2719,8 +2716,8 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
     }
 
     # Get exchange rates
-    usd_rate = sheets.get_exchange_rate('USD') or 15.40
-    usdt_rate = sheets.get_exchange_rate('USDT') or 15.40
+    usd_rate = api.get_exchange_rate('USD') or 15.40
+    usdt_rate = api.get_exchange_rate('USDT') or 15.40
 
     report = "📊 <b>PROFIT/LOSS REPORT</b>\n\n"
     report += f"💱 <b>Current Exchange Rates:</b>\n"
@@ -2729,11 +2726,11 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
     report += f"━━━━━━━━━━━━━━━━━━\n\n"
 
     for period_name, (start, end) in periods.items():
-        deposits = sheets.get_deposits_by_date_range(start, end)
-        withdrawals = sheets.get_withdrawals_by_date_range(start, end)
-        spins = sheets.get_spins_by_date_range(start, end)
-        bonuses = sheets.get_bonuses_by_date_range(start, end)
-        cashback = sheets.get_cashback_by_date_range(start, end)
+        deposits = api.get_deposits_by_date_range(start, end)
+        withdrawals = api.get_withdrawals_by_date_range(start, end)
+        spins = api.get_spins_by_date_range(start, end)
+        bonuses = api.get_bonuses_by_date_range(start, end)
+        cashback = api.get_cashback_by_date_range(start, end)
 
         # Calculate chip costs (money given to users as chips)
         total_spin_rewards = sum([s['amount'] for s in spins])
@@ -2827,7 +2824,7 @@ async def clear_bml_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ This command is only for admins.")
         return
 
-    success = sheets.clear_payment_account('BML')
+    success = api.clear_payment_account('BML')
     if success:
         await update.message.reply_text(
             "✅ BML account has been removed.\n\n"
@@ -2844,7 +2841,7 @@ async def clear_mib_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ This command is only for admins.")
         return
 
-    success = sheets.clear_payment_account('MIB')
+    success = api.clear_payment_account('MIB')
     if success:
         await update.message.reply_text(
             "✅ MIB account has been removed.\n\n"
@@ -2861,7 +2858,7 @@ async def clear_usd_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ This command is only for admins.")
         return
 
-    success = sheets.clear_payment_account('USD')
+    success = api.clear_payment_account('USD')
     if success:
         await update.message.reply_text(
             "✅ USD account has been removed.\n\n"
@@ -2878,7 +2875,7 @@ async def clear_usdt_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text("❌ This command is only for admins.")
         return
 
-    success = sheets.clear_payment_account('USDT')
+    success = api.clear_payment_account('USDT')
     if success:
         await update.message.reply_text(
             "✅ USDT wallet has been removed.\n\n"
@@ -2898,7 +2895,7 @@ async def set_usd_rate_command(update: Update, context: ContextTypes.DEFAULT_TYP
     # Check if rate was provided
     if len(context.args) == 0:
         # Show current rate
-        current_rate = sheets.get_exchange_rate('USD')
+        current_rate = api.get_exchange_rate('USD')
         if current_rate:
             await update.message.reply_text(
                 f"💵 <b>Current USD Rate</b>\n\n"
@@ -2921,7 +2918,7 @@ async def set_usd_rate_command(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text("❌ Rate must be a positive number.")
             return
 
-        success = sheets.set_exchange_rate('USD', rate)
+        success = api.set_exchange_rate('USD', rate)
         if success:
             await update.message.reply_text(
                 f"✅ USD exchange rate updated!\n\n"
@@ -2948,7 +2945,7 @@ async def set_usdt_rate_command(update: Update, context: ContextTypes.DEFAULT_TY
     # Check if rate was provided
     if len(context.args) == 0:
         # Show current rate
-        current_rate = sheets.get_exchange_rate('USDT')
+        current_rate = api.get_exchange_rate('USDT')
         if current_rate:
             await update.message.reply_text(
                 f"💎 <b>Current USDT Rate</b>\n\n"
@@ -2971,7 +2968,7 @@ async def set_usdt_rate_command(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text("❌ Rate must be a positive number.")
             return
 
-        success = sheets.set_exchange_rate('USDT', rate)
+        success = api.set_exchange_rate('USDT', rate)
         if success:
             await update.message.reply_text(
                 f"✅ USDT exchange rate updated!\n\n"
@@ -3016,7 +3013,7 @@ async def addadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # Get user info from the new admin (if they've interacted with the bot)
-        new_admin_user = sheets.get_user(new_admin_id)
+        new_admin_user = api.get_user(new_admin_id)
         username = new_admin_user.get('username', '') if new_admin_user else ''
         name = ''
         if new_admin_user:
@@ -3025,7 +3022,7 @@ async def addadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name = f"{first_name} {last_name}".strip()
 
         # Add admin
-        success = sheets.add_admin(new_admin_id, username, name, user_id)
+        success = api.add_admin(new_admin_id, username, name, user_id)
 
         if success:
             await update.message.reply_text(
@@ -3091,7 +3088,7 @@ async def removeadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         # Remove admin
-        success = sheets.remove_admin(admin_id_to_remove)
+        success = api.remove_admin(admin_id_to_remove)
 
         if success:
             await update.message.reply_text(
@@ -3135,7 +3132,7 @@ async def listadmins_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     try:
         # Get all admins
-        admins = sheets.get_all_admins()
+        admins = api.get_all_admins()
 
         message = "👥 <b>ADMIN LIST</b>\n\n"
         message += f"🔱 <b>Super Admin:</b>\n"
@@ -3175,7 +3172,7 @@ async def user_credit_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         # Get all active credits
-        credits = sheets.get_all_active_credits()
+        credits = api.get_all_active_credits()
 
         if not credits:
             await update.message.reply_text(
@@ -3235,7 +3232,7 @@ async def clear_user_credit_callback(update: Update, context: ContextTypes.DEFAU
     await query.answer()
 
     # Get credit info before clearing
-    credit = sheets.get_user_credit(user_id)
+    credit = api.get_user_credit(user_id)
     if not credit:
         await query.edit_message_text(
             "❌ **Credit not found**\n\n"
@@ -3245,7 +3242,7 @@ async def clear_user_credit_callback(update: Update, context: ContextTypes.DEFAU
         return
 
     # Clear the credit
-    success = sheets.clear_user_credit(user_id)
+    success = api.clear_user_credit(user_id)
 
     if success:
         # Clean up tracking
@@ -3314,17 +3311,17 @@ def calculate_all_periods_data(timezone_str='Indian/Maldives'):
     }
 
     # Get exchange rates
-    usd_rate = sheets.get_exchange_rate('USD') or 15.40
-    usdt_rate = sheets.get_exchange_rate('USDT') or 15.40
+    usd_rate = api.get_exchange_rate('USD') or 15.40
+    usdt_rate = api.get_exchange_rate('USDT') or 15.40
 
     all_data = {}
 
     for period_name, (start, end) in periods.items():
-        deposits = sheets.get_deposits_by_date_range(start, end)
-        withdrawals = sheets.get_withdrawals_by_date_range(start, end)
-        spins = sheets.get_spins_by_date_range(start, end)
-        bonuses = sheets.get_bonuses_by_date_range(start, end)
-        cashback = sheets.get_cashback_by_date_range(start, end)
+        deposits = api.get_deposits_by_date_range(start, end)
+        withdrawals = api.get_withdrawals_by_date_range(start, end)
+        spins = api.get_spins_by_date_range(start, end)
+        bonuses = api.get_bonuses_by_date_range(start, end)
+        cashback = api.get_cashback_by_date_range(start, end)
 
         # Calculate chip costs
         total_spin_rewards = sum([s['amount'] for s in spins])
@@ -3378,7 +3375,7 @@ async def send_daily_report(application):
         report = report_header + stats_report
 
         # Add credit summary section
-        credit_summary = sheets.get_daily_credit_summary()
+        credit_summary = api.get_daily_credit_summary()
         if credit_summary['count'] > 0:
             report += "\n\n💳 <b>ACTIVE CREDITS SUMMARY</b>\n"
             report += f"━━━━━━━━━━━━━━━━━━\n\n"
@@ -3405,7 +3402,7 @@ async def send_daily_report(application):
 
         # Save all reports to Google Sheets
         try:
-            sheets.save_all_reports(all_reports_data)
+            api.save_all_reports(all_reports_data)
             logger.info("All period reports saved to Google Sheets successfully")
         except Exception as e:
             logger.error(f"Failed to save reports to Google Sheets: {e}")
@@ -3422,7 +3419,7 @@ async def send_daily_report(application):
 
         # Send to all regular admins
         try:
-            admins = sheets.get_all_admins()
+            admins = api.get_all_admins()
             for admin in admins:
                 try:
                     await application.bot.send_message(
@@ -3467,7 +3464,7 @@ async def update_payment_account_start(update: Update, context: ContextTypes.DEF
         return ConversationHandler.END
 
     # Get current details
-    current_details = sheets.get_payment_account_details(context.user_data['update_method'])
+    current_details = api.get_payment_account_details(context.user_data['update_method'])
 
     if current_details and current_details.get('account_number'):
         current_text = f"📋 **Current {method_name} Account:**\n"
@@ -3502,7 +3499,7 @@ async def update_account_number_received(update: Update, context: ContextTypes.D
     if method == 'USDT':
         # USDT doesn't need holder name, save directly
         try:
-            sheets.update_payment_account(method, account_number, None)
+            api.update_payment_account(method, account_number, None)
 
             await update.message.reply_text(
                 f"✅ **{method} wallet updated successfully!**\n\n"
@@ -3569,7 +3566,7 @@ async def update_account_holder_received(update: Update, context: ContextTypes.D
 
     try:
         # Save to sheets
-        sheets.update_payment_account(method, account_number, account_holder)
+        api.update_payment_account(method, account_number, account_holder)
 
         await update.message.reply_text(
             f"✅ **{method} account updated successfully!**\n\n"
@@ -3642,7 +3639,7 @@ async def broadcast_message_received(update: Update, context: ContextTypes.DEFAU
     broadcast_msg = update.message
 
     # Get all user IDs from Google Sheets
-    user_ids = sheets.get_all_user_ids()
+    user_ids = api.get_all_user_ids()
 
     if not user_ids:
         await update.message.reply_text("❌ No users found in database.")
@@ -3782,7 +3779,7 @@ async def investment_amount_received(update: Update, context: ContextTypes.DEFAU
         note = context.user_data.get('investment_note', '')
 
         # Add investment to Google Sheets
-        success = sheets.add_investment(pppoker_id, note, amount)
+        success = api.add_investment(pppoker_id, note, amount)
 
         if success:
             player_display = pppoker_id
@@ -3821,7 +3818,7 @@ async def investment_return_start(update: Update, context: ContextTypes.DEFAULT_
     await query.answer()
 
     # Get all active investments from last 24 hours
-    active_investments = sheets.get_all_active_investments_summary()
+    active_investments = api.get_all_active_investments_summary()
 
     if not active_investments:
         await query.edit_message_text(
@@ -3872,7 +3869,7 @@ async def return_id_selected(update: Update, context: ContextTypes.DEFAULT_TYPE)
     pppoker_id = ''.join(filter(str.isdigit, pppoker_id))
 
     # Check if this PPPoker ID has active investments
-    investments_data = sheets.get_active_investments_by_id(pppoker_id)
+    investments_data = api.get_active_investments_by_id(pppoker_id)
 
     if investments_data['count'] == 0:
         await update.message.reply_text(
@@ -3924,7 +3921,7 @@ async def return_amount_received(update: Update, context: ContextTypes.DEFAULT_T
         total_investment = investment_data['total_amount']
 
         # Record the return
-        result = sheets.record_investment_return(pppoker_id, return_amount)
+        result = api.record_investment_return(pppoker_id, return_amount)
 
         if result['success']:
             net_profit = result['net_profit']
@@ -4133,7 +4130,7 @@ async def balance_setup_usdt_received(update: Update, context: ContextTypes.DEFA
         rate = cost / chips if chips > 0 else 0
 
         # Save to sheets
-        success = sheets.set_starting_balances(chips, cost, mvr, usd, usdt)
+        success = api.set_starting_balances(chips, cost, mvr, usd, usdt)
 
         if success:
             await update.message.reply_text(
@@ -4170,7 +4167,7 @@ async def balance_buy_chips_start(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     await query.answer()
 
-    balances = sheets.get_club_balances()
+    balances = api.get_club_balances()
 
     await query.edit_message_text(
         f"🎲 <b>Buy Chips for Club</b>\n\n"
@@ -4230,7 +4227,7 @@ async def balance_buy_cost_received(update: Update, context: ContextTypes.DEFAUL
         rate = cost / chips
 
         # Get current balances
-        current = sheets.get_club_balances()
+        current = api.get_club_balances()
 
         # Check if enough MVR
         if current['mvr_balance'] < cost:
@@ -4247,7 +4244,7 @@ async def balance_buy_cost_received(update: Update, context: ContextTypes.DEFAUL
 
         # Buy chips
         admin_name = update.effective_user.username or update.effective_user.first_name or 'Admin'
-        result = sheets.buy_chips_for_club(chips, cost, admin_name)
+        result = api.buy_chips_for_club(chips, cost, admin_name)
 
         if result['success']:
             rate_change = ""
@@ -4291,7 +4288,7 @@ async def balance_add_cash_start(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     await query.answer()
 
-    balances = sheets.get_club_balances()
+    balances = api.get_club_balances()
 
     keyboard = [
         [InlineKeyboardButton("💰 MVR", callback_data="add_cash_mvr")],
@@ -4374,7 +4371,7 @@ async def balance_add_note_received(update: Update, context: ContextTypes.DEFAUL
 
     # Add cash
     admin_name = update.effective_user.username or update.effective_user.first_name or 'Admin'
-    result = sheets.add_cash_to_club(currency, amount, note, admin_name)
+    result = api.add_cash_to_club(currency, amount, note, admin_name)
 
     if result['success']:
         await update.message.reply_text(
@@ -4406,7 +4403,7 @@ async def counter_close_with_poster(update: Update, context: ContextTypes.DEFAUL
     await query.answer()
 
     # Check if there's a saved poster
-    saved_poster = sheets.get_saved_poster('closing')
+    saved_poster = api.get_saved_poster('closing')
 
     if saved_poster:
         keyboard = [
@@ -4447,7 +4444,7 @@ async def counter_close_saved_poster(update: Update, context: ContextTypes.DEFAU
     query = update.callback_query
     await query.answer()
 
-    saved_poster = sheets.get_saved_poster('closing')
+    saved_poster = api.get_saved_poster('closing')
     if not saved_poster:
         await query.edit_message_text(
             "❌ Saved poster not found. Please upload a new one.",
@@ -4461,7 +4458,7 @@ async def counter_close_saved_poster(update: Update, context: ContextTypes.DEFAU
         parse_mode='HTML'
     )
 
-    user_ids = sheets.get_all_user_ids()
+    user_ids = api.get_all_user_ids()
     success_count = 0
     failed_count = 0
 
@@ -4482,7 +4479,7 @@ async def counter_close_saved_poster(update: Update, context: ContextTypes.DEFAU
             logger.error(f"Failed to send closing announcement to {user_id}: {e}")
 
     # Update counter status
-    sheets.set_counter_status('CLOSED', admin_name, announcement_sent=True)
+    api.set_counter_status('CLOSED', admin_name, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter CLOSED</b>\n\n"
@@ -4507,8 +4504,8 @@ async def counter_close_poster_received(update: Update, context: ContextTypes.DE
     file_id = photo.file_id
 
     # Save poster for future use
-    sheets.set_counter_status('CLOSED', update.effective_user.username or update.effective_user.first_name, announcement_sent=True)
-    sheets.save_counter_poster('closing', file_id)
+    api.set_counter_status('CLOSED', update.effective_user.username or update.effective_user.first_name, announcement_sent=True)
+    api.save_counter_poster('closing', file_id)
 
     # Broadcast to all users
     await update.message.reply_text(
@@ -4516,7 +4513,7 @@ async def counter_close_poster_received(update: Update, context: ContextTypes.DE
         parse_mode='HTML'
     )
 
-    user_ids = sheets.get_all_user_ids()
+    user_ids = api.get_all_user_ids()
     success_count = 0
     failed_count = 0
 
@@ -4554,7 +4551,7 @@ async def counter_close_text_only(update: Update, context: ContextTypes.DEFAULT_
         parse_mode='HTML'
     )
 
-    user_ids = sheets.get_all_user_ids()
+    user_ids = api.get_all_user_ids()
     success_count = 0
     failed_count = 0
 
@@ -4574,7 +4571,7 @@ async def counter_close_text_only(update: Update, context: ContextTypes.DEFAULT_
             logger.error(f"Failed to send closing announcement to {user_id}: {e}")
 
     # Update counter status
-    sheets.set_counter_status('CLOSED', admin_name, announcement_sent=True)
+    api.set_counter_status('CLOSED', admin_name, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter CLOSED</b>\n\n"
@@ -4591,7 +4588,7 @@ async def counter_close_silent(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
 
     admin_name = query.from_user.username or query.from_user.first_name
-    sheets.set_counter_status('CLOSED', admin_name, announcement_sent=False)
+    api.set_counter_status('CLOSED', admin_name, announcement_sent=False)
 
     await query.edit_message_text(
         "✅ <b>Counter CLOSED</b>\n\n"
@@ -4609,7 +4606,7 @@ async def counter_open_with_poster(update: Update, context: ContextTypes.DEFAULT
     await query.answer()
 
     # Check if there's a saved poster
-    saved_poster = sheets.get_saved_poster('opening')
+    saved_poster = api.get_saved_poster('opening')
 
     if saved_poster:
         keyboard = [
@@ -4650,7 +4647,7 @@ async def counter_open_saved_poster(update: Update, context: ContextTypes.DEFAUL
     query = update.callback_query
     await query.answer()
 
-    saved_poster = sheets.get_saved_poster('opening')
+    saved_poster = api.get_saved_poster('opening')
     if not saved_poster:
         await query.edit_message_text(
             "❌ Saved poster not found. Please upload a new one.",
@@ -4664,7 +4661,7 @@ async def counter_open_saved_poster(update: Update, context: ContextTypes.DEFAUL
         parse_mode='HTML'
     )
 
-    user_ids = sheets.get_all_user_ids()
+    user_ids = api.get_all_user_ids()
     success_count = 0
     failed_count = 0
 
@@ -4685,7 +4682,7 @@ async def counter_open_saved_poster(update: Update, context: ContextTypes.DEFAUL
             logger.error(f"Failed to send opening announcement to {user_id}: {e}")
 
     # Update counter status
-    sheets.set_counter_status('OPEN', admin_name, announcement_sent=True)
+    api.set_counter_status('OPEN', admin_name, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter OPEN</b>\n\n"
@@ -4710,8 +4707,8 @@ async def counter_open_poster_received(update: Update, context: ContextTypes.DEF
     file_id = photo.file_id
 
     # Save poster for future use
-    sheets.set_counter_status('OPEN', update.effective_user.username or update.effective_user.first_name, announcement_sent=True)
-    sheets.save_counter_poster('opening', file_id)
+    api.set_counter_status('OPEN', update.effective_user.username or update.effective_user.first_name, announcement_sent=True)
+    api.save_counter_poster('opening', file_id)
 
     # Broadcast to all users
     await update.message.reply_text(
@@ -4719,7 +4716,7 @@ async def counter_open_poster_received(update: Update, context: ContextTypes.DEF
         parse_mode='HTML'
     )
 
-    user_ids = sheets.get_all_user_ids()
+    user_ids = api.get_all_user_ids()
     success_count = 0
     failed_count = 0
 
@@ -4757,7 +4754,7 @@ async def counter_open_text_only(update: Update, context: ContextTypes.DEFAULT_T
         parse_mode='HTML'
     )
 
-    user_ids = sheets.get_all_user_ids()
+    user_ids = api.get_all_user_ids()
     success_count = 0
     failed_count = 0
 
@@ -4777,7 +4774,7 @@ async def counter_open_text_only(update: Update, context: ContextTypes.DEFAULT_T
             logger.error(f"Failed to send opening announcement to {user_id}: {e}")
 
     # Update counter status
-    sheets.set_counter_status('OPEN', admin_name, announcement_sent=True)
+    api.set_counter_status('OPEN', admin_name, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter OPEN</b>\n\n"
@@ -4794,7 +4791,7 @@ async def counter_open_silent(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
 
     admin_name = query.from_user.username or query.from_user.first_name
-    sheets.set_counter_status('OPEN', admin_name, announcement_sent=False)
+    api.set_counter_status('OPEN', admin_name, announcement_sent=False)
 
     await query.edit_message_text(
         "✅ <b>Counter OPEN</b>\n\n"
@@ -4894,7 +4891,7 @@ async def promo_end_date_received(update: Update, context: ContextTypes.DEFAULT_
             return PROMO_END_DATE
 
         # Create BONUS promotion
-        promotion_id = sheets.create_promotion(
+        promotion_id = api.create_promotion(
             bonus_percentage=context.user_data['promo_percentage'],
             start_date=context.user_data['promo_start_date'],
             end_date=end_date_str,
@@ -5022,7 +5019,7 @@ async def cashback_promo_end_date_received(update: Update, context: ContextTypes
             return CASHBACK_PROMO_END_DATE
 
         # Create CASHBACK promotion
-        promotion_id = sheets.create_cashback_promotion(
+        promotion_id = api.create_cashback_promotion(
             cashback_percentage=context.user_data['cashback_promo_percentage'],
             start_date=context.user_data['cashback_promo_start_date'],
             end_date=end_date_str,
@@ -5085,7 +5082,7 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
 
         logger.info(f"Approving deposit request: {request_id}")
 
-        deposit = sheets.get_deposit_request(request_id)
+        deposit = api.get_deposit_request(request_id)
 
         if not deposit:
             await query.edit_message_text(
@@ -5096,7 +5093,7 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
             return
 
         # Update status
-        sheets.update_deposit_status(request_id, 'Approved', query.from_user.id, 'Quick approved')
+        api.update_deposit_status(request_id, 'Approved', query.from_user.id, 'Quick approved')
         logger.info(f"Deposit {request_id} status updated to Approved")
 
         # Add free spins based on deposit amount
@@ -5121,7 +5118,7 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
 
         if promo_data:
             # Record promotion bonus
-            success = sheets.record_promotion_bonus(
+            success = api.record_promotion_bonus(
                 user_id=promo_data['user_id'],
                 pppoker_id=promo_data['pppoker_id'],
                 promotion_id=promo_data['promotion_id'],
@@ -5259,7 +5256,7 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
     processing_requests[request_id] = query.from_user.id
     await query.answer()
 
-    withdrawal = sheets.get_withdrawal_request(request_id)
+    withdrawal = api.get_withdrawal_request(request_id)
 
     if not withdrawal:
         await query.edit_message_text(f"{query.message.text}\n\n❌ _Request not found._", parse_mode='Markdown')
@@ -5268,7 +5265,7 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
         return
 
     # Update status
-    sheets.update_withdrawal_status(request_id, 'Completed', query.from_user.id, 'Quick approved')
+    api.update_withdrawal_status(request_id, 'Completed', query.from_user.id, 'Quick approved')
 
     # Notify user with club link button
     club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
@@ -5373,7 +5370,7 @@ async def quick_approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE)
     processing_requests[request_id] = query.from_user.id
     await query.answer()
 
-    join_req = sheets.get_join_request(request_id)
+    join_req = api.get_join_request(request_id)
 
     if not join_req:
         await query.edit_message_text(f"{query.message.text}\n\n❌ _Request not found._", parse_mode='Markdown')
@@ -5382,7 +5379,7 @@ async def quick_approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     # Update status
-    sheets.update_join_request_status(request_id, 'Approved', query.from_user.id)
+    api.update_join_request_status(request_id, 'Approved', query.from_user.id)
 
     # Notify user
     try:
@@ -5524,9 +5521,9 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
         request_id = parts[2]
 
     if request_type == 'deposit':
-        deposit = sheets.get_deposit_request(request_id)
+        deposit = api.get_deposit_request(request_id)
         if deposit:
-            sheets.update_deposit_status(request_id, 'Rejected', admin_id, reason)
+            api.update_deposit_status(request_id, 'Rejected', admin_id, reason)
 
             try:
                 await context.bot.send_message(
@@ -5542,9 +5539,9 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             await update.message.reply_text(f"✅ Deposit {request_id} rejected. User notified.")
 
     elif request_type == 'withdrawal':
-        withdrawal = sheets.get_withdrawal_request(request_id)
+        withdrawal = api.get_withdrawal_request(request_id)
         if withdrawal:
-            sheets.update_withdrawal_status(request_id, 'Rejected', admin_id, reason)
+            api.update_withdrawal_status(request_id, 'Rejected', admin_id, reason)
 
             try:
                 await context.bot.send_message(
@@ -5559,9 +5556,9 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             await update.message.reply_text(f"✅ Withdrawal {request_id} rejected. User notified.")
 
     elif request_type == 'join':
-        join_req = sheets.get_join_request(request_id)
+        join_req = api.get_join_request(request_id)
         if join_req:
-            sheets.update_join_request_status(request_id, 'Rejected', admin_id)
+            api.update_join_request_status(request_id, 'Rejected', admin_id)
 
             try:
                 await context.bot.send_message(
@@ -5576,9 +5573,9 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             await update.message.reply_text(f"✅ Join request {request_id} rejected. User notified.")
 
     elif request_type == 'seat':
-        seat_req = sheets.get_seat_request(request_id)
+        seat_req = api.get_seat_request(request_id)
         if seat_req:
-            sheets.reject_seat_request(request_id, admin_id, reason)
+            api.reject_seat_request(request_id, admin_id, reason)
 
             try:
                 await context.bot.send_message(
@@ -5611,7 +5608,7 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # Get seat request details
     try:
-        seat_req = sheets.get_seat_request(request_id)
+        seat_req = api.get_seat_request(request_id)
         logger.info(f"Seat request retrieved: {seat_req}")
     except Exception as e:
         logger.error(f"Error getting seat request {request_id}: {e}")
@@ -5625,7 +5622,7 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     # Approve in database
-    success = sheets.approve_seat_request(request_id, query.from_user.id)
+    success = api.approve_seat_request(request_id, query.from_user.id)
 
     if success:
         # Remove buttons for ALL admins
@@ -5642,7 +5639,7 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
             del notification_messages[request_id]
 
         # Get payment account details
-        payment_accounts = sheets.get_all_payment_accounts()
+        payment_accounts = api.get_all_payment_accounts()
 
         # Build payment info message
         payment_info = "💳 **Payment Account Details:**\n\n"
@@ -5678,7 +5675,7 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
             }
 
             # Add user to credit list
-            sheets.add_user_credit(
+            api.add_user_credit(
                 seat_req['user_id'],
                 seat_req['username'],
                 seat_req['pppoker_id'],
@@ -5751,7 +5748,7 @@ async def first_slip_reminder(context: ContextTypes.DEFAULT_TYPE):
     user_id = context.job.data
 
     # Check if user still has active credit
-    credit = sheets.get_user_credit(user_id)
+    credit = api.get_user_credit(user_id)
     if not credit:
         # Already settled, cancel
         if user_id in seat_reminder_jobs:
@@ -5764,7 +5761,7 @@ async def first_slip_reminder(context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Increment reminder count
-    sheets.increment_credit_reminder(user_id)
+    api.increment_credit_reminder(user_id)
 
     # Send reminder
     try:
@@ -5794,7 +5791,7 @@ async def final_slip_reminder(context: ContextTypes.DEFAULT_TYPE):
     user_id = context.job.data
 
     # Check if user still has active credit
-    credit = sheets.get_user_credit(user_id)
+    credit = api.get_user_credit(user_id)
     if not credit:
         # Already settled
         if user_id in seat_reminder_jobs:
@@ -5802,7 +5799,7 @@ async def final_slip_reminder(context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Increment reminder count
-    sheets.increment_credit_reminder(user_id)
+    api.increment_credit_reminder(user_id)
 
     # Send final reminder
     try:
@@ -5910,7 +5907,7 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
         if extracted_details.get('receiver_name'):
             # Check against all payment methods since we don't know which one user used
             for method in ['BML', 'MIB']:
-                stored_holder_name = sheets.get_payment_account_holder(method)
+                stored_holder_name = api.get_payment_account_holder(method)
                 if stored_holder_name:
                     extracted_receiver = extracted_details['receiver_name'].upper().strip()
                     stored_holder = stored_holder_name.upper().strip()
@@ -5930,7 +5927,7 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
         if extracted_details.get('receiver_account_number'):
             # Check against all payment methods since we don't know which one user used
             for method in ['BML', 'MIB']:
-                stored_account_number = sheets.get_payment_account(method)
+                stored_account_number = api.get_payment_account(method)
                 if stored_account_number:
                     extracted_account = extracted_details['receiver_account_number'].replace(' ', '').replace('-', '').strip()
                     stored_account = stored_account_number.replace(' ', '').replace('-', '').strip()
@@ -5976,7 +5973,7 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
     # Send to all admins
     all_admin_ids = [ADMIN_USER_ID]
     try:
-        regular_admins = sheets.get_all_admins()
+        regular_admins = api.get_all_admins()
         all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
@@ -6028,7 +6025,7 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     # Get seat request
-    seat_req = sheets.get_seat_request(request_id)
+    seat_req = api.get_seat_request(request_id)
     if not seat_req:
         await query.edit_message_caption(
             caption=f"{query.message.caption}\n\n❌ _Request not found._",
@@ -6042,7 +6039,7 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Settle in database
-    success = sheets.settle_seat_request(
+    success = api.settle_seat_request(
         request_id,
         "Slip Upload",  # Payment method
         "OCR Verified",  # Transaction ID
@@ -6051,7 +6048,7 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if success:
         # Clear user credit
-        sheets.clear_user_credit(seat_req['user_id'])
+        api.clear_user_credit(seat_req['user_id'])
 
         # Clean up tracking
         if seat_req['user_id'] in seat_request_data:
@@ -6116,7 +6113,7 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     # Get seat request
-    seat_req = sheets.get_seat_request(request_id)
+    seat_req = api.get_seat_request(request_id)
     if not seat_req:
         await query.edit_message_caption(
             caption=f"{query.message.caption}\n\n❌ _Request not found._",
@@ -6261,7 +6258,7 @@ async def spin_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         try:
             # Get user's spin data
-            user_data = spin_bot.sheets.get_spin_user(user.id)
+            user_data = spin_bot.api.get_spin_user(user.id)
 
             if not user_data or user_data.get('available_spins', 0) == 0:
                 # Create deposit button
@@ -6389,7 +6386,7 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
     for spin_id in spin_ids:
         try:
             # Get spin data before approval
-            spin_data = spin_bot.sheets.get_spin_by_id(spin_id)
+            spin_data = spin_bot.api.get_spin_by_id(spin_id)
 
             if not spin_data:
                 logger.warning(f"Spin ID {spin_id} not found")
@@ -6403,7 +6400,7 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
             target_username = spin_data.get('username', 'Unknown')
 
             # Mark as approved
-            spin_bot.sheets.approve_spin_reward(spin_id, user.id, approver_name)
+            spin_bot.api.approve_spin_reward(spin_id, user.id, approver_name)
 
             # Add to totals
             chips = int(spin_data.get('chips', 0))
@@ -6417,11 +6414,11 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
             })
 
             # Update user's total approved chips
-            user_data = spin_bot.sheets.get_spin_user(spin_data['user_id'])
+            user_data = spin_bot.api.get_spin_user(spin_data['user_id'])
             if user_data:
                 current_chips = user_data.get('total_chips_earned', 0)
                 new_total = current_chips + chips
-                spin_bot.sheets.update_spin_user(
+                spin_bot.api.update_spin_user(
                     user_id=spin_data['user_id'],
                     username=target_username,
                     total_chips_earned=new_total
@@ -6533,7 +6530,7 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     logger.error(f"Failed to notify super admin: {e}")
 
             # Send to all other admins
-            admins = spin_bot.sheets.get_all_admins()
+            admins = spin_bot.api.get_all_admins()
             for admin in admins:
                 # Don't notify the admin who approved it
                 if admin['admin_id'] != user.id:
@@ -6589,7 +6586,7 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
         target_user_id = int(query.data.replace("approve_spinhistory_", ""))
 
         # Get all pending spins for this user
-        pending = spin_bot.sheets.get_pending_spin_rewards()
+        pending = spin_bot.api.get_pending_spin_rewards()
         user_pending = [p for p in pending if str(p.get('user_id')) == str(target_user_id)]
 
         if not user_pending:
@@ -6606,14 +6603,14 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
         username = user_pending[0].get('username', 'Unknown')
 
         # Get user data first
-        user_data = spin_bot.sheets.get_spin_user(target_user_id)
+        user_data = spin_bot.api.get_spin_user(target_user_id)
 
         # Approve each pending spin
         for reward in user_pending:
             row_number = reward.get('row_number')
             chips = reward.get('chips', 0)
 
-            success = spin_bot.sheets.approve_spin_reward(row_number, approver_name)
+            success = spin_bot.api.approve_spin_reward(row_number, approver_name)
             if success:
                 approved_count += 1
                 total_chips += chips
@@ -6622,7 +6619,7 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
         if user_data:
             current_chips = user_data.get('total_chips_earned', 0)
             new_total = current_chips + total_chips
-            spin_bot.sheets.update_spin_user(
+            spin_bot.api.update_spin_user(
                 user_id=target_user_id,
                 total_chips_earned=new_total
             )
@@ -6646,7 +6643,7 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
         # Notify the user with detailed message
         try:
             # Get PPPoker ID for the message
-            pppoker_id = spin_bot.sheets.get_pppoker_id_from_deposits(target_user_id)
+            pppoker_id = spin_bot.api.get_pppoker_id_from_deposits(target_user_id)
             if pppoker_id:
                 pppoker_msg = f"🎮 <b>PPPoker ID:</b> {pppoker_id}\n"
             else:
@@ -6708,13 +6705,13 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         target_user_id = int(query.data.replace("approve_instant_", ""))
 
         # Get all pending spins for this user
-        pending = spin_bot.sheets.get_pending_spin_rewards()
+        pending = spin_bot.api.get_pending_spin_rewards()
         user_pending = [p for p in pending if str(p.get('user_id')) == str(target_user_id)]
 
         if not user_pending:
             # Try to find who already approved by checking spin history
             try:
-                all_spins = spin_bot.sheets.spin_history_sheet.get_all_values()[1:]  # Skip header
+                all_spins = spin_bot.api.spin_history_sheet.get_all_values()[1:]  # Skip header
                 user_spins = [s for s in all_spins if len(s) > 7 and str(s[0]) == str(target_user_id) and s[6] == 'Approved']
 
                 if user_spins:
@@ -6757,14 +6754,14 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         username = user_pending[0].get('username', 'Unknown')
 
         # Get user data first
-        user_data = spin_bot.sheets.get_spin_user(target_user_id)
+        user_data = spin_bot.api.get_spin_user(target_user_id)
 
         # Approve each pending spin
         for reward in user_pending:
             row_number = reward.get('row_number')
             chips = reward.get('chips', 0)
 
-            success = spin_bot.sheets.approve_spin_reward(row_number, approver_name)
+            success = spin_bot.api.approve_spin_reward(row_number, approver_name)
             if success:
                 approved_count += 1
                 total_chips += chips
@@ -6773,7 +6770,7 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         if user_data:
             current_chips = user_data.get('total_chips_earned', 0)
             new_total = current_chips + total_chips
-            spin_bot.sheets.update_spin_user(
+            spin_bot.api.update_spin_user(
                 user_id=target_user_id,
                 total_chips_earned=new_total
             )
@@ -6796,7 +6793,7 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
 
         # Notify the user
         try:
-            pppoker_id = spin_bot.sheets.get_pppoker_id_from_deposits(target_user_id)
+            pppoker_id = spin_bot.api.get_pppoker_id_from_deposits(target_user_id)
             if pppoker_id:
                 pppoker_msg = f"🎮 <b>PPPoker ID:</b> {pppoker_id}\n"
             else:
@@ -6863,12 +6860,12 @@ async def cashback_approve_callback(update: Update, context: ContextTypes.DEFAUL
         target_user_id = int(query.data.replace("cashback_approve_", ""))
 
         # Get all pending cashback requests for this user
-        pending = sheets.get_user_pending_cashback(target_user_id)
+        pending = api.get_user_pending_cashback(target_user_id)
 
         if not pending:
             # Try to find who already approved
             try:
-                all_requests = sheets.cashback_history_sheet.get_all_values()[1:]
+                all_requests = api.cashback_history_sheet.get_all_values()[1:]
                 user_requests = [r for r in all_requests if len(r) > 9 and str(r[1]) == str(target_user_id) and r[7] == 'Approved']
 
                 if user_requests:
@@ -6908,7 +6905,7 @@ async def cashback_approve_callback(update: Update, context: ContextTypes.DEFAUL
             row_number = request.get('row_number')
             cashback_amount = request.get('cashback_amount', 0)
 
-            success = sheets.approve_cashback_request(row_number, approver_name)
+            success = api.approve_cashback_request(row_number, approver_name)
             if success:
                 approved_count += 1
                 total_cashback += cashback_amount
@@ -6960,7 +6957,7 @@ async def cashback_reject_callback(update: Update, context: ContextTypes.DEFAULT
         target_user_id = int(query.data.replace("cashback_reject_", ""))
 
         # Get all pending cashback requests for this user
-        pending = sheets.get_user_pending_cashback(target_user_id)
+        pending = api.get_user_pending_cashback(target_user_id)
 
         if not pending:
             await query.edit_message_text(
@@ -6978,7 +6975,7 @@ async def cashback_reject_callback(update: Update, context: ContextTypes.DEFAULT
             row_number = request.get('row_number')
             cashback_amount = request.get('cashback_amount', 0)
 
-            success = sheets.reject_cashback_request(row_number, rejector_name)
+            success = api.reject_cashback_request(row_number, rejector_name)
             if success:
                 rejected_count += 1
                 total_cashback += cashback_amount
@@ -7028,10 +7025,10 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
         pass
 
     # Get user data
-    user_data = sheets.get_user(update.effective_user.id)
+    user_data = api.get_user(update.effective_user.id)
 
     # Get all configured payment accounts
-    payment_accounts = sheets.get_all_payment_accounts()
+    payment_accounts = api.get_all_payment_accounts()
 
     # Build keyboard with only configured payment methods
     keyboard = []
@@ -7089,7 +7086,7 @@ async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_
 
         try:
             # Get user's spin data
-            user_data = spin_bot.sheets.get_spin_user(user.id)
+            user_data = spin_bot.api.get_spin_user(user.id)
             available = user_data.get('available_spins', 0) if user_data else 0
             total_chips = user_data.get('total_chips_earned', 0) if user_data else 0
 
@@ -7656,7 +7653,7 @@ def main():
     def check_expired_investments():
         """Mark investments older than 24 hours as Lost"""
         try:
-            marked_count = sheets.mark_expired_investments_as_lost()
+            marked_count = api.mark_expired_investments_as_lost()
             if marked_count > 0:
                 logger.info(f"Marked {marked_count} expired 50/50 investments as Lost")
         except Exception as e:

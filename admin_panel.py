@@ -10,15 +10,16 @@ from telegram.ext import (
     ConversationHandler, ContextTypes, filters
 )
 # DJANGO MIGRATION: Using Django API only (No Google Sheets)
-from sheets_compat import SheetsCompat
+from django_api import DjangoAPI
 from dotenv import load_dotenv
 
 load_dotenv()
 
 ADMIN_USER_ID = int(os.getenv('ADMIN_USER_ID'))
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
+DJANGO_API_URL = os.getenv('DJANGO_API_URL', 'http://localhost:8000/api')
 
-sheets = SheetsCompat()
+api = DjangoAPI(DJANGO_API_URL)
 
 # Conversation states
 ADMIN_NOTES, UPDATE_ACCOUNT_NUMBER = range(2)
@@ -39,7 +40,7 @@ def escape_markdown(text: str) -> str:
 
 def is_admin(user_id: int) -> bool:
     """Check if user is admin (super admin or regular admin)"""
-    return sheets.is_admin(user_id, ADMIN_USER_ID)
+    return api.is_admin(user_id, ADMIN_USER_ID)
 
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -49,7 +50,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Get current counter status
-    counter_status = sheets.get_counter_status()
+    counter_status = api.get_counter_status()
     is_open = counter_status['status'] == 'OPEN'
     counter_button_text = "🔴 Close Counter" if is_open else "🟢 Open Counter"
     counter_callback = "admin_close_counter" if is_open else "admin_open_counter"
@@ -90,7 +91,7 @@ async def admin_view_deposits(update: Update, context: ContextTypes.DEFAULT_TYPE
         edit_func = update.message.reply_text
 
     # Get all deposits from sheet
-    all_deposits = sheets.deposits_sheet.get_all_values()[1:]  # Skip header
+    all_deposits = api.deposits_sheet.get_all_values()[1:]  # Skip header
     pending_deposits = [d for d in all_deposits if len(d) > 8 and d[8] == 'Pending']
 
     if not pending_deposits:
@@ -204,7 +205,7 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Clear any cached state first
     context.user_data.clear()
 
-    deposit = sheets.get_deposit_request(request_id)
+    deposit = api.get_deposit_request(request_id)
     if not deposit:
         await query.edit_message_text(
             text="❌ Deposit request not found.",
@@ -213,7 +214,7 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     # Update status
-    sheets.update_deposit_status(request_id, 'Approved', admin_id, 'Approved via admin panel')
+    api.update_deposit_status(request_id, 'Approved', admin_id, 'Approved via admin panel')
 
     # Notify user with club link button
     user_id = deposit['user_id']
@@ -244,7 +245,7 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         del notification_messages[request_id]
 
     # Check remaining pending deposits
-    all_deposits = sheets.deposits_sheet.get_all_values()[1:]
+    all_deposits = api.deposits_sheet.get_all_values()[1:]
     pending_deposits = [d for d in all_deposits if len(d) > 8 and d[8] == 'Pending']
     remaining_msg = f"\n📊 {len(pending_deposits)} pending deposit(s) remaining." if pending_deposits else "\n✅ No more pending deposits."
 
@@ -298,13 +299,13 @@ async def admin_notes_received(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # This function now only handles rejections (approvals are instant)
     if action_type == 'deposit':
-        deposit = sheets.get_deposit_request(request_id)
+        deposit = api.get_deposit_request(request_id)
         if not deposit:
             await update.message.reply_text("❌ Deposit request not found.")
             return ConversationHandler.END
 
         # Update status to rejected
-        sheets.update_deposit_status(request_id, 'Rejected', admin_id, reason)
+        api.update_deposit_status(request_id, 'Rejected', admin_id, reason)
 
         # Notify user
         user_id = deposit['user_id']
@@ -336,7 +337,7 @@ Please contact support if you have any questions.
             del notification_messages[request_id]
 
         # Check remaining pending deposits
-        all_deposits = sheets.deposits_sheet.get_all_values()[1:]
+        all_deposits = api.deposits_sheet.get_all_values()[1:]
         pending_deposits = [d for d in all_deposits if len(d) > 8 and d[8] == 'Pending']
 
         remaining_msg = f"\n📊 {len(pending_deposits)} pending deposit(s) remaining." if pending_deposits else "\n✅ No more pending deposits."
@@ -348,13 +349,13 @@ Please contact support if you have any questions.
         )
 
     elif action_type == 'withdrawal':
-        withdrawal = sheets.get_withdrawal_request(request_id)
+        withdrawal = api.get_withdrawal_request(request_id)
         if not withdrawal:
             await update.message.reply_text("❌ Withdrawal request not found.")
             return ConversationHandler.END
 
         # Update status to rejected
-        sheets.update_withdrawal_status(request_id, 'Rejected', admin_id, reason)
+        api.update_withdrawal_status(request_id, 'Rejected', admin_id, reason)
 
         # Notify user
         user_id = withdrawal['user_id']
@@ -386,7 +387,7 @@ Please contact support if you have any questions.
             del notification_messages[request_id]
 
         # Check remaining pending withdrawals
-        all_withdrawals = sheets.withdrawals_sheet.get_all_values()[1:]
+        all_withdrawals = api.withdrawals_sheet.get_all_values()[1:]
         pending_withdrawals = [w for w in all_withdrawals if len(w) > 8 and w[8] == 'Pending']
 
         remaining_msg = f"\n📊 {len(pending_withdrawals)} pending withdrawal(s) remaining." if pending_withdrawals else "\n✅ No more pending withdrawals."
@@ -398,13 +399,13 @@ Please contact support if you have any questions.
         )
 
     elif action_type == 'join':
-        join_req = sheets.get_join_request(request_id)
+        join_req = api.get_join_request(request_id)
         if not join_req:
             await update.message.reply_text("❌ Join request not found.")
             return ConversationHandler.END
 
         # Update status to rejected
-        sheets.update_join_request_status(request_id, 'Rejected', admin_id)
+        api.update_join_request_status(request_id, 'Rejected', admin_id)
 
         # Notify user
         user_id = join_req['user_id']
@@ -436,7 +437,7 @@ Please contact support if you have any questions.
             del notification_messages[request_id]
 
         # Check remaining pending join requests
-        all_join_requests = sheets.join_requests_sheet.get_all_values()[1:]
+        all_join_requests = api.join_requests_sheet.get_all_values()[1:]
         pending_join_requests = [j for j in all_join_requests if len(j) > 5 and j[5] == 'Pending']
 
         remaining_msg = f"\n📊 {len(pending_join_requests)} pending join request(s) remaining." if pending_join_requests else "\n✅ No more pending join requests."
@@ -464,7 +465,7 @@ async def admin_view_withdrawals(update: Update, context: ContextTypes.DEFAULT_T
         query = update
         edit_func = update.message.reply_text
 
-    all_withdrawals = sheets.withdrawals_sheet.get_all_values()[1:]
+    all_withdrawals = api.withdrawals_sheet.get_all_values()[1:]
     pending_withdrawals = [w for w in all_withdrawals if len(w) > 8 and w[8] == 'Pending']
 
     if not pending_withdrawals:
@@ -569,7 +570,7 @@ async def withdrawal_approve(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Clear any cached state first
     context.user_data.clear()
 
-    withdrawal = sheets.get_withdrawal_request(request_id)
+    withdrawal = api.get_withdrawal_request(request_id)
     if not withdrawal:
         await query.edit_message_text(
             text="❌ Withdrawal request not found.",
@@ -578,7 +579,7 @@ async def withdrawal_approve(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
 
     # Update status
-    sheets.update_withdrawal_status(request_id, 'Completed', admin_id, 'Approved via admin panel')
+    api.update_withdrawal_status(request_id, 'Completed', admin_id, 'Approved via admin panel')
 
     # Notify user with club link button
     user_id = withdrawal['user_id']
@@ -608,7 +609,7 @@ async def withdrawal_approve(update: Update, context: ContextTypes.DEFAULT_TYPE)
         del notification_messages[request_id]
 
     # Check remaining pending withdrawals
-    all_withdrawals = sheets.withdrawals_sheet.get_all_values()[1:]
+    all_withdrawals = api.withdrawals_sheet.get_all_values()[1:]
     pending_withdrawals = [w for w in all_withdrawals if len(w) > 8 and w[8] == 'Pending']
     remaining_msg = f"\n📊 {len(pending_withdrawals)} pending withdrawal(s) remaining." if pending_withdrawals else "\n✅ No more pending withdrawals."
 
@@ -666,7 +667,7 @@ async def admin_view_cashback(update: Update, context: ContextTypes.DEFAULT_TYPE
         edit_func = update.message.reply_text
 
     # Get pending cashback requests
-    pending_cashback = sheets.get_pending_cashback_requests()
+    pending_cashback = api.get_pending_cashback_requests()
 
     if not pending_cashback:
         await edit_func(
@@ -771,11 +772,11 @@ async def cashback_admin_approve(update: Update, context: ContextTypes.DEFAULT_T
     row_number = int(query.data.replace("cashback_admin_approve_", ""))
 
     # Approve the request
-    success = sheets.approve_cashback_request(row_number, approver_name)
+    success = api.approve_cashback_request(row_number, approver_name)
 
     if success:
         # Get the request details for notification
-        cashback_data = sheets.cashback_history_sheet.row_values(row_number)
+        cashback_data = api.cashback_history_sheet.row_values(row_number)
         target_user_id = int(cashback_data[1])
         username = cashback_data[2]
         cashback_amount = float(cashback_data[6]) if cashback_data[6] else 0
@@ -818,7 +819,7 @@ async def cashback_admin_approve(update: Update, context: ContextTypes.DEFAULT_T
     else:
         # Check if already processed by getting current status
         try:
-            cashback_data = sheets.cashback_history_sheet.row_values(row_number)
+            cashback_data = api.cashback_history_sheet.row_values(row_number)
             if len(cashback_data) >= 9:
                 current_status = cashback_data[8]
                 if current_status and current_status.lower() != 'pending':
@@ -856,11 +857,11 @@ async def cashback_admin_reject(update: Update, context: ContextTypes.DEFAULT_TY
     row_number = int(query.data.replace("cashback_admin_reject_", ""))
 
     # Reject the request
-    success = sheets.reject_cashback_request(row_number, rejector_name)
+    success = api.reject_cashback_request(row_number, rejector_name)
 
     if success:
         # Get the request details for notification
-        cashback_data = sheets.cashback_history_sheet.row_values(row_number)
+        cashback_data = api.cashback_history_sheet.row_values(row_number)
         target_user_id = int(cashback_data[1])
         username = cashback_data[2]
         cashback_amount = float(cashback_data[6]) if cashback_data[6] else 0
@@ -903,7 +904,7 @@ async def cashback_admin_reject(update: Update, context: ContextTypes.DEFAULT_TY
     else:
         # Check if already processed by getting current status
         try:
-            cashback_data = sheets.cashback_history_sheet.row_values(row_number)
+            cashback_data = api.cashback_history_sheet.row_values(row_number)
             if len(cashback_data) >= 9:
                 current_status = cashback_data[8]
                 if current_status and current_status.lower() != 'pending':
@@ -942,7 +943,7 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
         edit_func = update.message.reply_text
 
     # Get all active credits
-    active_credits = sheets.get_all_active_credits()
+    active_credits = api.get_all_active_credits()
 
     if not active_credits:
         await edit_func(
@@ -1001,7 +1002,7 @@ async def admin_view_joins(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update
         edit_func = update.message.reply_text
 
-    all_joins = sheets.join_requests_sheet.get_all_values()[1:]
+    all_joins = api.join_requests_sheet.get_all_values()[1:]
     pending_joins = [j for j in all_joins if len(j) > 6 and j[6] == 'Pending']
 
     if not pending_joins:
@@ -1100,7 +1101,7 @@ async def join_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Clear any cached state first
     context.user_data.clear()
 
-    join_req = sheets.get_join_request(request_id)
+    join_req = api.get_join_request(request_id)
     if not join_req:
         await query.edit_message_text(
             text="❌ Join request not found.",
@@ -1109,7 +1110,7 @@ async def join_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     # Update status
-    sheets.update_join_request_status(request_id, 'Approved', admin_id)
+    api.update_join_request_status(request_id, 'Approved', admin_id)
 
     # Notify user
     user_id = join_req['user_id']
@@ -1141,7 +1142,7 @@ You've been approved to join the club. See you at the tables! 🎰
         del notification_messages[request_id]
 
     # Check remaining pending join requests
-    all_join_requests = sheets.join_requests_sheet.get_all_values()[1:]
+    all_join_requests = api.join_requests_sheet.get_all_values()[1:]
     pending_join_requests = [j for j in all_join_requests if len(j) > 5 and j[5] == 'Pending']
     remaining_msg = f"\n📊 {len(pending_join_requests)} pending join request(s) remaining." if pending_join_requests else "\n✅ No more pending join requests."
 
@@ -1199,7 +1200,7 @@ async def admin_view_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE
         query = update
         edit_func = update.message.reply_text
 
-    accounts = sheets.get_all_payment_accounts()
+    accounts = api.get_all_payment_accounts()
 
     message_text = "🏦 <b>Current Payment Accounts</b>\n\n"
 
@@ -1270,10 +1271,10 @@ async def admin_view_promotions(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
 
-    active_promo = sheets.get_active_promotion()
-    active_cashback_promo = sheets.get_active_cashback_promotion()
-    all_promos = sheets.get_all_promotions()
-    all_cashback_promos = sheets.get_all_cashback_promotions()
+    active_promo = api.get_active_promotion()
+    active_cashback_promo = api.get_active_cashback_promotion()
+    all_promos = api.get_all_promotions()
+    all_cashback_promos = api.get_all_cashback_promotions()
 
     message = "🎁 **Promotions Management**\n\n"
 
@@ -1322,7 +1323,7 @@ async def admin_view_all_promotions(update: Update, context: ContextTypes.DEFAUL
     query = update.callback_query
     await query.answer()
 
-    all_promos = sheets.get_all_promotions()
+    all_promos = api.get_all_promotions()
 
     if not all_promos:
         await query.edit_message_text(
@@ -1349,7 +1350,7 @@ async def admin_view_all_cashback_promotions(update: Update, context: ContextTyp
     query = update.callback_query
     await query.answer()
 
-    all_cashback_promos = sheets.get_all_cashback_promotions()
+    all_cashback_promos = api.get_all_cashback_promotions()
 
     if not all_cashback_promos:
         await query.edit_message_text(
@@ -1378,7 +1379,7 @@ async def promo_deactivate(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     promotion_id = query.data.split('_')[-1]
 
-    if sheets.deactivate_promotion(promotion_id):
+    if api.deactivate_promotion(promotion_id):
         await query.edit_message_text(
             f"✅ Bonus promotion {promotion_id} has been deactivated.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
@@ -1397,7 +1398,7 @@ async def cashback_promo_deactivate(update: Update, context: ContextTypes.DEFAUL
 
     promotion_id = query.data.split('_')[-1]
 
-    if sheets.deactivate_cashback_promotion(promotion_id):
+    if api.deactivate_cashback_promotion(promotion_id):
         await query.edit_message_text(
             f"✅ Cashback promotion {promotion_id} has been deactivated.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
@@ -1420,7 +1421,7 @@ async def admin_counter_status(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     await query.answer()
 
-    status = sheets.get_counter_status()
+    status = api.get_counter_status()
     is_open = status['status'] == 'OPEN'
 
     status_emoji = "🟢" if is_open else "🔴"
@@ -1447,7 +1448,7 @@ async def admin_close_counter(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
 
     # Check if already closed
-    if not sheets.is_counter_open():
+    if not api.is_counter_open():
         await query.edit_message_text(
             "⚠️ Counter is already CLOSED.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
@@ -1476,7 +1477,7 @@ async def admin_open_counter(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
 
     # Check if already open
-    if sheets.is_counter_open():
+    if api.is_counter_open():
         await query.edit_message_text(
             "⚠️ Counter is already OPEN.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
@@ -1525,7 +1526,7 @@ async def investment_view_active(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     await query.answer()
 
-    active_investments = sheets.get_all_active_investments_summary()
+    active_investments = api.get_all_active_investments_summary()
 
     if not active_investments:
         await query.edit_message_text(
@@ -1565,7 +1566,7 @@ async def investment_view_completed(update: Update, context: ContextTypes.DEFAUL
     await query.answer()
 
     # Get investment stats for completed investments
-    stats = sheets.get_investment_stats()
+    stats = api.get_investment_stats()
 
     if stats['completed_count'] == 0:
         await query.edit_message_text(
@@ -1604,7 +1605,7 @@ async def admin_club_balances(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
 
     # Check if balances are initialized
-    initialized = sheets.is_balances_initialized()
+    initialized = api.is_balances_initialized()
 
     if not initialized:
         keyboard = [
@@ -1621,7 +1622,7 @@ async def admin_club_balances(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     # Show current balances
-    balances = sheets.get_club_balances()
+    balances = api.get_club_balances()
 
     message = "🏦 <b>Club Balances</b>\n\n"
     message += f"🎲 <b>Chip Inventory:</b> {balances['chip_inventory']:,.0f}\n"
@@ -1652,7 +1653,7 @@ async def balances_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    transactions = sheets.get_inventory_transactions(limit=10)
+    transactions = api.get_inventory_transactions(limit=10)
 
     if not transactions:
         await query.edit_message_text(
