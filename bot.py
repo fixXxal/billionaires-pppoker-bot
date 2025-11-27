@@ -574,7 +574,7 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
         message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
 
         # Show exchange rate for USDT
-        usdt_rate = api.get_exchange_rate('USDT')
+        usdt_rate = api.get_exchange_rate('USDT', 'MVR')
         if usdt_rate:
             message += f"💱 <b>Current Rate:</b> 1 USDT = {usdt_rate:.2f} MVR\n\n"
 
@@ -588,7 +588,7 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
         message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
 
         # Show exchange rate for USD
-        usd_rate = api.get_exchange_rate('USD')
+        usd_rate = api.get_exchange_rate('USD', 'MVR')
         if usd_rate:
             message += f"💱 <b>Current Rate:</b> 1 USD = {usd_rate:.2f} MVR\n\n"
 
@@ -1146,11 +1146,11 @@ async def withdrawal_method_selected(update: Update, context: ContextTypes.DEFAU
 
     # Show exchange rate for USD/USDT
     if method == 'USD':
-        usd_rate = api.get_exchange_rate('USD')
+        usd_rate = api.get_exchange_rate('USD', 'MVR')
         if usd_rate:
             message += f"💱 <b>Current Rate:</b> 1 USD = {usd_rate:.2f} MVR\n\n"
     elif method == 'USDT':
-        usdt_rate = api.get_exchange_rate('USDT')
+        usdt_rate = api.get_exchange_rate('USDT', 'MVR')
         if usdt_rate:
             message += f"💱 <b>Current Rate:</b> 1 USDT = {usdt_rate:.2f} MVR\n\n"
 
@@ -2573,8 +2573,8 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
     }
 
     # Get exchange rates
-    usd_rate = api.get_exchange_rate('USD') or 15.40
-    usdt_rate = api.get_exchange_rate('USDT') or 15.40
+    usd_rate = api.get_exchange_rate('USD', 'MVR') or 15.40
+    usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.40
 
     report = "📊 <b>PROFIT/LOSS REPORT</b>\n\n"
     report += f"💱 <b>Current Exchange Rates:</b>\n"
@@ -2740,8 +2740,8 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
     }
 
     # Get exchange rates
-    usd_rate = api.get_exchange_rate('USD') or 15.40
-    usdt_rate = api.get_exchange_rate('USDT') or 15.40
+    usd_rate = api.get_exchange_rate('USD', 'MVR') or 15.40
+    usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.40
 
     report = "📊 <b>PROFIT/LOSS REPORT</b>\n\n"
     report += f"💱 <b>Current Exchange Rates:</b>\n"
@@ -2919,7 +2919,7 @@ async def set_usd_rate_command(update: Update, context: ContextTypes.DEFAULT_TYP
     # Check if rate was provided
     if len(context.args) == 0:
         # Show current rate
-        current_rate = api.get_exchange_rate('USD')
+        current_rate = api.get_exchange_rate('USD', 'MVR')
         if current_rate:
             await update.message.reply_text(
                 f"💵 <b>Current USD Rate</b>\n\n"
@@ -2969,7 +2969,7 @@ async def set_usdt_rate_command(update: Update, context: ContextTypes.DEFAULT_TY
     # Check if rate was provided
     if len(context.args) == 0:
         # Show current rate
-        current_rate = api.get_exchange_rate('USDT')
+        current_rate = api.get_exchange_rate('USDT', 'MVR')
         if current_rate:
             await update.message.reply_text(
                 f"💎 <b>Current USDT Rate</b>\n\n"
@@ -3335,8 +3335,8 @@ def calculate_all_periods_data(timezone_str='Indian/Maldives'):
     }
 
     # Get exchange rates
-    usd_rate = api.get_exchange_rate('USD') or 15.40
-    usdt_rate = api.get_exchange_rate('USDT') or 15.40
+    usd_rate = api.get_exchange_rate('USD', 'MVR') or 15.40
+    usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.40
 
     all_data = {}
 
