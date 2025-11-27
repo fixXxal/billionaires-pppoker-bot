@@ -284,6 +284,32 @@ class DjangoAPI:
         }
         return self._post('payment-accounts/', data)
 
+    def update_payment_account(self, method: str, account_number: str, account_name: str = None) -> Dict:
+        """Update or create payment account"""
+        # First, try to get existing account by method
+        try:
+            accounts = self.get_all_payment_accounts()
+            existing = next((acc for acc in accounts if acc.get('method') == method), None)
+
+            data = {
+                'method': method,
+                'account_name': account_name or method,
+                'account_number': account_number,
+                'is_active': True
+            }
+
+            if existing:
+                # Update existing account
+                account_id = existing.get('id')
+                return self._put(f'payment-accounts/{account_id}/', data)
+            else:
+                # Create new account
+                return self._post('payment-accounts/', data)
+        except Exception as e:
+            logger.error(f"Error updating payment account: {e}")
+            # Fallback to create
+            return self.create_payment_account(method, account_name or method, account_number)
+
     def get_all_payment_accounts(self) -> List[Dict]:
         """Get all payment accounts"""
         return self._get('payment-accounts/')

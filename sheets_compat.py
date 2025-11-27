@@ -288,10 +288,10 @@ class SheetsCompatAPI(DjangoAPI):
         return account.get('account_name') if account else None
 
     def update_payment_account(self, method: str, account_number: str, account_name: str = None) -> bool:
-        """Update payment account - placeholder"""
+        """Update payment account"""
         try:
-            # Create or update
-            self.create_payment_account(method, account_name or method, account_number)
+            # Use Django API update method which handles update-or-create
+            self.django_api.update_payment_account(method, account_number, account_name)
             return True
         except Exception as e:
             logger.error(f"Error updating payment account: {e}")

@@ -249,6 +249,10 @@ class CashbackRequest(models.Model):
 class PaymentAccount(models.Model):
     """Payment Account model - matches Payment_Accounts sheet"""
     METHOD_CHOICES = [
+        ('BML', 'Bank of Maldives'),
+        ('MIB', 'Maldives Islamic Bank'),
+        ('USD', 'USD Cash'),
+        ('USDT', 'USDT Crypto'),
         ('BTC', 'Bitcoin'),
         ('USDT_TRC20', 'USDT TRC20'),
         ('USDT_BEP20', 'USDT BEP20'),
