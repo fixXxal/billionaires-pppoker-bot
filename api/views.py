@@ -477,13 +477,19 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def active(self, request):
-        """Get all active promo codes"""
+        """Get all active promo codes, optionally filtered by promo_type"""
         today = timezone.now().date()
         promos = PromoCode.objects.filter(
             is_active=True,
             start_date__lte=today,
             end_date__gte=today
         )
+
+        # Filter by promo_type if provided
+        promo_type = request.query_params.get('promo_type', None)
+        if promo_type:
+            promos = promos.filter(promo_type=promo_type)
+
         serializer = self.get_serializer(promos, many=True)
         return Response(serializer.data)
 

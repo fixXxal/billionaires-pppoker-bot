@@ -325,8 +325,14 @@ class CounterStatus(models.Model):
 
 class PromoCode(models.Model):
     """Promo Code model - matches Promo sheet"""
+    PROMO_TYPE_CHOICES = [
+        ('bonus', 'Deposit Bonus'),
+        ('cashback', 'Cashback'),
+    ]
+
     code = models.CharField(max_length=50, unique=True)
     percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    promo_type = models.CharField(max_length=20, choices=PROMO_TYPE_CHOICES, default='bonus')
     start_date = models.DateField()
     end_date = models.DateField()
     is_active = models.BooleanField(default=True)
@@ -338,12 +344,13 @@ class PromoCode(models.Model):
         indexes = [
             models.Index(fields=['code']),
             models.Index(fields=['is_active']),
+            models.Index(fields=['promo_type', 'is_active']),
             models.Index(fields=['start_date', 'end_date']),
             models.Index(fields=['synced_to_sheets']),
         ]
 
     def __str__(self):
-        return f"Promo {self.code} - {self.percentage}%"
+        return f"Promo {self.code} - {self.percentage}% ({self.get_promo_type_display()})"
 
 
 class SupportMessage(models.Model):

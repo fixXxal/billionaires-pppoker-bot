@@ -331,15 +331,20 @@ class DjangoAPI:
 
     # ==================== PROMO CODE METHODS ====================
 
-    def get_active_promo_codes(self) -> List[Dict]:
-        """Get all active promo codes"""
-        return self._get('promo-codes/active/')
+    def get_active_promo_codes(self, promo_type: str = None) -> List[Dict]:
+        """Get all active promo codes, optionally filtered by type"""
+        params = {}
+        if promo_type:
+            params['promo_type'] = promo_type
+        return self._get('promo-codes/active/', params=params)
 
-    def create_promo_code(self, code: str, percentage: float, start_date: str, end_date: str) -> Dict:
+    def create_promo_code(self, code: str, percentage: float, start_date: str, end_date: str,
+                         promo_type: str = 'bonus') -> Dict:
         """Create new promo code"""
         data = {
             'code': code,
             'percentage': percentage,
+            'promo_type': promo_type,
             'start_date': start_date,
             'end_date': end_date,
             'is_active': True

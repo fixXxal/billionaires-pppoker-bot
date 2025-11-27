@@ -213,18 +213,18 @@ class SheetsCompatAPI(DjangoAPI):
     # ==================== LEGACY PROMOTION METHODS ====================
 
     def create_promotion(self, code: str, percentage: float, start_date: str, end_date: str) -> bool:
-        """Create promotion (maps to promo code)"""
+        """Create deposit bonus promotion"""
         try:
-            self.create_promo_code(code, percentage, start_date, end_date)
+            self.create_promo_code(code, percentage, start_date, end_date, promo_type='bonus')
             return True
         except Exception as e:
             logger.error(f"Error creating promotion: {e}")
             return False
 
     def get_active_promotion(self) -> Optional[Dict]:
-        """Get active promotion"""
+        """Get active deposit bonus promotion"""
         try:
-            promos = self.get_active_promo_codes()
+            promos = self.get_active_promo_codes(promo_type='bonus')
             return promos[0] if promos else None
         except Exception as e:
             logger.error(f"Error getting active promotion: {e}")
@@ -239,12 +239,25 @@ class SheetsCompatAPI(DjangoAPI):
         return True
 
     def create_cashback_promotion(self, percentage: float, start_date: str, end_date: str) -> bool:
-        """Create cashback promotion - placeholder"""
-        return True
+        """Create cashback promotion"""
+        try:
+            # Generate a code like "CASHBACK_2024"
+            from datetime import datetime
+            code = f"CASHBACK_{datetime.now().year}"
+            self.create_promo_code(code, percentage, start_date, end_date, promo_type='cashback')
+            return True
+        except Exception as e:
+            logger.error(f"Error creating cashback promotion: {e}")
+            return False
 
     def get_active_cashback_promotion(self) -> Optional[Dict]:
-        """Get active cashback promotion - placeholder"""
-        return None
+        """Get active cashback promotion"""
+        try:
+            promos = self.get_active_promo_codes(promo_type='cashback')
+            return promos[0] if promos else None
+        except Exception as e:
+            logger.error(f"Error getting active cashback promotion: {e}")
+            return None
 
     def get_bonuses_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
         """Get bonuses by date range - placeholder"""

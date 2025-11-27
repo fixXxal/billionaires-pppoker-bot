@@ -163,7 +163,7 @@ class PromoCodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = PromoCode
         fields = [
-            'id', 'code', 'percentage', 'start_date', 'end_date',
+            'id', 'code', 'percentage', 'promo_type', 'start_date', 'end_date',
             'is_active', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
