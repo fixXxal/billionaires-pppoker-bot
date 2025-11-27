@@ -230,8 +230,9 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     api.update_deposit_status(request_id, 'Approved', admin_id, 'Approved via admin panel')
 
     # Notify user with club link button
-    user_id = deposit['user_id']
-    currency = 'MVR' if deposit['payment_method'] != 'USDT' else 'USD'
+    user_details = deposit.get('user_details', {})
+    user_id = user_details.get('telegram_id') or deposit.get('user')
+    currency = 'MVR' if deposit.get('method') != 'USDT' else 'USD'
     user_message = f"✅ <b>Deposit approved!</b>\n\n💰 {deposit['amount']} {currency} → Chips credited"
 
     club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
@@ -258,9 +259,11 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         del notification_messages[request_id]
 
     # Check remaining pending deposits
-    all_deposits = api.deposits_sheet.get_all_values()[1:]
-    pending_deposits = [d for d in all_deposits if len(d) > 8 and d[8] == 'Pending']
-    remaining_msg = f"\n📊 {len(pending_deposits)} pending deposit(s) remaining." if pending_deposits else "\n✅ No more pending deposits."
+    try:
+        pending_deposits = api.get_pending_deposits()
+        remaining_msg = f"\n📊 {len(pending_deposits)} pending deposit(s) remaining." if pending_deposits else "\n✅ No more pending deposits."
+    except Exception as e:
+        remaining_msg = ""
 
     # Edit message and explicitly remove keyboard
     try:
@@ -608,8 +611,9 @@ async def withdrawal_approve(update: Update, context: ContextTypes.DEFAULT_TYPE)
     api.update_withdrawal_status(request_id, 'Completed', admin_id, 'Approved via admin panel')
 
     # Notify user with club link button
-    user_id = withdrawal['user_id']
-    currency = 'MVR' if withdrawal['payment_method'] != 'USDT' else 'USD'
+    user_details = withdrawal.get('user_details', {})
+    user_id = user_details.get('telegram_id') or withdrawal.get('user')
+    currency = 'MVR' if withdrawal.get('method') != 'USDT' else 'USD'
     user_message = f"✅ <b>Withdrawal completed!</b>\n\n💸 {withdrawal['amount']} {currency} sent to your account"
 
     club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
@@ -635,9 +639,11 @@ async def withdrawal_approve(update: Update, context: ContextTypes.DEFAULT_TYPE)
         del notification_messages[request_id]
 
     # Check remaining pending withdrawals
-    all_withdrawals = api.withdrawals_sheet.get_all_values()[1:]
-    pending_withdrawals = [w for w in all_withdrawals if len(w) > 8 and w[8] == 'Pending']
-    remaining_msg = f"\n📊 {len(pending_withdrawals)} pending withdrawal(s) remaining." if pending_withdrawals else "\n✅ No more pending withdrawals."
+    try:
+        pending_withdrawals = api.get_pending_withdrawals()
+        remaining_msg = f"\n📊 {len(pending_withdrawals)} pending withdrawal(s) remaining." if pending_withdrawals else "\n✅ No more pending withdrawals."
+    except Exception as e:
+        remaining_msg = ""
 
     # Edit message and explicitly remove keyboard
     try:
@@ -1150,7 +1156,8 @@ async def join_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     api.update_join_request_status(request_id, 'Approved', admin_id)
 
     # Notify user
-    user_id = join_req['user_id']
+    user_details = join_req.get('user_details', {})
+    user_id = user_details.get('telegram_id') or join_req.get('user')
     user_message = f"""
 ✅ **Welcome to Billionaires Club!**
 
@@ -1179,9 +1186,11 @@ You've been approved to join the club. See you at the tables! 🎰
         del notification_messages[request_id]
 
     # Check remaining pending join requests
-    all_join_requests = api.join_requests_sheet.get_all_values()[1:]
-    pending_join_requests = [j for j in all_join_requests if len(j) > 5 and j[5] == 'Pending']
-    remaining_msg = f"\n📊 {len(pending_join_requests)} pending join request(s) remaining." if pending_join_requests else "\n✅ No more pending join requests."
+    try:
+        pending_join_requests = api.get_pending_join_requests()
+        remaining_msg = f"\n📊 {len(pending_join_requests)} pending join request(s) remaining." if pending_join_requests else "\n✅ No more pending join requests."
+    except Exception as e:
+        remaining_msg = ""
 
     # Edit message and explicitly remove keyboard
     try:
