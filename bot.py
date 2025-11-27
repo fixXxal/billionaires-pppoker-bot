@@ -558,7 +558,7 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
     context.user_data['deposit_method'] = method
 
     # Get payment account details
-    account = api.get_payment_account(method)
+    account = api.get_payment_account_details(method)
     account_holder = api.get_payment_account_holder(method)
 
     if not account:
