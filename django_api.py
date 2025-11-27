@@ -304,7 +304,14 @@ class DjangoAPI:
         # First, try to get existing account by method
         try:
             accounts = self.get_all_payment_accounts()
-            existing = next((acc for acc in accounts if acc.get('method') == method), None)
+            logger.info(f"Retrieved accounts: {accounts}, type: {type(accounts)}")
+
+            # Handle case where accounts might be a string or error
+            if not isinstance(accounts, list):
+                logger.error(f"Expected list of accounts, got {type(accounts)}: {accounts}")
+                accounts = []
+
+            existing = next((acc for acc in accounts if isinstance(acc, dict) and acc.get('method') == method), None)
 
             data = {
                 'method': method,
