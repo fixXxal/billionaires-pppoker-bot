@@ -4,6 +4,7 @@ Handles all admin commands and approval workflows
 """
 
 import os
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler, CallbackQueryHandler, MessageHandler,
@@ -14,6 +15,9 @@ from django_api import DjangoAPI
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 ADMIN_USER_ID = int(os.getenv('ADMIN_USER_ID'))
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
