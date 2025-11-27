@@ -212,81 +212,101 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer("Processing approval...")
 
-    request_id = int(query.data.split('_')[-1])
-    admin_id = query.from_user.id
+    try:
+        request_id = int(query.data.split('_')[-1])
+        admin_id = query.from_user.id
 
-    # Clear any cached state first
-    context.user_data.clear()
+        # Clear any cached state first
+        context.user_data.clear()
 
-    deposit = api.get_deposit_request(request_id)
-    if not deposit:
+        logger.info(f"Admin {admin_id} approving deposit {request_id}")
+
+        deposit = api.get_deposit_request(request_id)
+        if not deposit:
+            logger.error(f"Deposit {request_id} not found")
+            await query.edit_message_text(
+                text="❌ Deposit request not found.",
+                reply_markup=InlineKeyboardMarkup([])
+            )
+            return ConversationHandler.END
+
+        logger.info(f"Found deposit: {deposit}")
+
+        # Update status using Django API
+        result = api.approve_deposit(request_id, admin_id)
+        logger.info(f"Approve result: {result}")
+
+        # Notify user with club link button
+        user_details = deposit.get('user_details', {})
+        user_id = user_details.get('telegram_id') or deposit.get('user')
+        currency = 'MVR' if deposit.get('method') != 'USDT' else 'USD'
+        user_message = f"✅ <b>Deposit approved!</b>\n\n💰 {deposit['amount']} {currency} → Chips credited"
+
+        club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
+        keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        try:
+            await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML', reply_markup=reply_markup)
+            logger.info(f"User {user_id} notified of approval")
+        except Exception as e:
+            logger.error(f"Failed to notify user: {e}")
+
+        # Edit original notification message to remove buttons for ALL admins
+        if request_id in notification_messages:
+            for admin_id_msg, message_id in notification_messages[request_id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id_msg,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to remove buttons for admin {admin_id_msg}: {e}")
+            # Clean up the stored message_ids
+            del notification_messages[request_id]
+
+        # Check remaining pending deposits
+        try:
+            pending_deposits = api.get_pending_deposits()
+            remaining_msg = f"\n📊 {len(pending_deposits)} pending deposit(s) remaining." if pending_deposits else "\n✅ No more pending deposits."
+        except Exception as e:
+            logger.error(f"Failed to get pending deposits: {e}")
+            remaining_msg = ""
+
+        # Edit message and explicitly remove keyboard
+        try:
+            await query.message.edit_text(
+                text=f"✅ Deposit {request_id} has been approved.\n"
+                f"User has been notified."
+                f"{remaining_msg}",
+                reply_markup=InlineKeyboardMarkup([])
+            )
+        except Exception as e:
+            # If edit fails, try deleting and sending new message
+            logger.error(f"Failed to edit message: {e}")
+            try:
+                await query.message.delete()
+                await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=f"✅ Deposit {request_id} has been approved.\n"
+                    f"User has been notified."
+                    f"{remaining_msg}"
+                )
+            except Exception as e2:
+                logger.error(f"Failed to send new message: {e2}")
+
+        return ConversationHandler.END
+
+    except Exception as e:
+        logger.error(f"Error in deposit_approve: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         await query.edit_message_text(
-            text="❌ Deposit request not found.",
+            text=f"❌ Error: {str(e)}",
             reply_markup=InlineKeyboardMarkup([])
         )
         return ConversationHandler.END
-
-    # Update status
-    api.update_deposit_status(request_id, 'Approved', admin_id, 'Approved via admin panel')
-
-    # Notify user with club link button
-    user_details = deposit.get('user_details', {})
-    user_id = user_details.get('telegram_id') or deposit.get('user')
-    currency = 'MVR' if deposit.get('method') != 'USDT' else 'USD'
-    user_message = f"✅ <b>Deposit approved!</b>\n\n💰 {deposit['amount']} {currency} → Chips credited"
-
-    club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
-    keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    try:
-        await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML', reply_markup=reply_markup)
-    except Exception as e:
-        pass
-
-    # Edit original notification message to remove buttons for ALL admins
-    if request_id in notification_messages:
-        for admin_id, message_id in notification_messages[request_id]:
-            try:
-                await context.bot.edit_message_reply_markup(
-                    chat_id=admin_id,
-                    message_id=message_id,
-                    reply_markup=InlineKeyboardMarkup([])
-                )
-            except Exception as e:
-                pass  # Message might be too old or already deleted
-        # Clean up the stored message_ids
-        del notification_messages[request_id]
-
-    # Check remaining pending deposits
-    try:
-        pending_deposits = api.get_pending_deposits()
-        remaining_msg = f"\n📊 {len(pending_deposits)} pending deposit(s) remaining." if pending_deposits else "\n✅ No more pending deposits."
-    except Exception as e:
-        remaining_msg = ""
-
-    # Edit message and explicitly remove keyboard
-    try:
-        await query.message.edit_text(
-            text=f"✅ Deposit {request_id} has been approved.\n"
-            f"User has been notified."
-            f"{remaining_msg}",
-            reply_markup=InlineKeyboardMarkup([])
-        )
-    except Exception as e:
-        # If edit fails, try deleting and sending new message
-        try:
-            await query.message.delete()
-            await context.bot.send_message(
-                chat_id=admin_id,
-                text=f"✅ Deposit {request_id} has been approved.\n"
-                f"User has been notified."
-                f"{remaining_msg}"
-            )
-        except:
-            pass
-
-    return ConversationHandler.END
 
 
 async def deposit_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -315,17 +335,25 @@ async def admin_notes_received(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # This function now only handles rejections (approvals are instant)
     if action_type == 'deposit':
-        deposit = api.get_deposit_request(request_id)
-        if not deposit:
-            await update.message.reply_text("❌ Deposit request not found.")
-            return ConversationHandler.END
+        try:
+            logger.info(f"Admin {admin_id} rejecting deposit {request_id} with reason: {reason}")
 
-        # Update status to rejected
-        api.update_deposit_status(request_id, 'Rejected', admin_id, reason)
+            deposit = api.get_deposit_request(request_id)
+            if not deposit:
+                logger.error(f"Deposit {request_id} not found")
+                await update.message.reply_text("❌ Deposit request not found.")
+                return ConversationHandler.END
 
-        # Notify user
-        user_id = deposit['user_id']
-        user_message = f"""
+            logger.info(f"Found deposit: {deposit}")
+
+            # Reject using Django API
+            result = api.reject_deposit(request_id, admin_id, reason)
+            logger.info(f"Reject result: {result}")
+
+            # Notify user
+            user_details = deposit.get('user_details', {})
+            user_id = user_details.get('telegram_id') or deposit.get('user')
+            user_message = f"""
 ❌ **Your Deposit Has Been Rejected**
 
 **Request ID:** `{request_id}`
@@ -334,48 +362,67 @@ async def admin_notes_received(update: Update, context: ContextTypes.DEFAULT_TYP
 Please contact support if you have any questions.
 """
 
-        try:
-            await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')
+            try:
+                await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')
+                logger.info(f"User {user_id} notified of rejection")
+            except Exception as e:
+                logger.error(f"Failed to notify user: {e}")
+                await update.message.reply_text(f"⚠️ Could not notify user: {e}")
+
+            # Edit original notification message to remove buttons for ALL admins
+            if request_id in notification_messages:
+                for admin_id_msg, message_id in notification_messages[request_id]:
+                    try:
+                        await context.bot.edit_message_reply_markup(
+                            chat_id=admin_id_msg,
+                            message_id=message_id,
+                            reply_markup=InlineKeyboardMarkup([])
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to remove buttons for admin {admin_id_msg}: {e}")
+                del notification_messages[request_id]
+
+            # Check remaining pending deposits
+            try:
+                pending_deposits = api.get_pending_deposits()
+                remaining_msg = f"\n📊 {len(pending_deposits)} pending deposit(s) remaining." if pending_deposits else "\n✅ No more pending deposits."
+            except Exception as e:
+                logger.error(f"Failed to get pending deposits: {e}")
+                remaining_msg = ""
+
+            await update.message.reply_text(
+                f"✅ Deposit {request_id} has been rejected.\n"
+                f"User has been notified."
+                f"{remaining_msg}"
+            )
+
         except Exception as e:
-            await update.message.reply_text(f"⚠️ Could not notify user: {e}")
-
-        # Edit original notification message to remove buttons for ALL admins
-        if request_id in notification_messages:
-            for admin_id, message_id in notification_messages[request_id]:
-                try:
-                    await context.bot.edit_message_reply_markup(
-                        chat_id=admin_id,
-                        message_id=message_id,
-                        reply_markup=InlineKeyboardMarkup([])
-                    )
-                except Exception as e:
-                    pass
-            del notification_messages[request_id]
-
-        # Check remaining pending deposits
-        all_deposits = api.deposits_sheet.get_all_values()[1:]
-        pending_deposits = [d for d in all_deposits if len(d) > 8 and d[8] == 'Pending']
-
-        remaining_msg = f"\n📊 {len(pending_deposits)} pending deposit(s) remaining." if pending_deposits else "\n✅ No more pending deposits."
-
-        await update.message.reply_text(
-            f"✅ Deposit {request_id} has been rejected.\n"
-            f"User has been notified."
-            f"{remaining_msg}"
-        )
-
-    elif action_type == 'withdrawal':
-        withdrawal = api.get_withdrawal_request(request_id)
-        if not withdrawal:
-            await update.message.reply_text("❌ Withdrawal request not found.")
+            logger.error(f"Error rejecting deposit: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            await update.message.reply_text(f"❌ Error: {str(e)}")
             return ConversationHandler.END
 
-        # Update status to rejected
-        api.update_withdrawal_status(request_id, 'Rejected', admin_id, reason)
+    elif action_type == 'withdrawal':
+        try:
+            logger.info(f"Admin {admin_id} rejecting withdrawal {request_id} with reason: {reason}")
 
-        # Notify user
-        user_id = withdrawal['user_id']
-        user_message = f"""
+            withdrawal = api.get_withdrawal_request(request_id)
+            if not withdrawal:
+                logger.error(f"Withdrawal {request_id} not found")
+                await update.message.reply_text("❌ Withdrawal request not found.")
+                return ConversationHandler.END
+
+            logger.info(f"Found withdrawal: {withdrawal}")
+
+            # Reject using Django API
+            result = api.reject_withdrawal(request_id, admin_id, reason)
+            logger.info(f"Reject result: {result}")
+
+            # Notify user
+            user_details = withdrawal.get('user_details', {})
+            user_id = user_details.get('telegram_id') or withdrawal.get('user')
+            user_message = f"""
 ❌ **Your Withdrawal Has Been Rejected**
 
 **Request ID:** `{request_id}`
@@ -384,35 +431,46 @@ Please contact support if you have any questions.
 Please contact support if you have any questions.
 """
 
-        try:
-            await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')
+            try:
+                await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')
+                logger.info(f"User {user_id} notified of rejection")
+            except Exception as e:
+                logger.error(f"Failed to notify user: {e}")
+                await update.message.reply_text(f"⚠️ Could not notify user: {e}")
+
+            # Edit original notification message to remove buttons for ALL admins
+            if request_id in notification_messages:
+                for admin_id_msg, message_id in notification_messages[request_id]:
+                    try:
+                        await context.bot.edit_message_reply_markup(
+                            chat_id=admin_id_msg,
+                            message_id=message_id,
+                            reply_markup=InlineKeyboardMarkup([])
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to remove buttons for admin {admin_id_msg}: {e}")
+                del notification_messages[request_id]
+
+            # Check remaining pending withdrawals
+            try:
+                pending_withdrawals = api.get_pending_withdrawals()
+                remaining_msg = f"\n📊 {len(pending_withdrawals)} pending withdrawal(s) remaining." if pending_withdrawals else "\n✅ No more pending withdrawals."
+            except Exception as e:
+                logger.error(f"Failed to get pending withdrawals: {e}")
+                remaining_msg = ""
+
+            await update.message.reply_text(
+                f"✅ Withdrawal {request_id} has been rejected.\n"
+                f"User has been notified."
+                f"{remaining_msg}"
+            )
+
         except Exception as e:
-            await update.message.reply_text(f"⚠️ Could not notify user: {e}")
-
-        # Edit original notification message to remove buttons for ALL admins
-        if request_id in notification_messages:
-            for admin_id, message_id in notification_messages[request_id]:
-                try:
-                    await context.bot.edit_message_reply_markup(
-                        chat_id=admin_id,
-                        message_id=message_id,
-                        reply_markup=InlineKeyboardMarkup([])
-                    )
-                except Exception as e:
-                    pass
-            del notification_messages[request_id]
-
-        # Check remaining pending withdrawals
-        all_withdrawals = api.withdrawals_sheet.get_all_values()[1:]
-        pending_withdrawals = [w for w in all_withdrawals if len(w) > 8 and w[8] == 'Pending']
-
-        remaining_msg = f"\n📊 {len(pending_withdrawals)} pending withdrawal(s) remaining." if pending_withdrawals else "\n✅ No more pending withdrawals."
-
-        await update.message.reply_text(
-            f"✅ Withdrawal {request_id} has been rejected.\n"
-            f"User has been notified."
-            f"{remaining_msg}"
-        )
+            logger.error(f"Error rejecting withdrawal: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+            return ConversationHandler.END
 
     elif action_type == 'join':
         join_req = api.get_join_request(request_id)
