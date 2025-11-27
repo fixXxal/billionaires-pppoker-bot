@@ -740,7 +740,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     account_validation_warning = ""
     if extracted_details and extracted_details.get('receiver_account_number'):
         # Get stored account number for this payment method
-        stored_account_number = api.get_payment_account(verified_bank)
+        stored_account_number = api.get_payment_account_details(verified_bank)
 
         if stored_account_number:
             # Normalize account numbers (remove spaces, dashes)
@@ -5951,7 +5951,7 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
         if extracted_details.get('receiver_account_number'):
             # Check against all payment methods since we don't know which one user used
             for method in ['BML', 'MIB']:
-                stored_account_number = api.get_payment_account(method)
+                stored_account_number = api.get_payment_account_details(method)
                 if stored_account_number:
                     extracted_account = extracted_details['receiver_account_number'].replace(' ', '').replace('-', '').strip()
                     stored_account = stored_account_number.replace(' ', '').replace('-', '').strip()
