@@ -13,18 +13,19 @@ python manage.py migrate --noinput
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-# Start gunicorn in background
+# Start the Telegram bot in background
+echo "Starting Telegram bot..."
+python bot.py &
+
+# Store bot PID
+BOT_PID=$!
+echo "Bot started with PID: $BOT_PID"
+
+# Start gunicorn in foreground (this keeps the container running)
 echo "Starting Django API server..."
-gunicorn billionaires_backend.wsgi:application \
+exec gunicorn billionaires_backend.wsgi:application \
     --bind 0.0.0.0:$PORT \
     --workers 2 \
     --timeout 120 \
     --access-logfile - \
-    --error-logfile - &
-
-# Wait a bit for gunicorn to start
-sleep 5
-
-# Start the Telegram bot in foreground
-echo "Starting Telegram bot..."
-python bot.py
+    --error-logfile -
