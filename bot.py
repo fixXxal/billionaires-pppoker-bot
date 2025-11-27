@@ -674,13 +674,12 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
 
     # Create deposit request
     request_id = api.create_deposit_request(
-        user.id,
-        user.username,
-        pppoker_id,
-        amount,
-        method,
-        account_name,
-        transaction_ref
+        telegram_id=user.id,
+        amount=amount,
+        method=method,
+        account_name=account_name,
+        proof_image_path=transaction_ref,
+        pppoker_id=pppoker_id
     )
 
     # Send confirmation to user
@@ -7701,7 +7700,9 @@ def main():
     # Add error handler
     async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Log errors caused by updates."""
+        import traceback
         logger.error(f"Exception while handling an update: {context.error}")
+        logger.error(f"Traceback: {''.join(traceback.format_exception(None, context.error, context.error.__traceback__))}")
         logger.error(f"Update: {update}")
 
         # Try to notify the user
