@@ -3,9 +3,11 @@ builder = "NIXPACKS"
 
 [deploy]
 # Use environment variable to determine which service to start
-# Set SERVICE_NAME in each Railway service:
-# - billionaires-bot: SERVICE_NAME=bot
-# - billionaires-django-api: SERVICE_NAME=api (no SERVICE_NAME needed, or set explicitly)
-startCommand = "bash start.sh"
+# Set SERVICE_NAME in each Railway service's environment variables:
+# - Bot service: SERVICE_NAME=bot
+# - API service: SERVICE_NAME=api
+# - Spins service: SERVICE_NAME=spins
+# - Database: (no start command needed)
+startCommand = "bash start-${SERVICE_NAME}.sh"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
