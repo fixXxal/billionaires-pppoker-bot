@@ -5184,18 +5184,36 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
         except Exception as e:
             logger.error(f"Failed to notify user: {e}")
 
-        # Remove buttons for ALL admins
+        # Update message for ALL admins (remove buttons + add status)
+        admin_name = query.from_user.first_name or query.from_user.username or "Admin"
         if request_id in notification_messages:
             for admin_id, message_id in notification_messages[request_id]:
                 try:
-                    await context.bot.edit_message_reply_markup(
-                        chat_id=admin_id,
-                        message_id=message_id,
-                        reply_markup=InlineKeyboardMarkup([])
-                    )
-                    logger.info(f"Removed approval buttons for admin {admin_id} on deposit {request_id}")
+                    # Get the original message text
+                    original_text = query.message.text if admin_id == query.from_user.id else None
+
+                    # Add approval status to the message
+                    status_text = f"\n\n✅ <b>APPROVED by {admin_name}</b>"
+
+                    # For the admin who approved, use their message
+                    if admin_id == query.from_user.id:
+                        await context.bot.edit_message_text(
+                            chat_id=admin_id,
+                            message_id=message_id,
+                            text=f"{query.message.text}{status_text}",
+                            parse_mode='HTML'
+                        )
+                    else:
+                        # For other admins, just remove buttons and add status
+                        await context.bot.edit_message_reply_markup(
+                            chat_id=admin_id,
+                            message_id=message_id,
+                            reply_markup=InlineKeyboardMarkup([])
+                        )
+
+                    logger.info(f"Updated notification for admin {admin_id} on deposit {request_id}")
                 except Exception as e:
-                    logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+                    logger.error(f"Failed to update message for admin {admin_id}: {e}")
             # Clean up stored message IDs
             del notification_messages[request_id]
 
@@ -5238,18 +5256,29 @@ async def quick_reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYP
         del context.bot_data[f'promo_{request_id}']
         logger.info(f"Promotion bonus cancelled for rejected deposit {request_id}")
 
-    # Remove buttons for ALL admins when rejection starts
+    # Update message for ALL admins (remove buttons + add status)
+    admin_name = query.from_user.first_name or query.from_user.username or "Admin"
     if request_id in notification_messages:
         for admin_id, message_id in notification_messages[request_id]:
             try:
-                await context.bot.edit_message_reply_markup(
-                    chat_id=admin_id,
-                    message_id=message_id,
-                    reply_markup=InlineKeyboardMarkup([])
-                )
-                logger.info(f"Removed buttons for admin {admin_id} - deposit {request_id} being rejected")
+                # Add rejection status to the message
+                status_text = f"\n\n❌ <b>REJECTED by {admin_name}</b> (adding reason...)"
+
+                # For the admin who rejected, show prompt for reason
+                if admin_id == query.from_user.id:
+                    # This admin will get a different message via edit_message_text below
+                    pass
+                else:
+                    # For other admins, just remove buttons
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+
+                logger.info(f"Updated notification for admin {admin_id} - deposit {request_id} being rejected")
             except Exception as e:
-                logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+                logger.error(f"Failed to update message for admin {admin_id}: {e}")
         # Clean up stored message IDs
         del notification_messages[request_id]
 
