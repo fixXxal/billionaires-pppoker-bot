@@ -287,6 +287,24 @@ class SheetsCompatAPI(DjangoAPI):
         account = self.get_payment_account(method)
         return account.get('account_name') if account else None
 
+    def get_all_payment_accounts(self) -> Dict:
+        """Get all payment accounts in legacy format (dict keyed by method)"""
+        try:
+            # Get list from Django API
+            accounts_list = super().get_all_payment_accounts()
+
+            # Convert to legacy dict format: {'BML': {...}, 'MIB': {...}}
+            accounts_dict = {}
+            for account in accounts_list:
+                if isinstance(account, dict) and 'method' in account:
+                    method = account['method']
+                    accounts_dict[method] = account
+
+            return accounts_dict
+        except Exception as e:
+            logger.error(f"Error getting all payment accounts: {e}")
+            return {}
+
     def update_payment_account(self, method: str, account_number: str, account_name: str = None) -> bool:
         """Update payment account"""
         try:
