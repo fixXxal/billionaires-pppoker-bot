@@ -292,6 +292,12 @@ class SheetsCompatAPI(DjangoAPI):
         try:
             # Get list from Django API
             accounts_list = super().get_all_payment_accounts()
+            logger.info(f"Raw accounts_list from Django API: {accounts_list}, type: {type(accounts_list)}")
+
+            # Handle empty or None response
+            if not accounts_list:
+                logger.warning("No payment accounts returned from API")
+                return {}
 
             # Convert to legacy dict format: {'BML': {...}, 'MIB': {...}}
             accounts_dict = {}
@@ -299,10 +305,14 @@ class SheetsCompatAPI(DjangoAPI):
                 if isinstance(account, dict) and 'method' in account:
                     method = account['method']
                     accounts_dict[method] = account
+                    logger.info(f"Added {method} to accounts dict: {account}")
+                else:
+                    logger.warning(f"Skipping invalid account: {account}")
 
+            logger.info(f"Final accounts_dict: {accounts_dict}")
             return accounts_dict
         except Exception as e:
-            logger.error(f"Error getting all payment accounts: {e}")
+            logger.error(f"Error getting all payment accounts: {e}", exc_info=True)
             return {}
 
     def update_payment_account(self, method: str, account_number: str, account_name: str = None) -> bool:
