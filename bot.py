@@ -508,16 +508,21 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Get all configured payment accounts
     payment_accounts = api.get_all_payment_accounts()
+    logger.info(f"Payment accounts for deposit: {payment_accounts}")
 
     # Build keyboard with only configured payment methods
     keyboard = []
-    if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
+    if 'BML' in payment_accounts and payment_accounts['BML'].get('account_number'):
+        logger.info(f"Adding BML button: {payment_accounts['BML']}")
         keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="deposit_bml")])
-    if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
+    if 'MIB' in payment_accounts and payment_accounts['MIB'].get('account_number'):
+        logger.info(f"Adding MIB button: {payment_accounts['MIB']}")
         keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="deposit_mib")])
-    if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
+    if 'USD' in payment_accounts and payment_accounts['USD'].get('account_number'):
+        logger.info(f"Adding USD button: {payment_accounts['USD']}")
         keyboard.append([InlineKeyboardButton("💵 USD", callback_data="deposit_usd")])
-    if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
+    if 'USDT' in payment_accounts and payment_accounts['USDT'].get('account_number'):
+        logger.info(f"Adding USDT button: {payment_accounts['USDT']}")
         keyboard.append([InlineKeyboardButton("💎 USDT (TRC20)", callback_data="deposit_usdt")])
 
     # Add cancel button
