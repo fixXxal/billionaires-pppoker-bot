@@ -86,6 +86,10 @@ async def send_counter_closed_message(update: Update) -> bool:
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
 DJANGO_API_URL = os.getenv('DJANGO_API_URL', 'http://localhost:8000/api')
 
+# Log the Django API URL for debugging
+logger.info(f"🔗 Django API URL: {DJANGO_API_URL}")
+logger.info(f"🌍 Timezone: {TIMEZONE}")
+
 # Initialize Django API with backward compatibility (migrated from Google Sheets)
 api = SheetsCompatAPI(DJANGO_API_URL)
 
@@ -268,12 +272,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
 
     # Create or update user in database
-    api.create_or_update_user(
-        user.id,
-        user.username,
-        user.first_name,
-        user.last_name
-    )
+    try:
+        logger.info(f"Creating/updating user: {user.id} ({user.username})")
+        api.create_or_update_user(
+            user.id,
+            user.username,
+            user.first_name,
+            user.last_name
+        )
+        logger.info(f"Successfully created/updated user: {user.id}")
+    except Exception as e:
+        logger.error(f"❌ Failed to create/update user {user.id}: {e}")
+        await update.message.reply_text(
+            "⚠️ <b>Service Temporarily Unavailable</b>\n\n"
+            "We're experiencing technical difficulties. Please try again in a few moments.\n\n"
+            f"Error: {str(e)[:100]}",
+            parse_mode='HTML'
+        )
+        return
 
     # Check if user is admin - show admin menu
     if is_admin(user.id):
