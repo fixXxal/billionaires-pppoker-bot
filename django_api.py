@@ -301,14 +301,15 @@ class DjangoAPI:
             if existing:
                 # Update existing account
                 account_id = existing.get('id')
+                logger.info(f"Updating existing payment account {method} (ID: {account_id})")
                 return self._put(f'payment-accounts/{account_id}/', data)
             else:
                 # Create new account
+                logger.info(f"Creating new payment account {method}")
                 return self._post('payment-accounts/', data)
         except Exception as e:
-            logger.error(f"Error updating payment account: {e}")
-            # Fallback to create
-            return self.create_payment_account(method, account_name or method, account_number)
+            logger.error(f"Error updating payment account {method}: {e}", exc_info=True)
+            raise  # Re-raise so bot can show error to admin
 
     def get_all_payment_accounts(self) -> List[Dict]:
         """Get all payment accounts"""
