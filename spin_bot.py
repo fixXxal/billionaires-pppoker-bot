@@ -827,7 +827,16 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
 
             # Send to all regular admins (with rate limiting)
             try:
-                admins = spin_bot.api.get_all_admins()
+                admins_response = spin_bot.api.get_all_admins()
+
+                # Handle paginated response from Django API
+                if isinstance(admins_response, dict) and 'results' in admins_response:
+                    admins = admins_response['results']
+                else:
+                    admins = admins_response
+
+                logger.info(f"Found {len(admins)} regular admins to notify for spin reward")
+
                 for admin in admins:
                     try:
                         await rate_limiter.wait_for_send()
@@ -844,6 +853,8 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
                         logger.error(f"Failed to notify admin {admin['admin_id']}: {e}")
             except Exception as e:
                 logger.error(f"Failed to get admin list: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
 
     except Exception as e:
         logger.error(f"Error in spin callback: {e}")
@@ -1136,7 +1147,16 @@ async def approvespin_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                     logger.error(f"Failed to notify super admin: {e}")
 
             # Send to all other admins
-            admins = spin_bot.api.get_all_admins()
+            admins_response = spin_bot.api.get_all_admins()
+
+            # Handle paginated response from Django API
+            if isinstance(admins_response, dict) and 'results' in admins_response:
+                admins = admins_response['results']
+            else:
+                admins = admins_response
+
+            logger.info(f"Notifying {len(admins)} regular admins about approval")
+
             for admin in admins:
                 # Don't notify the admin who approved it
                 if admin['admin_id'] != user.id:

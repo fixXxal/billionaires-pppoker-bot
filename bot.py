@@ -828,10 +828,21 @@ Player ID: <code>{pppoker_id}</code>
     # Get all admin IDs
     all_admin_ids = [ADMIN_USER_ID]
     try:
-        regular_admins = api.get_all_admins()
+        regular_admins_response = api.get_all_admins()
+
+        # Handle paginated response from Django API
+        if isinstance(regular_admins_response, dict) and 'results' in regular_admins_response:
+            regular_admins = regular_admins_response['results']
+        else:
+            regular_admins = regular_admins_response
+
+        logger.info(f"Found {len(regular_admins)} regular admins in database")
         all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+        logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
     # Initialize list to store all notification message IDs
     notification_messages[request_id] = []
@@ -1283,10 +1294,21 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     # Send notification to all admins
     all_admin_ids = [ADMIN_USER_ID]
     try:
-        regular_admins = api.get_all_admins()
+        regular_admins_response = api.get_all_admins()
+
+        # Handle paginated response from Django API
+        if isinstance(regular_admins_response, dict) and 'results' in regular_admins_response:
+            regular_admins = regular_admins_response['results']
+        else:
+            regular_admins = regular_admins_response
+
+        logger.info(f"Found {len(regular_admins)} regular admins in database")
         all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+        logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
     # Initialize list to store all notification message IDs
     notification_messages[request_id] = []
@@ -1412,10 +1434,21 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
     # Send notification to all admins
     all_admin_ids = [ADMIN_USER_ID]
     try:
-        regular_admins = api.get_all_admins()
+        regular_admins_response = api.get_all_admins()
+
+        # Handle paginated response from Django API
+        if isinstance(regular_admins_response, dict) and 'results' in regular_admins_response:
+            regular_admins = regular_admins_response['results']
+        else:
+            regular_admins = regular_admins_response
+
+        logger.info(f"Found {len(regular_admins)} regular admins in database")
         all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+        logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
     # Initialize list to store all notification message IDs
     notification_messages[request_id] = []
@@ -6025,10 +6058,21 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
     # Send to all admins
     all_admin_ids = [ADMIN_USER_ID]
     try:
-        regular_admins = api.get_all_admins()
+        regular_admins_response = api.get_all_admins()
+
+        # Handle paginated response from Django API
+        if isinstance(regular_admins_response, dict) and 'results' in regular_admins_response:
+            regular_admins = regular_admins_response['results']
+        else:
+            regular_admins = regular_admins_response
+
+        logger.info(f"Found {len(regular_admins)} regular admins in database")
         all_admin_ids.extend([admin['admin_id'] for admin in regular_admins])
+        logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
     # Store for button removal
     notification_messages[f"slip_{request_id}"] = []
