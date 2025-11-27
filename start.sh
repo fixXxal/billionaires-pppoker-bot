@@ -13,9 +13,9 @@ python manage.py migrate --noinput
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-# Start the Telegram bot in background
+# Start the Telegram bot in background with unbuffered output
 echo "Starting Telegram bot..."
-python bot.py &
+python -u bot.py 2>&1 &
 
 # Store bot PID
 BOT_PID=$!

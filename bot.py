@@ -27,10 +27,13 @@ import spin_bot as spin_bot_module
 # Load environment variables
 load_dotenv()
 
-# Configure logging
+# Configure logging with explicit stdout handler for Railway
+import sys
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    level=logging.INFO,
+    stream=sys.stdout,
+    force=True
 )
 logger = logging.getLogger(__name__)
 
