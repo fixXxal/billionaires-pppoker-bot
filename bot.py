@@ -5344,12 +5344,25 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
                             parse_mode='HTML'
                         )
                     else:
-                        # For other admins, just remove buttons and add status
-                        await context.bot.edit_message_reply_markup(
-                            chat_id=admin_id,
-                            message_id=message_id,
-                            reply_markup=InlineKeyboardMarkup([])
-                        )
+                        # For other admins, remove buttons AND send notification
+                        try:
+                            # First, remove buttons from their notification
+                            await context.bot.edit_message_reply_markup(
+                                chat_id=admin_id,
+                                message_id=message_id,
+                                reply_markup=InlineKeyboardMarkup([])
+                            )
+                            # Then send them a notification about who approved
+                            await context.bot.send_message(
+                                chat_id=admin_id,
+                                text=f"✅ <b>Deposit {request_id} APPROVED</b>\n\n"
+                                     f"👤 Approved by: {admin_name}\n"
+                                     f"💰 Amount: {deposit['amount']} {'MVR' if deposit.get('method') != 'USDT' else 'USD'}\n"
+                                     f"User notified and chips credited.",
+                                parse_mode='HTML'
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to notify admin {admin_id}: {e}")
 
                     logger.info(f"Updated notification for admin {admin_id} on deposit {request_id}")
                 except Exception as e:
@@ -5497,15 +5510,27 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
     except:
         pass
 
-    # Remove buttons for ALL admins
+    # Remove buttons for ALL admins and notify them
+    admin_name = query.from_user.first_name or query.from_user.username or "Admin"
     if request_id in notification_messages:
         for admin_id, message_id in notification_messages[request_id]:
             try:
+                # Remove buttons
                 await context.bot.edit_message_reply_markup(
                     chat_id=admin_id,
                     message_id=message_id,
                     reply_markup=InlineKeyboardMarkup([])
                 )
+                # Send notification to other admins (not the one who approved)
+                if admin_id != query.from_user.id:
+                    await context.bot.send_message(
+                        chat_id=admin_id,
+                        text=f"✅ <b>Withdrawal {request_id} APPROVED</b>\n\n"
+                             f"👤 Approved by: {admin_name}\n"
+                             f"💰 Amount: {withdrawal['amount']} {'MVR' if withdrawal.get('payment_method') != 'USDT' else 'USD'}\n"
+                             f"User notified and withdrawal processed.",
+                        parse_mode='HTML'
+                    )
                 logger.info(f"Removed approval buttons for admin {admin_id} on withdrawal {request_id}")
             except Exception as e:
                 logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
@@ -5755,6 +5780,31 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
 
             await update.message.reply_text(f"✅ Deposit {request_id} rejected. User notified.")
 
+            # Notify other admins
+            admin_name = update.effective_user.first_name or update.effective_user.username or "Admin"
+            try:
+                admins_response = api.get_all_admins()
+                if isinstance(admins_response, dict) and 'results' in admins_response:
+                    admins = admins_response['results']
+                else:
+                    admins = admins_response
+
+                for admin in admins:
+                    if admin['telegram_id'] != admin_id:
+                        try:
+                            await context.bot.send_message(
+                                chat_id=admin['telegram_id'],
+                                text=f"❌ <b>Deposit {request_id} REJECTED</b>\n\n"
+                                     f"👤 Rejected by: {admin_name}\n"
+                                     f"💰 Amount: {deposit['amount']} {'MVR' if deposit.get('method') != 'USDT' else 'USD'}\n"
+                                     f"📝 Reason: {reason}",
+                                parse_mode='HTML'
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
+            except Exception as e:
+                logger.error(f"Failed to get admin list: {e}")
+
     elif request_type == 'withdrawal':
         withdrawal = api.get_withdrawal_request(request_id)
         if withdrawal:
@@ -5771,6 +5821,31 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
                 pass
 
             await update.message.reply_text(f"✅ Withdrawal {request_id} rejected. User notified.")
+
+            # Notify other admins
+            admin_name = update.effective_user.first_name or update.effective_user.username or "Admin"
+            try:
+                admins_response = api.get_all_admins()
+                if isinstance(admins_response, dict) and 'results' in admins_response:
+                    admins = admins_response['results']
+                else:
+                    admins = admins_response
+
+                for admin in admins:
+                    if admin['telegram_id'] != admin_id:
+                        try:
+                            await context.bot.send_message(
+                                chat_id=admin['telegram_id'],
+                                text=f"❌ <b>Withdrawal {request_id} REJECTED</b>\n\n"
+                                     f"👤 Rejected by: {admin_name}\n"
+                                     f"💰 Amount: {withdrawal['amount']} {'MVR' if withdrawal.get('payment_method') != 'USDT' else 'USD'}\n"
+                                     f"📝 Reason: {reason}",
+                                parse_mode='HTML'
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
+            except Exception as e:
+                logger.error(f"Failed to get admin list: {e}")
 
     elif request_type == 'join':
         join_req = api.get_join_request(request_id)
