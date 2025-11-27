@@ -130,7 +130,7 @@ seat_reminder_jobs: Dict[int, object] = {}  # user_id: job (tracks seat reminder
 # Helper Functions
 def is_admin(user_id: int) -> bool:
     """Check if user is admin (super admin or regular admin)"""
-    return api.is_admin(user_id, ADMIN_USER_ID)
+    return api.is_admin(user_id)
 
 
 # Spin Bot Wrapper Functions

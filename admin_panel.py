@@ -40,7 +40,7 @@ def escape_markdown(text: str) -> str:
 
 def is_admin(user_id: int) -> bool:
     """Check if user is admin (super admin or regular admin)"""
-    return api.is_admin(user_id, ADMIN_USER_ID)
+    return api.is_admin(user_id)
 
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
