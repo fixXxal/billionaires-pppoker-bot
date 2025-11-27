@@ -14,12 +14,13 @@ echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
 # Start the Telegram bot in background with unbuffered output
-echo "Starting Telegram bot..."
-python -u bot.py 2>&1 &
+# echo "Starting Telegram bot..."
+# python -u bot.py 2>&1 &
 
 # Store bot PID
-BOT_PID=$!
-echo "Bot started with PID: $BOT_PID"
+# BOT_PID=$!
+# echo "Bot started with PID: $BOT_PID"
+echo "Bot startup disabled - running API only"
 
 # Start gunicorn in foreground (this keeps the container running)
 echo "Starting Django API server..."
