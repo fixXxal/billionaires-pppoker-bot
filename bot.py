@@ -141,7 +141,7 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         # Check if counter is open
         counter_status = api.get_counter_status()
-        if counter_status.get('status') != 'OPEN':
+        if not counter_status.get('is_open', True):
             await update.message.reply_text(
                 "🔒 *COUNTER IS CLOSED*\n\n"
                 "The spin wheel is currently unavailable\\.\n"
@@ -1897,7 +1897,7 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Check if counter is open
     counter_status = api.get_counter_status()
-    if counter_status.get('status') != 'OPEN':
+    if not counter_status.get('is_open', True):
         await update.message.reply_text(
             "🔒 *COUNTER IS CLOSED*\n\n"
             "Live support is currently unavailable\\.\n"
