@@ -58,13 +58,27 @@ class SheetsCompatAPI(DjangoAPI):
     def get_deposit_request(self, deposit_id: int) -> Optional[Dict]:
         """Get single deposit by ID"""
         try:
-            deposits = self.get_all_deposits()
+            deposits_response = self.get_all_deposits()
+
+            # Handle paginated response from Django API
+            if isinstance(deposits_response, dict) and 'results' in deposits_response:
+                deposits = deposits_response['results']
+            else:
+                deposits = deposits_response
+
+            logger.info(f"Searching for deposit {deposit_id} in {len(deposits)} deposits")
+
             for deposit in deposits:
-                if deposit.get('id') == deposit_id:
+                if isinstance(deposit, dict) and deposit.get('id') == deposit_id:
+                    logger.info(f"Found deposit {deposit_id}")
                     return deposit
+
+            logger.warning(f"Deposit {deposit_id} not found in {len(deposits)} deposits")
             return None
         except Exception as e:
             logger.error(f"Error getting deposit: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
 
     def update_deposit_status(self, deposit_id: int, status: str, admin_id: int = None) -> bool:
@@ -101,13 +115,27 @@ class SheetsCompatAPI(DjangoAPI):
     def get_withdrawal_request(self, withdrawal_id: int) -> Optional[Dict]:
         """Get single withdrawal by ID"""
         try:
-            withdrawals = self.get_all_withdrawals()
+            withdrawals_response = self.get_all_withdrawals()
+
+            # Handle paginated response from Django API
+            if isinstance(withdrawals_response, dict) and 'results' in withdrawals_response:
+                withdrawals = withdrawals_response['results']
+            else:
+                withdrawals = withdrawals_response
+
+            logger.info(f"Searching for withdrawal {withdrawal_id} in {len(withdrawals)} withdrawals")
+
             for withdrawal in withdrawals:
-                if withdrawal.get('id') == withdrawal_id:
+                if isinstance(withdrawal, dict) and withdrawal.get('id') == withdrawal_id:
+                    logger.info(f"Found withdrawal {withdrawal_id}")
                     return withdrawal
+
+            logger.warning(f"Withdrawal {withdrawal_id} not found in {len(withdrawals)} withdrawals")
             return None
         except Exception as e:
             logger.error(f"Error getting withdrawal: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
 
     def update_withdrawal_status(self, withdrawal_id: int, status: str, admin_id: int = None) -> bool:
@@ -135,13 +163,27 @@ class SheetsCompatAPI(DjangoAPI):
     def get_join_request(self, request_id: int) -> Optional[Dict]:
         """Get single join request by ID"""
         try:
-            requests = self.get_all_join_requests()
+            requests_response = self.get_all_join_requests()
+
+            # Handle paginated response from Django API
+            if isinstance(requests_response, dict) and 'results' in requests_response:
+                requests = requests_response['results']
+            else:
+                requests = requests_response
+
+            logger.info(f"Searching for join request {request_id} in {len(requests)} requests")
+
             for req in requests:
-                if req.get('id') == request_id:
+                if isinstance(req, dict) and req.get('id') == request_id:
+                    logger.info(f"Found join request {request_id}")
                     return req
+
+            logger.warning(f"Join request {request_id} not found in {len(requests)} requests")
             return None
         except Exception as e:
             logger.error(f"Error getting join request: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
 
     def update_join_request_status(self, request_id: int, status: str) -> bool:
