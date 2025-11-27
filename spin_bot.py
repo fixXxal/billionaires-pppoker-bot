@@ -1202,7 +1202,11 @@ async def addspins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, s
                 target_username = user_data.get('username', 'Unknown')
 
         # Try to get PPPoker ID from Deposits sheet
-        pppoker_id = spin_bot.api.get_pppoker_id_from_deposits(target_user_id)
+        pppoker_id = None
+        try:
+            pppoker_id = spin_bot.api.get_pppoker_id_from_deposits(target_user_id)
+        except Exception as e:
+            logger.warning(f"Could not fetch PPPoker ID for user {target_user_id}: {e}")
 
         if user_data:
             new_available = user_data.get('available_spins', 0) + spins_to_add
@@ -1241,8 +1245,10 @@ async def addspins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, s
     except ValueError:
         await update.message.reply_text("❌ Invalid user ID or spin count!")
     except Exception as e:
+        import traceback
         logger.error(f"Error adding spins: {e}")
-        await update.message.reply_text("❌ Error adding spins.")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        await update.message.reply_text(f"❌ Error adding spins: {str(e)}")
 
 
 async def spinsstats_command(update: Update, context: ContextTypes.DEFAULT_TYPE, spin_bot: SpinBot, is_admin_func):
