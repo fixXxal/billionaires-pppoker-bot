@@ -5255,23 +5255,29 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
                 del processing_requests[request_id]
             return
 
+        # Extract user details once at the top
+        user_details = deposit.get('user_details', {})
+        user_telegram_id = user_details.get('telegram_id') or deposit.get('user')
+        username = user_details.get('username', 'User')
+
         # Update status using Django API
         api.approve_deposit(request_id, query.from_user.id)
         logger.info(f"Deposit {request_id} status updated to Approved")
 
         # Add free spins based on deposit amount
         spins_message = ""
+
         try:
             amount_mvr = float(deposit['amount'])
             spins_added = await spin_bot.add_spins_from_deposit(
-                user_id=deposit['user_id'],
-                username=deposit['username'],
+                user_id=user_telegram_id,
+                username=username,
                 amount_mvr=amount_mvr,
                 pppoker_id=deposit.get('pppoker_id', '')
             )
             if spins_added > 0:
                 spins_message = f"\n\n🎰 **FREE SPINS BONUS!**\n+{spins_added} free spins added!\nClick button below to play!"
-            logger.info(f"Added {spins_added} spins to user {deposit['user_id']} for deposit of {amount_mvr} MVR")
+            logger.info(f"Added {spins_added} spins to user {user_telegram_id} for deposit of {amount_mvr} MVR")
         except Exception as e:
             logger.error(f"Error adding spins for deposit: {e}")
 
@@ -5311,16 +5317,16 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
 
         try:
             await context.bot.send_message(
-                chat_id=deposit['user_id'],
+                chat_id=user_telegram_id,
                 text=f"✅ **Your Deposit Has Been Approved!**\n\n"
                      f"**Request ID:** `{request_id}`\n"
-                     f"**Amount:** {deposit['amount']} {'MVR' if deposit['payment_method'] != 'USDT' else 'USD'}\n"
+                     f"**Amount:** {deposit['amount']} {'MVR' if deposit.get('method') != 'USDT' else 'USD'}\n"
                      f"**PPPoker ID:** {deposit['pppoker_id']}{bonus_message}{spins_message}\n\n"
                      f"Your chips have been added to your account. Happy gaming! 🎮",
                 parse_mode='Markdown',
                 reply_markup=reply_markup
             )
-            logger.info(f"User {deposit['user_id']} notified of approval")
+            logger.info(f"User {user_telegram_id} notified of approval")
         except Exception as e:
             logger.error(f"Failed to notify user: {e}")
 
@@ -5495,20 +5501,24 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
     keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Get user telegram_id from user_details
+    user_details = withdrawal.get('user_details', {})
+    user_telegram_id = user_details.get('telegram_id') or withdrawal.get('user')
+
     try:
         await context.bot.send_message(
-            chat_id=withdrawal['user_id'],
+            chat_id=user_telegram_id,
             text=f"✅ **Your Withdrawal Has Been Processed!**\n\n"
                  f"**Request ID:** `{request_id}`\n"
-                 f"**Amount:** {withdrawal['amount']} {'MVR' if withdrawal['payment_method'] != 'USDT' else 'USD'}\n"
-                 f"**Method:** {withdrawal['payment_method']}\n"
+                 f"**Amount:** {withdrawal['amount']} {'MVR' if withdrawal.get('method') != 'USDT' else 'USD'}\n"
+                 f"**Method:** {withdrawal.get('method')}\n"
                  f"**Account:** {withdrawal['account_number']}\n\n"
                  f"Your funds have been transferred. Please check your account. 💰",
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
-    except:
-        pass
+    except Exception as e:
+        logger.error(f"Failed to notify user: {e}")
 
     # Remove buttons for ALL admins and notify them
     admin_name = query.from_user.first_name or query.from_user.username or "Admin"
@@ -5767,16 +5777,20 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
         if deposit:
             api.reject_deposit(request_id, admin_id, reason)
 
+            # Get user telegram_id from user_details
+            user_details = deposit.get('user_details', {})
+            user_telegram_id = user_details.get('telegram_id') or deposit.get('user')
+
             try:
                 await context.bot.send_message(
-                    chat_id=deposit['user_id'],
+                    chat_id=user_telegram_id,
                     text=f"❌ <b>Deposit rejected</b>\n\n"
                          f"Reason: {reason}\n\n"
                          f"Contact support for help.",
                     parse_mode='HTML'
                 )
-            except:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to notify user: {e}")
 
             await update.message.reply_text(f"✅ Deposit {request_id} rejected. User notified.")
 
@@ -5810,15 +5824,19 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
         if withdrawal:
             api.reject_withdrawal(request_id, admin_id, reason)
 
+            # Get user telegram_id from user_details
+            user_details = withdrawal.get('user_details', {})
+            user_telegram_id = user_details.get('telegram_id') or withdrawal.get('user')
+
             try:
                 await context.bot.send_message(
-                    chat_id=withdrawal['user_id'],
+                    chat_id=user_telegram_id,
                     text=f"❌ <b>Withdrawal rejected</b>\n\n"
                          f"Reason: {reason}",
                     parse_mode='HTML'
                 )
-            except:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to notify user: {e}")
 
             await update.message.reply_text(f"✅ Withdrawal {request_id} rejected. User notified.")
 
