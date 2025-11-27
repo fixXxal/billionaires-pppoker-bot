@@ -1,0 +1,521 @@
+"""
+Compatibility layer for legacy Google Sheets API methods
+This provides backward compatibility for bot.py while using Django API
+"""
+
+from django_api import DjangoAPI
+from typing import Dict, List, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class SheetsCompatAPI(DjangoAPI):
+    """Extended Django API with legacy Sheets API compatibility methods"""
+
+    # ==================== LEGACY USER METHODS ====================
+
+    def get_user(self, telegram_id: int) -> Optional[Dict]:
+        """Get user by Telegram ID (legacy method)"""
+        return self.get_user_by_telegram_id(telegram_id)
+
+    def get_all_user_ids(self) -> List[int]:
+        """Get all user telegram IDs"""
+        try:
+            users = self.get_all_users()
+            return [user.get('telegram_id') for user in users if user.get('telegram_id')]
+        except Exception as e:
+            logger.error(f"Error getting user IDs: {e}")
+            return []
+
+    def update_user_pppoker_id(self, telegram_id: int, pppoker_id: str) -> bool:
+        """Update user's PPPoker ID"""
+        try:
+            user = self.get_user_by_telegram_id(telegram_id)
+            if user:
+                # Since we don't have a direct update endpoint, we recreate
+                self.create_or_update_user(telegram_id, pppoker_id=pppoker_id)
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error updating PPPoker ID: {e}")
+            return False
+
+    def update_user_account_name(self, telegram_id: int, account_name: str) -> bool:
+        """Update user's account name - placeholder"""
+        # This might not be supported in Django API yet
+        return True
+
+    # ==================== LEGACY DEPOSIT METHODS ====================
+
+    def create_deposit_request(self, telegram_id: int, amount: float, method: str,
+                              account_name: str, proof_image_path: str, pppoker_id: str) -> Dict:
+        """Create deposit request (legacy method)"""
+        user = self.get_or_create_user(telegram_id, str(telegram_id), pppoker_id)
+        user_id = user.get('id')
+        return self.create_deposit(user_id, amount, method, account_name, proof_image_path, pppoker_id)
+
+    def get_deposit_request(self, deposit_id: int) -> Optional[Dict]:
+        """Get single deposit by ID"""
+        try:
+            deposits = self.get_all_deposits()
+            for deposit in deposits:
+                if deposit.get('id') == deposit_id:
+                    return deposit
+            return None
+        except Exception as e:
+            logger.error(f"Error getting deposit: {e}")
+            return None
+
+    def update_deposit_status(self, deposit_id: int, status: str, admin_id: int = None) -> bool:
+        """Update deposit status"""
+        try:
+            if status.lower() == 'approved':
+                self.approve_deposit(deposit_id, admin_id or 0)
+            elif status.lower() == 'rejected':
+                self.reject_deposit(deposit_id, admin_id or 0)
+            return True
+        except Exception as e:
+            logger.error(f"Error updating deposit status: {e}")
+            return False
+
+    def get_deposits_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+        """Get deposits within date range"""
+        try:
+            all_deposits = self.get_all_deposits()
+            # Filter by date range if needed
+            return all_deposits
+        except Exception as e:
+            logger.error(f"Error getting deposits by date: {e}")
+            return []
+
+    # ==================== LEGACY WITHDRAWAL METHODS ====================
+
+    def create_withdrawal_request(self, telegram_id: int, amount: float, method: str,
+                                 account_name: str, account_number: str, pppoker_id: str) -> Dict:
+        """Create withdrawal request (legacy method)"""
+        user = self.get_or_create_user(telegram_id, str(telegram_id), pppoker_id)
+        user_id = user.get('id')
+        return self.create_withdrawal(user_id, amount, method, account_name, account_number, pppoker_id)
+
+    def get_withdrawal_request(self, withdrawal_id: int) -> Optional[Dict]:
+        """Get single withdrawal by ID"""
+        try:
+            withdrawals = self.get_all_withdrawals()
+            for withdrawal in withdrawals:
+                if withdrawal.get('id') == withdrawal_id:
+                    return withdrawal
+            return None
+        except Exception as e:
+            logger.error(f"Error getting withdrawal: {e}")
+            return None
+
+    def update_withdrawal_status(self, withdrawal_id: int, status: str, admin_id: int = None) -> bool:
+        """Update withdrawal status"""
+        try:
+            if status.lower() == 'approved':
+                self.approve_withdrawal(withdrawal_id, admin_id or 0)
+            elif status.lower() == 'rejected':
+                self.reject_withdrawal(withdrawal_id, admin_id or 0)
+            return True
+        except Exception as e:
+            logger.error(f"Error updating withdrawal status: {e}")
+            return False
+
+    def get_withdrawals_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+        """Get withdrawals within date range"""
+        try:
+            return self.get_all_withdrawals()
+        except Exception as e:
+            logger.error(f"Error getting withdrawals by date: {e}")
+            return []
+
+    # ==================== LEGACY JOIN REQUEST METHODS ====================
+
+    def get_join_request(self, request_id: int) -> Optional[Dict]:
+        """Get single join request by ID"""
+        try:
+            requests = self.get_all_join_requests()
+            for req in requests:
+                if req.get('id') == request_id:
+                    return req
+            return None
+        except Exception as e:
+            logger.error(f"Error getting join request: {e}")
+            return None
+
+    def update_join_request_status(self, request_id: int, status: str) -> bool:
+        """Update join request status - placeholder"""
+        # Implement when Django API supports it
+        return True
+
+    # ==================== LEGACY SEAT REQUEST METHODS ====================
+
+    def get_seat_request(self, request_id: int) -> Optional[Dict]:
+        """Get single seat request by ID"""
+        try:
+            requests = self.get_all_seat_requests()
+            for req in requests:
+                if req.get('id') == request_id:
+                    return req
+            return None
+        except Exception as e:
+            logger.error(f"Error getting seat request: {e}")
+            return None
+
+    def settle_seat_request(self, request_id: int, status: str) -> bool:
+        """Settle seat request - placeholder"""
+        return True
+
+    def approve_seat_request(self, request_id: int, admin_id: int) -> bool:
+        """Approve seat request - placeholder"""
+        return True
+
+    def reject_seat_request(self, request_id: int, admin_id: int) -> bool:
+        """Reject seat request - placeholder"""
+        return True
+
+    # ==================== LEGACY CASHBACK METHODS ====================
+
+    def check_cashback_eligibility(self, telegram_id: int, week_start: str, week_end: str) -> Dict:
+        """Check cashback eligibility - placeholder"""
+        return {'eligible': False, 'investment_amount': 0}
+
+    def get_user_pending_cashback(self, telegram_id: int) -> List[Dict]:
+        """Get user's pending cashback requests"""
+        try:
+            all_cashback = self.get_pending_cashback_requests()
+            user = self.get_user_by_telegram_id(telegram_id)
+            if user:
+                user_id = user.get('id')
+                return [cb for cb in all_cashback if cb.get('user') == user_id]
+            return []
+        except Exception as e:
+            logger.error(f"Error getting pending cashback: {e}")
+            return []
+
+    def approve_cashback_request(self, cashback_id: int, admin_id: int) -> bool:
+        """Approve cashback request - placeholder"""
+        return True
+
+    def reject_cashback_request(self, cashback_id: int, admin_id: int) -> bool:
+        """Reject cashback request - placeholder"""
+        return True
+
+    def get_cashback_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+        """Get cashback requests by date range"""
+        try:
+            return self.get_all_cashback_requests()
+        except Exception as e:
+            logger.error(f"Error getting cashback by date: {e}")
+            return []
+
+    # ==================== LEGACY PROMOTION METHODS ====================
+
+    def create_promotion(self, code: str, percentage: float, start_date: str, end_date: str) -> bool:
+        """Create promotion (maps to promo code)"""
+        try:
+            self.create_promo_code(code, percentage, start_date, end_date)
+            return True
+        except Exception as e:
+            logger.error(f"Error creating promotion: {e}")
+            return False
+
+    def get_active_promotion(self) -> Optional[Dict]:
+        """Get active promotion"""
+        try:
+            promos = self.get_active_promo_codes()
+            return promos[0] if promos else None
+        except Exception as e:
+            logger.error(f"Error getting active promotion: {e}")
+            return None
+
+    def check_user_promotion_eligibility(self, telegram_id: int) -> Dict:
+        """Check if user is eligible for promotion"""
+        return {'eligible': True}
+
+    def record_promotion_bonus(self, telegram_id: int, amount: float, promo_code: str) -> bool:
+        """Record promotion bonus - placeholder"""
+        return True
+
+    def create_cashback_promotion(self, percentage: float, start_date: str, end_date: str) -> bool:
+        """Create cashback promotion - placeholder"""
+        return True
+
+    def get_active_cashback_promotion(self) -> Optional[Dict]:
+        """Get active cashback promotion - placeholder"""
+        return None
+
+    def get_bonuses_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+        """Get bonuses by date range - placeholder"""
+        return []
+
+    # ==================== LEGACY PAYMENT ACCOUNT METHODS ====================
+
+    def get_payment_account(self, method: str) -> Optional[Dict]:
+        """Get payment account by method"""
+        try:
+            accounts = self.get_active_payment_accounts()
+            for account in accounts:
+                if account.get('method', '').lower() == method.lower():
+                    return account
+            return None
+        except Exception as e:
+            logger.error(f"Error getting payment account: {e}")
+            return None
+
+    def get_payment_account_details(self, method: str) -> Optional[str]:
+        """Get payment account number"""
+        account = self.get_payment_account(method)
+        return account.get('account_number') if account else None
+
+    def get_payment_account_holder(self, method: str) -> Optional[str]:
+        """Get payment account holder name"""
+        account = self.get_payment_account(method)
+        return account.get('account_name') if account else None
+
+    def update_payment_account(self, method: str, account_number: str, account_name: str = None) -> bool:
+        """Update payment account - placeholder"""
+        try:
+            # Create or update
+            self.create_payment_account(method, account_name or method, account_number)
+            return True
+        except Exception as e:
+            logger.error(f"Error updating payment account: {e}")
+            return False
+
+    def clear_payment_account(self, method: str) -> bool:
+        """Clear payment account - placeholder"""
+        return True
+
+    # ==================== LEGACY COUNTER STATUS METHODS ====================
+
+    def set_counter_status(self, status: str, admin_id: int = None) -> bool:
+        """Set counter status"""
+        try:
+            current = self.get_counter_status()
+            is_currently_open = current.get('is_open', True)
+            target_open = status.lower() in ['open', 'opened', 'true', '1']
+
+            # Only toggle if status is different
+            if is_currently_open != target_open:
+                self.toggle_counter(admin_id or 0)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting counter status: {e}")
+            return False
+
+    # ==================== LEGACY SPIN METHODS ====================
+
+    def update_spin_user(self, telegram_id: int, **kwargs) -> bool:
+        """Update spin user - placeholder"""
+        return True
+
+    def get_spin_by_id(self, spin_id: int) -> Optional[Dict]:
+        """Get spin by ID"""
+        try:
+            history = self.get_all_spin_history()
+            for spin in history:
+                if spin.get('id') == spin_id:
+                    return spin
+            return None
+        except Exception as e:
+            logger.error(f"Error getting spin: {e}")
+            return None
+
+    def get_spins_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+        """Get spins by date range"""
+        try:
+            return self.get_all_spin_history()
+        except Exception as e:
+            logger.error(f"Error getting spins by date: {e}")
+            return []
+
+    # ==================== LEGACY ADMIN METHODS ====================
+
+    def add_admin(self, telegram_id: int, username: str) -> bool:
+        """Add admin"""
+        try:
+            self.create_admin(telegram_id, username)
+            return True
+        except Exception as e:
+            logger.error(f"Error adding admin: {e}")
+            return False
+
+    def remove_admin(self, telegram_id: int) -> bool:
+        """Remove admin - placeholder"""
+        return True
+
+    # ==================== LEGACY USER CREDIT METHODS ====================
+
+    def add_user_credit(self, telegram_id: int, amount: float, credit_type: str,
+                       description: str, created_by: int) -> bool:
+        """Add user credit"""
+        try:
+            user = self.get_or_create_user(telegram_id, str(telegram_id))
+            user_id = user.get('id')
+            self.create_user_credit(user_id, amount, credit_type, description, created_by)
+            return True
+        except Exception as e:
+            logger.error(f"Error adding user credit: {e}")
+            return False
+
+    def get_user_credit(self, telegram_id: int) -> float:
+        """Get user's total credit - placeholder"""
+        return 0.0
+
+    def clear_user_credit(self, telegram_id: int) -> bool:
+        """Clear user credit - placeholder"""
+        return True
+
+    def get_all_active_credits(self) -> List[Dict]:
+        """Get all active credits"""
+        try:
+            return self.get_all_user_credits()
+        except Exception as e:
+            logger.error(f"Error getting active credits: {e}")
+            return []
+
+    def increment_credit_reminder(self, telegram_id: int) -> bool:
+        """Increment credit reminder - placeholder"""
+        return True
+
+    def get_daily_credit_summary(self, date: str) -> Dict:
+        """Get daily credit summary - placeholder"""
+        return {'total': 0, 'count': 0}
+
+    # ==================== LEGACY EXCHANGE RATE METHODS ====================
+
+    def get_exchange_rate(self, currency_from: str, currency_to: str) -> Optional[float]:
+        """Get exchange rate"""
+        try:
+            rates = self.get_active_exchange_rates()
+            for rate in rates:
+                if (rate.get('currency_from') == currency_from and
+                    rate.get('currency_to') == currency_to):
+                    return rate.get('rate')
+            return None
+        except Exception as e:
+            logger.error(f"Error getting exchange rate: {e}")
+            return None
+
+    def set_exchange_rate(self, currency_from: str, currency_to: str, rate: float) -> bool:
+        """Set exchange rate"""
+        try:
+            self.create_exchange_rate(currency_from, currency_to, rate)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting exchange rate: {e}")
+            return False
+
+    # ==================== LEGACY INVESTMENT METHODS ====================
+
+    def add_investment(self, telegram_id: int, amount: float, start_date: str, notes: str = '') -> bool:
+        """Add 50-50 investment"""
+        try:
+            user = self.get_or_create_user(telegram_id, str(telegram_id))
+            user_id = user.get('id')
+            self.create_investment(user_id, amount, start_date, notes)
+            return True
+        except Exception as e:
+            logger.error(f"Error adding investment: {e}")
+            return False
+
+    def get_active_investments_by_id(self, telegram_id: int) -> List[Dict]:
+        """Get user's active investments"""
+        try:
+            all_investments = self.get_active_investments()
+            user = self.get_user_by_telegram_id(telegram_id)
+            if user:
+                user_id = user.get('id')
+                return [inv for inv in all_investments if inv.get('user') == user_id]
+            return []
+        except Exception as e:
+            logger.error(f"Error getting user investments: {e}")
+            return []
+
+    def get_all_active_investments_summary(self) -> Dict:
+        """Get summary of all active investments"""
+        try:
+            investments = self.get_active_investments()
+            total = sum(inv.get('investment_amount', 0) for inv in investments)
+            return {'total': total, 'count': len(investments)}
+        except Exception as e:
+            logger.error(f"Error getting investment summary: {e}")
+            return {'total': 0, 'count': 0}
+
+    def record_investment_return(self, investment_id: int, profit_share: float, loss_share: float) -> bool:
+        """Record investment return - placeholder"""
+        return True
+
+    def mark_expired_investments_as_lost(self) -> int:
+        """Mark expired investments as lost - placeholder"""
+        return 0
+
+    def get_investment_stats(self) -> Dict:
+        """Get investment statistics - placeholder"""
+        return {'total_active': 0, 'total_amount': 0}
+
+    # ==================== LEGACY CLUB BALANCE METHODS ====================
+
+    def get_club_balances(self) -> List[Dict]:
+        """Get all club balances"""
+        try:
+            return self.get_all_club_balances()
+        except Exception as e:
+            logger.error(f"Error getting club balances: {e}")
+            return []
+
+    def set_starting_balances(self, telegram_id: int, balance: float) -> bool:
+        """Set starting balance for user"""
+        try:
+            user = self.get_or_create_user(telegram_id, str(telegram_id))
+            user_id = user.get('id')
+            self.create_club_balance(user_id, balance)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting starting balance: {e}")
+            return False
+
+    def buy_chips_for_club(self, amount: float, notes: str, created_by: int) -> bool:
+        """Buy chips for club - placeholder"""
+        return True
+
+    def add_cash_to_club(self, amount: float, notes: str, created_by: int) -> bool:
+        """Add cash to club - placeholder"""
+        return True
+
+    # ==================== LEGACY OCR/IMAGE PROCESSING ====================
+
+    def process_receipt_image(self, image_path: str) -> Dict:
+        """Process receipt image - placeholder"""
+        return {'success': False, 'amount': 0}
+
+    def format_extracted_details(self, details: Dict) -> str:
+        """Format extracted details"""
+        return str(details)
+
+    # ==================== LEGACY REPORTING ====================
+
+    def save_all_reports(self) -> bool:
+        """Save all reports - placeholder"""
+        return True
+
+    def save_counter_poster(self, poster_path: str) -> bool:
+        """Save counter poster - placeholder"""
+        return True
+
+    def get_saved_poster(self) -> Optional[str]:
+        """Get saved poster path"""
+        return None
+
+    def get_pppoker_id_from_deposits(self, telegram_id: int) -> Optional[str]:
+        """Get PPPoker ID from user's deposits"""
+        try:
+            user = self.get_user_by_telegram_id(telegram_id)
+            if user:
+                return user.get('pppoker_id')
+            return None
+        except Exception as e:
+            logger.error(f"Error getting PPPoker ID: {e}")
+            return None

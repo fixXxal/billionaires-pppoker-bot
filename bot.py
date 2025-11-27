@@ -17,8 +17,8 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-# Using Django API (migrated from Google Sheets)
-from django_api import DjangoAPI
+# Using Django API with backward compatibility layer (migrated from Google Sheets)
+from sheets_compat import SheetsCompatAPI
 import admin_panel
 import vision_api
 from spin_bot import SpinBot
@@ -86,8 +86,8 @@ async def send_counter_closed_message(update: Update) -> bool:
 TIMEZONE = os.getenv('TIMEZONE', 'Indian/Maldives')
 DJANGO_API_URL = os.getenv('DJANGO_API_URL', 'http://localhost:8000/api')
 
-# Initialize Django API (migrated from Google Sheets)
-api = DjangoAPI(DJANGO_API_URL)
+# Initialize Django API with backward compatibility (migrated from Google Sheets)
+api = SheetsCompatAPI(DJANGO_API_URL)
 
 # Initialize Spin Bot with Django API
 spin_bot = SpinBot(api, ADMIN_USER_ID, pytz.timezone(TIMEZONE))

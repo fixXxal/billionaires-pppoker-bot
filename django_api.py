@@ -75,6 +75,15 @@ class DjangoAPI:
         """Get existing user or create new one"""
         return self.create_user(telegram_id, username, pppoker_id)
 
+    def create_or_update_user(self, telegram_id: int, username: str = None,
+                             first_name: str = None, last_name: str = None,
+                             pppoker_id: str = '') -> Dict:
+        """Create or update user with additional fields"""
+        # Construct username from first_name and last_name if not provided
+        if not username:
+            username = f"{first_name or ''}{last_name or ''}".strip() or f"user_{telegram_id}"
+        return self.create_user(telegram_id, username, pppoker_id)
+
     def update_user_balance(self, user_id: int, new_balance: float) -> Dict:
         """Update user's balance"""
         data = {'balance': new_balance}
@@ -310,6 +319,15 @@ class DjangoAPI:
         """Toggle counter open/close"""
         data = {'admin_id': admin_id}
         return self._post('counter-status/toggle/', data)
+
+    def is_counter_open(self) -> bool:
+        """Check if counter is currently open"""
+        try:
+            status = self.get_counter_status()
+            return status.get('is_open', True)
+        except Exception:
+            # If API fails, assume counter is open
+            return True
 
     # ==================== PROMO CODE METHODS ====================
 
