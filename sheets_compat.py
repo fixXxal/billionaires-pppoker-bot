@@ -290,12 +290,12 @@ class SheetsCompatAPI(DjangoAPI):
     def update_payment_account(self, method: str, account_number: str, account_name: str = None) -> bool:
         """Update payment account"""
         try:
-            # Use Django API update method which handles update-or-create
-            self.django_api.update_payment_account(method, account_number, account_name)
+            # Call parent DjangoAPI method which handles update-or-create
+            super().update_payment_account(method, account_number, account_name)
             return True
         except Exception as e:
-            logger.error(f"Error updating payment account: {e}")
-            return False
+            logger.error(f"Error updating payment account: {e}", exc_info=True)
+            raise  # Re-raise so bot shows error to admin
 
     def clear_payment_account(self, method: str) -> bool:
         """Clear payment account - placeholder"""
