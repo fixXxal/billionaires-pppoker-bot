@@ -1189,7 +1189,12 @@ async def addspins_command(update: Update, context: ContextTypes.DEFAULT_TYPE, s
             return
 
         # Get or create user
-        user_data = spin_bot.api.get_spin_user(target_user_id)
+        user_data = None
+        try:
+            user_data = spin_bot.api.get_spin_user(target_user_id)
+        except Exception as e:
+            # User doesn't exist yet, will create below
+            logger.info(f"User {target_user_id} doesn't exist in spin users, will create new")
 
         # Try to get username from Telegram
         target_username = "Unknown"
