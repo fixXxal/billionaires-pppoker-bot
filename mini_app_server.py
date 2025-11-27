@@ -82,7 +82,8 @@ def get_cached_user_data(user_id):
     # Fetch fresh data
     logger.info(f"🔄 Cache miss for user {user_id}, fetching from api")
     api, _ = get_managers()
-    user_data = api.get_spin_user(user_id)
+    # FIXED: Use get_or_create_spin_user which accepts telegram_id
+    user_data = api.get_or_create_spin_user(user_id)
 
     # Update cache
     user_data_cache[user_id] = user_data
@@ -349,39 +350,27 @@ def spin():
                 'chips': chips  # Store chips for notification later
             })
 
-        # Log ALL spins to Google Sheets as a BATCH (much faster than individual writes)
-        # For 100 spins: 1 batch write (~2 sec) vs 100 individual writes (~200 sec)
+        # Log ALL spins to Django API using process_spin endpoint
+        # This handles: creating spin history records, deducting spins, updating totals
         import threading
 
         def log_all_spins():
             try:
-                # Prepare all rows for batch insert
-                timestamp = datetime.now(api.timezone).strftime('%Y-%m-%d %H:%M:%S')
-                rows_to_add = []
-
+                # Prepare results for Django API
+                spin_results = []
                 for result in results:
-                    prize_display = result['prize']
-                    chips = result['chips']
-                    status = "Auto" if chips == 0 else "Pending"
+                    spin_results.append({
+                        'prize': result['prize'],
+                        'chips': result['chips'],
+                        'segment_index': result['segment_index']
+                    })
 
-                    rows_to_add.append([
-                        user_id,
-                        username,
-                        prize_display,
-                        chips,
-                        timestamp,
-                        pppoker_id,
-                        status,  # Status: Pending, Approved, Auto
-                        '',      # Approved By
-                        ''       # Approved At
-                    ])
-
-                # Batch insert all rows at once (MUCH faster)
-                api.spin_history_sheet.append_rows(rows_to_add)
-                logger.info(f"✅ Logged {len(rows_to_add)} spins to Google Sheets in batch")
+                # Send to Django API - handles everything in one call
+                response = api.process_spin(user_id, spin_results)
+                logger.info(f"✅ Processed {len(spin_results)} spins via Django API")
 
             except Exception as e:
-                logger.error(f"❌ Failed to batch log spins: {e}")
+                logger.error(f"❌ Failed to process spins: {e}")
                 import traceback
                 traceback.print_exc()
 
@@ -389,24 +378,15 @@ def spin():
         log_thread = threading.Thread(target=log_all_spins)
         log_thread.start()
 
-        # Wait for logging to complete (max 10 seconds for even 100+ spins)
+        # Wait for logging to complete (max 10 seconds)
         log_thread.join(timeout=10.0)
 
-        # Update user spins
+        # Calculate new values (Django API already updated these, but we need them for response)
         new_available = available_spins - spin_count
         total_used = user_data.get('total_spins_used', 0) + spin_count
 
-        # Update in background thread (Google Sheets is slow)
-        def update_user_data():
-            api.update_spin_user(
-                user_id=user_id,
-                available_spins=new_available,
-                total_spins_used=total_used
-            )
-            # Invalidate cache after update completes
-            invalidate_user_cache(user_id)
-
-        threading.Thread(target=update_user_data, daemon=True).start()
+        # Invalidate cache so next request gets fresh data from Django
+        invalidate_user_cache(user_id)
 
         # Send notifications AFTER all spins are processed (in background - non-blocking)
         total_chips_won = sum(r.get('chips', 0) for r in results if isinstance(r, dict) and r.get('chips', 0) > 0)
