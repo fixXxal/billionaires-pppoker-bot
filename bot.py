@@ -6843,6 +6843,63 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
             parse_mode='HTML'
         )
 
+        # Remove approve buttons from ALL admin notification messages for this user
+        notification_key = f"spin_reward_{target_user_id}"
+        if hasattr(context.bot_data, 'spin_notification_messages') and notification_key in context.bot_data.get('spin_notification_messages', {}):
+            logger.info(f"Removing approve buttons from {len(context.bot_data['spin_notification_messages'][notification_key])} admin messages")
+            for admin_id, message_id in context.bot_data['spin_notification_messages'][notification_key]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                    logger.info(f"Removed approve button for admin {admin_id}, message {message_id}")
+                except Exception as e:
+                    logger.error(f"Failed to remove button for admin {admin_id}: {e}")
+            # Clean up stored message IDs
+            del context.bot_data['spin_notification_messages'][notification_key]
+            logger.info(f"Cleaned up notification storage for {notification_key}")
+
+        # Notify ALL other admins about the approval
+        admin_notification = (
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"✅ <b>REWARDS APPROVED</b> ✅\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 <b>User:</b> {username_safe}\n"
+            f"🎁 <b>Rewards:</b> {approved_count}\n"
+            f"💎 <b>Total Chips:</b> {total_chips}\n\n"
+            f"✅ <b>Approved by:</b> {approver_name_safe}\n\n"
+            f"━━━━━━━━━━━━━━━━━━"
+        )
+
+        # Send to super admin (if not the one who approved)
+        if user.id != ADMIN_USER_ID:
+            try:
+                await context.bot.send_message(
+                    chat_id=ADMIN_USER_ID,
+                    text=admin_notification,
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                logger.error(f"Failed to notify super admin: {e}")
+
+        # Send to all regular admins (except the one who approved)
+        try:
+            regular_admins = api.get_all_admins()
+            for admin in regular_admins:
+                if admin['admin_id'] != user.id:
+                    try:
+                        await context.bot.send_message(
+                            chat_id=admin['admin_id'],
+                            text=admin_notification,
+                            parse_mode='HTML'
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to notify admin {admin['admin_id']}: {e}")
+        except Exception as e:
+            logger.error(f"Failed to get admin list: {e}")
+
         # Notify the user
         try:
             pppoker_id = spin_bot.api.get_pppoker_id_from_deposits(target_user_id)
