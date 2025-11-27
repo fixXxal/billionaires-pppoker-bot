@@ -2,7 +2,7 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "python manage.py migrate && python bot.py"
+startCommand = "python manage.py migrate && gunicorn billionaires_backend.wsgi:application --bind 0.0.0.0:$PORT & python bot.py"
 healthcheckPath = "/api/"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
