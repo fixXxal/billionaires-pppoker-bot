@@ -1039,51 +1039,89 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
         query = update
         edit_func = update.message.reply_text
 
-    # Get all active credits
-    active_credits = api.get_all_active_credits()
+    try:
+        # Get all active credits
+        active_credits = api.get_all_active_credits()
 
-    if not active_credits:
+        # Handle paginated response
+        if isinstance(active_credits, dict) and 'results' in active_credits:
+            active_credits = active_credits['results']
+
+        if not active_credits:
+            await edit_func(
+                "✅ <b>No Active Credits</b>\n\n"
+                "━━━━━━━━━━━━━━━━━━\n\n"
+                "All users have paid their debts!\n\n"
+                "No outstanding balances.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("« Back", callback_data="admin_back")
+                ]]),
+                parse_mode='HTML'
+            )
+            return
+
+        # Calculate totals
+        total_credits = len(active_credits)
+        total_amount = sum(float(credit.get('amount', 0)) for credit in active_credits)
+
+        # Build message
+        message = f"💳 <b>ACTIVE CREDITS</b>\n\n"
+        message += f"━━━━━━━━━━━━━━━━━━\n\n"
+        message += f"👥 <b>Total Users:</b> {total_credits}\n"
+        message += f"💰 <b>Total Owed:</b> {total_amount:,.2f} MVR\n\n"
+        message += f"━━━━━━━━━━━━━━━━━━\n\n"
+
+        # List each credit
+        for i, credit in enumerate(active_credits[:10], 1):  # Show max 10
+            user_details = credit.get('user_details', {})
+            username = user_details.get('username', credit.get('username', 'Unknown'))
+            username_display = f"@{username}" if username and username != 'Unknown' else "No username"
+
+            pppoker_id = credit.get('pppoker_id', 'N/A')
+            user_id = credit.get('user') or credit.get('user_id', 'N/A')
+            created_at = credit.get('created_at', 'N/A')
+
+            # Format date
+            if created_at != 'N/A' and isinstance(created_at, str):
+                from datetime import datetime
+                try:
+                    dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                    created_at = dt.strftime('%Y-%m-%d')
+                except:
+                    pass
+
+            message += f"<b>{i}. {username_display}</b>\n"
+            message += f"   💰 Owes: <b>{float(credit.get('amount', 0)):,.2f} MVR</b>\n"
+            message += f"   🎮 PPPoker ID: {pppoker_id}\n"
+            message += f"   👤 User ID: <code>{user_id}</code>\n"
+            message += f"   📅 Since: {created_at}\n\n"
+
+        if len(active_credits) > 10:
+            message += f"<i>... and {len(active_credits) - 10} more</i>\n\n"
+
+        message += f"━━━━━━━━━━━━━━━━━━\n\n"
+        message += f"💡 <i>Credits are unpaid debts from users</i>"
+
+        # Add back button
+        keyboard = [[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
         await edit_func(
-            "✅ <b>No Active Credits</b>\n\n"
-            "All users have paid their debts!",
+            message,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+
+    except Exception as e:
+        logger.error(f"Error viewing credits: {e}")
+        await edit_func(
+            f"❌ Error loading active credits: {str(e)}\n\n"
+            f"Please try again or contact support.",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("« Back", callback_data="admin_back")
             ]]),
             parse_mode='HTML'
         )
-        return
-
-    # Calculate totals
-    total_credits = len(active_credits)
-    total_amount = sum(credit['amount'] for credit in active_credits)
-
-    # Build message
-    message = f"💳 <b>ACTIVE CREDITS SUMMARY</b>\n\n"
-    message += f"👥 <b>Total Users:</b> {total_credits}\n"
-    message += f"💰 <b>Total Amount:</b> {total_amount:,.2f} MVR\n\n"
-    message += f"━━━━━━━━━━━━━━━━━━\n\n"
-
-    # List each credit
-    for i, credit in enumerate(active_credits, 1):
-        username_display = f"@{credit['username']}" if credit['username'] else "No username"
-        message += f"<b>{i}. {username_display}</b>\n"
-        message += f"   💰 Amount: <b>{credit['amount']:,.2f} MVR</b>\n"
-        message += f"   🎮 PPPoker ID: {credit['pppoker_id']}\n"
-        message += f"   👤 User ID: <code>{credit['user_id']}</code>\n"
-        message += f"   📅 Since: {credit['created_at']}\n\n"
-
-    message += f"━━━━━━━━━━━━━━━━━━\n\n"
-    message += f"💡 <i>Use /clear_credit &lt;user_id&gt; to mark as paid</i>"
-
-    # Add back button
-    keyboard = [[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await edit_func(
-        message,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
 
 
 # Join requests
@@ -2154,48 +2192,88 @@ async def admin_club_balances(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
 
-    # Check if balances are initialized
-    initialized = api.is_balances_initialized()
+    try:
+        # Check if balances are initialized
+        initialized = api.is_balances_initialized()
 
-    if not initialized:
+        if not initialized:
+            keyboard = [
+                [InlineKeyboardButton("⚙️ Set Starting Balances", callback_data="balances_setup")],
+                [InlineKeyboardButton("« Back", callback_data="admin_back")]
+            ]
+            await query.edit_message_text(
+                "🏦 <b>Club Balances</b>\n\n"
+                "━━━━━━━━━━━━━━━━━━\n\n"
+                "⚠️ Balances not initialized yet.\n\n"
+                "Please set starting balances to begin tracking club inventory and cash balances.",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return
+
+        # Show current balances
+        balances = api.get_club_balances()
+
+        # Handle paginated/dict response
+        if isinstance(balances, dict) and 'results' in balances:
+            balances = balances['results'][0] if balances['results'] else {}
+
+        # Get values with defaults
+        chip_inventory = float(balances.get('chip_inventory', 0))
+        mvr_balance = float(balances.get('mvr_balance', 0))
+        usd_balance = float(balances.get('usd_balance', 0))
+        usdt_balance = float(balances.get('usdt_balance', 0))
+        chip_cost_basis = float(balances.get('chip_cost_basis', 0))
+        avg_chip_rate = float(balances.get('avg_chip_rate', 0))
+        last_updated = balances.get('last_updated', 'N/A')
+
+        # Format timestamp
+        if last_updated != 'N/A' and isinstance(last_updated, str):
+            from datetime import datetime
+            try:
+                dt = datetime.fromisoformat(last_updated.replace('Z', '+00:00'))
+                last_updated = dt.strftime('%Y-%m-%d %H:%M')
+            except:
+                pass
+
+        message = "🏦 <b>Club Balances</b>\n\n"
+        message += f"━━━━━━━━━━━━━━━━━━\n\n"
+        message += f"<b>💎 INVENTORY</b>\n"
+        message += f"🎲 Chips: <b>{chip_inventory:,.0f}</b>\n"
+        message += f"📊 Cost Basis: {chip_cost_basis:,.2f} MVR\n"
+        message += f"📈 Avg Rate: {avg_chip_rate:.4f} MVR/chip\n\n"
+        message += f"━━━━━━━━━━━━━━━━━━\n\n"
+        message += f"<b>💰 CASH BALANCES</b>\n"
+        message += f"💰 MVR: <b>{mvr_balance:,.2f}</b>\n"
+        message += f"💵 USD: <b>{usd_balance:,.2f}</b>\n"
+        message += f"💎 USDT: <b>{usdt_balance:,.2f}</b>\n\n"
+        message += f"━━━━━━━━━━━━━━━━━━\n\n"
+        message += f"🕐 Last Updated: {last_updated}"
+
         keyboard = [
-            [InlineKeyboardButton("⚙️ Set Starting Balances", callback_data="balances_setup")],
+            [InlineKeyboardButton("🎲 Buy Chips", callback_data="balances_buy_chips")],
+            [InlineKeyboardButton("💵 Add Cash", callback_data="balances_add_cash")],
+            [InlineKeyboardButton("📊 Transaction History", callback_data="balances_history")],
+            [InlineKeyboardButton("🔄 Refresh", callback_data="admin_club_balances")],
             [InlineKeyboardButton("« Back", callback_data="admin_back")]
         ]
+
         await query.edit_message_text(
-            "🏦 <b>Club Balances</b>\n\n"
-            "⚠️ Balances not initialized yet.\n\n"
-            "Please set starting balances to begin tracking.",
+            message,
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        return
 
-    # Show current balances
-    balances = api.get_club_balances()
-
-    message = "🏦 <b>Club Balances</b>\n\n"
-    message += f"🎲 <b>Chip Inventory:</b> {balances['chip_inventory']:,.0f}\n"
-    message += f"💰 <b>MVR Balance:</b> {balances['mvr_balance']:,.2f}\n"
-    message += f"💵 <b>USD Balance:</b> {balances['usd_balance']:,.2f}\n"
-    message += f"💎 <b>USDT Balance:</b> {balances['usdt_balance']:,.2f}\n\n"
-    message += f"📊 <b>Chip Cost Basis:</b> {balances['chip_cost_basis']:,.2f} MVR\n"
-    message += f"📈 <b>Avg Buy Rate:</b> {balances['avg_chip_rate']:.4f} MVR/chip\n\n"
-    message += f"🕐 <b>Last Updated:</b> {balances['last_updated']}"
-
-    keyboard = [
-        [InlineKeyboardButton("🎲 Buy Chips", callback_data="balances_buy_chips")],
-        [InlineKeyboardButton("💵 Add Cash", callback_data="balances_add_cash")],
-        [InlineKeyboardButton("📊 Transaction History", callback_data="balances_history")],
-        [InlineKeyboardButton("🔄 Refresh", callback_data="admin_club_balances")],
-        [InlineKeyboardButton("« Back", callback_data="admin_back")]
-    ]
-
-    await query.edit_message_text(
-        message,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    except Exception as e:
+        logger.error(f"Error viewing club balances: {e}")
+        await query.edit_message_text(
+            f"❌ Error loading club balances: {str(e)}\n\n"
+            f"Please try again or contact support.",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("« Back", callback_data="admin_back")
+            ]])
+        )
 
 
 async def balances_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
