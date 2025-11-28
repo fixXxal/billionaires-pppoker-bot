@@ -173,7 +173,7 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
         except Exception as e:
             logger.error(f"❌ Failed to notify super admin: {e}")
 
-        # Send to all regular admins
+        # Send to all regular admins (excluding super admin to avoid duplicates)
         try:
             admins_response = api.get_all_admins()
 
@@ -184,6 +184,11 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
                 admins = admins_response
 
             for admin in admins:
+                # Skip if this is the super admin (already notified above)
+                if admin['telegram_id'] == ADMIN_USER_ID:
+                    logger.info(f"⏭️ Skipping super admin {ADMIN_USER_ID} (already notified)")
+                    continue
+
                 try:
                     await bot.send_message(
                         chat_id=admin['telegram_id'],
