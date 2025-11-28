@@ -2888,19 +2888,30 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
         bonuses = api.get_bonuses_by_date_range(start, end)
         cashback = api.get_cashback_by_date_range(start, end)
 
+        # Handle paginated responses from Django API
+        if isinstance(deposits, dict) and 'results' in deposits:
+            deposits = deposits['results']
+        if isinstance(withdrawals, dict) and 'results' in withdrawals:
+            withdrawals = withdrawals['results']
+        if isinstance(spins, dict) and 'results' in spins:
+            spins = spins['results']
+        if isinstance(bonuses, dict) and 'results' in bonuses:
+            bonuses = bonuses['results']
+        if isinstance(cashback, dict) and 'results' in cashback:
+            cashback = cashback['results']
         # Calculate chip costs (money given to users as chips)
-        total_spin_rewards = sum([s['amount'] for s in spins])
-        total_bonuses = sum([b['amount'] for b in bonuses])
-        total_cashback = sum([c['amount'] for c in cashback])
+        total_spin_rewards = sum([float(s.get('chips', 0)) for s in spins if s.get('chips')])
+        total_bonuses = sum([float(b.get('bonus_amount', 0)) for b in bonuses])
+        total_cashback = sum([float(c.get('cashback_amount', 0)) for c in cashback])
 
         # Separate by currency
-        mvr_deposits = sum([d['amount'] for d in deposits if d['method'] in ['BML', 'MIB']])
-        usd_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USD'])
-        usdt_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USDT'])
+        mvr_deposits = sum([float(d.get('amount', 0)) for d in deposits if d.get('method') in ['BML', 'MIB']])
+        usd_deposits = sum([float(d.get('amount', 0)) for d in deposits if d.get('method') == 'USD'])
+        usdt_deposits = sum([float(d.get('amount', 0)) for d in deposits if d.get('method') == 'USDT'])
 
-        mvr_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] in ['BML', 'MIB']])
-        usd_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USD'])
-        usdt_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USDT'])
+        mvr_withdrawals = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) in ['BML', 'MIB']])
+        usd_withdrawals = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) == 'USD'])
+        usdt_withdrawals = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) == 'USDT'])
 
         # Calculate profits per currency
         mvr_profit = mvr_deposits - (mvr_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
