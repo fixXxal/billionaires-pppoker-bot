@@ -189,9 +189,63 @@ class DjangoAPI:
         data = {'spins': spins}
         return self._post(f'spin-users/{spin_user_id}/add_spins/', data)
 
-    def get_spin_user(self, spin_user_id: int) -> Dict:
-        """Get spin user by ID"""
-        return self._get(f'spin-users/{spin_user_id}/')
+    def get_spin_user(self, telegram_id: int) -> Optional[Dict]:
+        """Get spin user by telegram ID (returns None if not exists)"""
+        try:
+            result = self._get(f'spin-users/by_telegram_id/', params={'telegram_id': telegram_id})
+            return result.get('spin_user')
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                return None
+            raise
+
+    def create_spin_user(self, user_id: int, username: str, available_spins: int = 0,
+                        total_deposit: float = 0, pppoker_id: str = '') -> Dict:
+        """Create new spin user (or get existing) and set initial values"""
+        # First ensure the main user exists
+        self.get_or_create_user(user_id, username, pppoker_id)
+
+        # Get or create spin user
+        result = self._post('spin-users/by_telegram_id/', {'telegram_id': user_id})
+        spin_user = result.get('spin_user')
+
+        # Update with provided values using PUT
+        spin_user_id = spin_user.get('id')
+        updated_data = {
+            'available_spins': available_spins,
+            'total_deposit': total_deposit,
+            'total_spins_used': spin_user.get('total_spins_used', 0),
+            'total_chips_earned': spin_user.get('total_chips_earned', 0)
+        }
+        return self._put(f'spin-users/{spin_user_id}/', updated_data)
+
+    def update_spin_user(self, user_id: int, username: str = None, available_spins: int = None,
+                        total_deposit: float = None, pppoker_id: str = None) -> Dict:
+        """Update existing spin user"""
+        # Get the spin user first
+        result = self._post('spin-users/by_telegram_id/', {'telegram_id': user_id})
+        spin_user = result.get('spin_user')
+        spin_user_id = spin_user.get('id')
+
+        # Update main user's pppoker_id if provided
+        if pppoker_id is not None:
+            try:
+                user = self.get_user_by_telegram_id(user_id)
+                if user and user.get('pppoker_id') != pppoker_id:
+                    # Update main user's pppoker_id
+                    self.get_or_create_user(user_id, username or user.get('username'), pppoker_id)
+            except Exception as e:
+                logger.warning(f"Could not update pppoker_id for user {user_id}: {e}")
+
+        # Build update data with only provided fields
+        update_data = {
+            'available_spins': available_spins if available_spins is not None else spin_user.get('available_spins', 0),
+            'total_deposit': total_deposit if total_deposit is not None else spin_user.get('total_deposit', 0),
+            'total_spins_used': spin_user.get('total_spins_used', 0),
+            'total_chips_earned': spin_user.get('total_chips_earned', 0)
+        }
+
+        return self._put(f'spin-users/{spin_user_id}/', update_data)
 
     # ==================== SPIN HISTORY METHODS ====================
 

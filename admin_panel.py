@@ -263,30 +263,41 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 amount = float(deposit['amount'])
                 method = deposit.get('method', 'BML')
 
+                logger.info(f"🎰 [ADMIN PANEL] SPIN CALCULATION START - User: {user_id}, Amount: {amount}, Method: {method}")
+
                 if method == 'USD':
                     usd_rate = api.get_exchange_rate('USD', 'MVR') or 15.40
                     amount_mvr = amount * usd_rate
-                    logger.info(f"Converting {amount} USD to {amount_mvr} MVR (rate: {usd_rate})")
+                    logger.info(f"💱 [ADMIN PANEL] Converting {amount} USD to {amount_mvr} MVR (rate: {usd_rate})")
                 elif method == 'USDT':
                     usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.40
                     amount_mvr = amount * usdt_rate
-                    logger.info(f"Converting {amount} USDT to {amount_mvr} MVR (rate: {usdt_rate})")
+                    logger.info(f"💱 [ADMIN PANEL] Converting {amount} USDT to {amount_mvr} MVR (rate: {usdt_rate})")
                 else:
                     amount_mvr = amount  # Already in MVR
+                    logger.info(f"💰 [ADMIN PANEL] Using amount as MVR: {amount_mvr}")
 
+                logger.info(f"🎲 [ADMIN PANEL] Calling add_spins_from_deposit with amount_mvr={amount_mvr}, user={user_id}")
                 spins_added = await spin_bot.add_spins_from_deposit(
                     user_id=user_id,
                     username=username,
                     amount_mvr=amount_mvr,
                     pppoker_id=deposit.get('pppoker_id', '')
                 )
+                logger.info(f"✅ [ADMIN PANEL] SPIN RESULT: {spins_added} spins added to user {user_id}")
+
                 if spins_added > 0:
                     spins_message = f"\n\n🎰 <b>FREE SPINS BONUS!</b>\n+{spins_added} free spins added!"
-                logger.info(f"Added {spins_added} spins to user {user_id} for deposit of {amount_mvr} MVR")
+                    logger.info(f"🎉 [ADMIN PANEL] User will receive spin message: {spins_added} spins")
+                else:
+                    logger.info(f"ℹ️ [ADMIN PANEL] No spins added (amount {amount_mvr} MVR below minimum threshold)")
             except Exception as e:
-                logger.error(f"Error adding spins for deposit: {e}")
+                logger.error(f"❌ [ADMIN PANEL] CRITICAL ERROR adding spins for deposit: {e}")
+                logger.error(f"   User ID: {user_id}, Username: {username}, Amount: {amount}, Method: {method}")
                 import traceback
                 traceback.print_exc()
+        else:
+            logger.warning(f"⚠️ [ADMIN PANEL] spin_bot is None! Cannot add spins for deposit approval.")
 
         user_message = (
             f"🎉 <b>DEPOSIT APPROVED!</b> 🎉\n\n"

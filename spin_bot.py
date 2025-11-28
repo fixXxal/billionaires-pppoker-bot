@@ -385,42 +385,58 @@ class SpinBot:
     async def add_spins_from_deposit(self, user_id: int, username: str, amount_mvr: float, pppoker_id: str = '') -> int:
         """Add spins to user based on deposit amount"""
         try:
+            logger.info(f"🎯 [SPIN_BOT] add_spins_from_deposit called: user={user_id}, amount_mvr={amount_mvr}")
+
+            # Calculate spins based on amount
             spins_to_add = self.calculate_spins_from_deposit(amount_mvr)
+            logger.info(f"📊 [SPIN_BOT] Calculated spins: {spins_to_add} for {amount_mvr} MVR")
 
             # Get or create user (do this for ALL deposits, not just ones that give spins)
+            logger.info(f"🔍 [SPIN_BOT] Looking up spin user for telegram_id={user_id}")
             user_data = self.api.get_spin_user(user_id)
 
             if user_data:
+                logger.info(f"✅ [SPIN_BOT] Found existing spin user: {user_data}")
                 # Update existing user
-                new_available = user_data.get('available_spins', 0) + spins_to_add
-                new_total_deposit = user_data.get('total_deposit', 0) + amount_mvr
+                current_spins = user_data.get('available_spins', 0)
+                current_deposit = user_data.get('total_deposit', 0)
+                new_available = current_spins + spins_to_add
+                new_total_deposit = current_deposit + amount_mvr
 
-                self.api.update_spin_user(
+                logger.info(f"📈 [SPIN_BOT] Updating: spins {current_spins} → {new_available}, deposit {current_deposit} → {new_total_deposit}")
+
+                result = self.api.update_spin_user(
                     user_id=user_id,
                     username=username,
                     available_spins=new_available,
                     total_deposit=new_total_deposit,
                     pppoker_id=pppoker_id  # Update PPPoker ID even if spins_to_add = 0
                 )
+                logger.info(f"✅ [SPIN_BOT] Update result: {result}")
             else:
+                logger.info(f"🆕 [SPIN_BOT] No existing spin user found, creating new one")
                 # Create new user (even if they get 0 spins, store their PPPoker ID)
-                self.api.create_spin_user(
+                result = self.api.create_spin_user(
                     user_id=user_id,
                     username=username,
                     available_spins=spins_to_add,
                     total_deposit=amount_mvr,
                     pppoker_id=pppoker_id
                 )
+                logger.info(f"✅ [SPIN_BOT] Create result: {result}")
 
             if spins_to_add > 0:
-                logger.info(f"Added {spins_to_add} spins to user {user_id} for deposit of {amount_mvr} MVR")
+                logger.info(f"🎉 [SPIN_BOT] SUCCESS: Added {spins_to_add} spins to user {user_id} for deposit of {amount_mvr} MVR")
             else:
-                logger.info(f"Deposit of {amount_mvr} MVR from user {user_id} recorded (no spins - below minimum)")
+                logger.info(f"ℹ️ [SPIN_BOT] Deposit of {amount_mvr} MVR from user {user_id} recorded (no spins - below minimum)")
 
             return spins_to_add
 
         except Exception as e:
-            logger.error(f"Error adding spins from deposit: {e}")
+            logger.error(f"❌ [SPIN_BOT] CRITICAL ERROR in add_spins_from_deposit: {e}")
+            logger.error(f"   user_id={user_id}, username={username}, amount_mvr={amount_mvr}, pppoker_id={pppoker_id}")
+            import traceback
+            traceback.print_exc()
             return 0
 
     async def show_spin_animation(self, query, result, spin_count):
