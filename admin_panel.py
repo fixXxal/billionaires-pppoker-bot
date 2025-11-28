@@ -27,6 +27,9 @@ api = SheetsCompatAPI(DJANGO_API_URL)
 
 # Conversation states
 ADMIN_NOTES, UPDATE_ACCOUNT_NUMBER = range(2)
+# Investment conversation states
+INVESTMENT_TELEGRAM_ID, INVESTMENT_AMOUNT, INVESTMENT_NOTES = range(2, 5)
+RETURN_SELECT_USER, RETURN_AMOUNT = range(5, 7)
 
 # Notification messages storage (will be set by bot.py)
 notification_messages = {}
@@ -1629,42 +1632,71 @@ async def admin_investments(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def investment_view_active(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """View active investments from last 24 hours"""
+    """View active investments"""
     query = update.callback_query
     await query.answer()
 
-    active_investments = api.get_all_active_investments_summary()
+    try:
+        # Get active investments from Django API
+        active_investments = api.get_active_investments()
 
-    if not active_investments:
+        # Handle paginated response
+        if isinstance(active_investments, dict) and 'results' in active_investments:
+            active_investments = active_investments['results']
+
+        if not active_investments:
+            await query.edit_message_text(
+                "💎 <b>Active Investments</b>\n\n"
+                "No active investments found.",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+            )
+            return
+
+        message = "💎 <b>Active Investments</b>\n\n"
+
+        # Group by user
+        from collections import defaultdict
+        user_groups = defaultdict(lambda: {'total': 0, 'count': 0, 'notes': '', 'date': ''})
+
+        for inv in active_investments:
+            user_details = inv.get('user_details', {})
+            username = user_details.get('username', f"User {inv.get('user')}")
+            user_id = inv.get('user')
+
+            user_groups[user_id]['total'] += float(inv.get('investment_amount', 0))
+            user_groups[user_id]['count'] += 1
+            user_groups[user_id]['username'] = username
+            if not user_groups[user_id]['notes'] and inv.get('notes'):
+                user_groups[user_id]['notes'] = inv.get('notes', '')
+            if not user_groups[user_id]['date']:
+                user_groups[user_id]['date'] = inv.get('start_date', '')
+
+        # Display grouped
+        for user_id, data in user_groups.items():
+            player_display = data['username']
+            if data['notes']:
+                player_display += f" ({data['notes']})"
+
+            message += f"🎮 <b>{player_display}</b>\n"
+            message += f"💰 {data['total']:.2f} MVR"
+            if data['count'] > 1:
+                message += f" ({data['count']} investments)"
+            message += f"\n📅 {data['date']}\n\n"
+
         await query.edit_message_text(
-            "💎 <b>Active Investments (Last 24 Hours)</b>\n\n"
-            "No active investments found.",
+            message,
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
         )
-        return
 
-    message = "💎 <b>Active Investments (Last 24 Hours)</b>\n\n"
-
-    for inv in active_investments:
-        pppoker_id = inv['pppoker_id']
-        note = inv['player_note']
-        amount = inv['total_amount']
-        date = inv['first_date']
-
-        player_display = f"{pppoker_id}"
-        if note:
-            player_display += f" ({note})"
-
-        message += f"🎮 <b>{player_display}</b>\n"
-        message += f"💰 {amount:.2f} MVR\n"
-        message += f"📅 {date}\n\n"
-
-    await query.edit_message_text(
-        message,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
-    )
+    except Exception as e:
+        logger.error(f"Error viewing active investments: {e}")
+        await query.edit_message_text(
+            f"❌ Error loading investments: {str(e)}",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+        )
 
 
 async def investment_view_completed(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1672,38 +1704,377 @@ async def investment_view_completed(update: Update, context: ContextTypes.DEFAUL
     query = update.callback_query
     await query.answer()
 
-    # Get investment stats for completed investments
-    stats = api.get_investment_stats()
+    try:
+        # Get all investments and filter completed
+        all_investments = api.get_all_investments()
 
-    if stats['completed_count'] == 0:
+        # Handle paginated response
+        if isinstance(all_investments, dict) and 'results' in all_investments:
+            all_investments = all_investments['results']
+
+        # Filter completed
+        completed = [inv for inv in all_investments if inv.get('status') == 'Completed']
+
+        if not completed:
+            await query.edit_message_text(
+                "📈 <b>Completed Investments</b>\n\n"
+                "No completed investments found.",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+            )
+            return
+
+        # Calculate stats
+        total_investment = sum(float(inv.get('investment_amount', 0)) for inv in completed)
+        total_profit_share = sum(float(inv.get('profit_share', 0)) for inv in completed)
+        total_loss_share = sum(float(inv.get('loss_share', 0)) for inv in completed)
+
+        # Club gets: initial investment back + their share of profit
+        # Profit share is what the PLAYER gets, so club gets the other 50%
+        club_total_profit = total_profit_share  # Club and player split 50/50, so if player gets X, club also gets X
+
+        message = "📈 <b>Completed Investments Summary</b>\n\n"
+        message += f"✅ Completed: {len(completed)}\n"
+        message += f"💰 Total Invested: {total_investment:.2f} MVR\n"
+        message += f"🏛️ Club Profit Share: {club_total_profit:.2f} MVR\n"
+
+        if total_loss_share > 0:
+            message += f"❌ Total Losses: {total_loss_share:.2f} MVR\n"
+
+        net_result = club_total_profit - total_loss_share
+        message += f"\n📊 <b>Net Result: "
+        if net_result >= 0:
+            message += f"+{net_result:.2f} MVR</b>"
+        else:
+            message += f"{net_result:.2f} MVR</b>"
+
         await query.edit_message_text(
-            "📈 <b>Completed Investments</b>\n\n"
-            "No completed investments found.",
+            message,
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
         )
-        return
 
-    message = "📈 <b>Completed Investments Summary</b>\n\n"
-    message += f"✅ Completed: {stats['completed_count']}\n"
-    message += f"💰 Total Profit: {stats['completed_profit']:.2f} MVR\n"
-    message += f"🏛️ Club Share: {stats['total_club_share']:.2f} MVR\n\n"
+    except Exception as e:
+        logger.error(f"Error viewing completed investments: {e}")
+        await query.edit_message_text(
+            f"❌ Error loading investments: {str(e)}",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+        )
 
-    if stats['lost_count'] > 0:
-        message += f"❌ Lost: {stats['lost_count']}\n"
-        message += f"💸 Lost Amount: {stats['lost_amount']:.2f} MVR\n\n"
 
-    net_result = stats['total_club_share'] - stats['lost_amount']
-    if net_result >= 0:
-        message += f"📊 <b>Net Result: +{net_result:.2f} MVR</b>"
-    else:
-        message += f"📊 <b>Net Result: {net_result:.2f} MVR</b>"
+async def investment_add_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start add investment flow"""
+    query = update.callback_query
+    await query.answer()
 
     await query.edit_message_text(
-        message,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+        "💎 <b>Add New Investment</b>\n\n"
+        "Please enter the user's <b>Telegram ID</b> or <b>PPPoker ID</b>:",
+        parse_mode='HTML'
     )
+
+    return INVESTMENT_TELEGRAM_ID
+
+
+async def investment_telegram_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle telegram ID/PPPoker ID input"""
+    user_input = update.message.text.strip()
+
+    # Store the identifier
+    context.user_data['investment_user_id'] = user_input
+
+    await update.message.reply_text(
+        "💰 <b>Enter investment amount (MVR):</b>",
+        parse_mode='HTML'
+    )
+
+    return INVESTMENT_AMOUNT
+
+
+async def investment_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle investment amount input"""
+    try:
+        amount = float(update.message.text.strip())
+
+        if amount <= 0:
+            await update.message.reply_text(
+                "❌ Invalid amount. Please enter a positive number:"
+            )
+            return INVESTMENT_AMOUNT
+
+        context.user_data['investment_amount'] = amount
+
+        await update.message.reply_text(
+            "📝 <b>Enter notes (optional)</b>\n\n"
+            "You can enter player name or notes, or send /skip to continue:",
+            parse_mode='HTML'
+        )
+
+        return INVESTMENT_NOTES
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid amount. Please enter a valid number (e.g., 1000 or 1000.50):"
+        )
+        return INVESTMENT_AMOUNT
+
+
+async def investment_notes_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle investment notes input"""
+    from datetime import datetime
+
+    notes = update.message.text.strip() if update.message.text != '/skip' else ''
+    user_id = context.user_data['investment_user_id']
+    amount = context.user_data['investment_amount']
+
+    # Get or create user
+    try:
+        # Try to parse as telegram_id (integer)
+        telegram_id = int(user_id)
+        user = api.get_or_create_user(telegram_id, f"user_{telegram_id}", '')
+        user_db_id = user.get('id')
+    except ValueError:
+        # It's a PPPoker ID or username, create a temporary entry
+        # For now, we'll just reject this and ask for Telegram ID
+        await update.message.reply_text(
+            "❌ Please use Telegram ID (numeric) for now.\n\n"
+            "Use /cancel to cancel or enter a valid Telegram ID:"
+        )
+        return INVESTMENT_TELEGRAM_ID
+
+    # Create investment
+    try:
+        today = datetime.now().strftime('%Y-%m-%d')
+        investment = api.create_investment(
+            user_id=user_db_id,
+            investment_amount=amount,
+            start_date=today,
+            notes=notes
+        )
+
+        await update.message.reply_text(
+            f"✅ <b>Investment Added!</b>\n\n"
+            f"👤 User ID: {telegram_id}\n"
+            f"💰 Amount: {amount:.2f} MVR\n"
+            f"📝 Notes: {notes or 'N/A'}\n"
+            f"📅 Date: {today}\n\n"
+            f"⚠️ <b>Important:</b> This investment will count as a loss after 24 hours if not returned.",
+            parse_mode='HTML'
+        )
+
+        # Clear context
+        context.user_data.clear()
+
+        return ConversationHandler.END
+
+    except Exception as e:
+        logger.error(f"Error creating investment: {e}")
+        await update.message.reply_text(
+            f"❌ Error creating investment: {str(e)}\n\n"
+            f"Please try again or contact support."
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
+
+
+async def investment_return_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start add return flow - show active investments"""
+    query = update.callback_query
+    await query.answer()
+
+    # Get active investments
+    try:
+        active_investments = api.get_active_investments()
+
+        if not active_investments:
+            await query.edit_message_text(
+                "📥 <b>Add Return</b>\n\n"
+                "No active investments found.",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+            )
+            return ConversationHandler.END
+
+        # Group by user
+        from collections import defaultdict
+        user_investments = defaultdict(list)
+
+        for inv in active_investments:
+            user_id = inv.get('user')
+            user_investments[user_id].append(inv)
+
+        # Create buttons for each user
+        keyboard = []
+        for user_id, investments in user_investments.items():
+            total_amount = sum(float(inv.get('investment_amount', 0)) for inv in investments)
+            # Get user details from first investment
+            user_details = investments[0].get('user_details', {})
+            username = user_details.get('username', f'User {user_id}')
+            telegram_id = user_details.get('telegram_id', user_id)
+
+            button_text = f"🎮 {username} - {total_amount:.0f} MVR"
+            keyboard.append([InlineKeyboardButton(button_text, callback_data=f"return_user_{user_id}")])
+
+        keyboard.append([InlineKeyboardButton("« Back", callback_data="admin_investments")])
+
+        await query.edit_message_text(
+            "📥 <b>Select User to Record Return</b>\n\n"
+            "Choose which user returned their investment:",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+        return RETURN_SELECT_USER
+
+    except Exception as e:
+        logger.error(f"Error getting active investments: {e}")
+        await query.edit_message_text(
+            f"❌ Error loading investments: {str(e)}",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+        )
+        return ConversationHandler.END
+
+
+async def investment_return_user_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle user selection for return"""
+    query = update.callback_query
+    await query.answer()
+
+    # Extract user_id from callback_data: return_user_123
+    user_id = int(query.data.split('_')[2])
+
+    # Get this user's active investments
+    try:
+        all_active = api.get_active_investments()
+        user_investments = [inv for inv in all_active if inv.get('user') == user_id]
+
+        if not user_investments:
+            await query.edit_message_text(
+                "❌ No active investments found for this user.",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+            )
+            return ConversationHandler.END
+
+        # Calculate total
+        total_investment = sum(float(inv.get('investment_amount', 0)) for inv in user_investments)
+
+        # Store in context
+        context.user_data['return_user_id'] = user_id
+        context.user_data['return_investments'] = user_investments
+        context.user_data['return_total_investment'] = total_investment
+
+        # Get user details
+        user_details = user_investments[0].get('user_details', {})
+        username = user_details.get('username', f'User {user_id}')
+
+        await query.edit_message_text(
+            f"📥 <b>Record Return</b>\n\n"
+            f"👤 User: {username}\n"
+            f"💰 Total Investment: {total_investment:.2f} MVR\n"
+            f"📦 Active Investments: {len(user_investments)}\n\n"
+            f"Please send the <b>total return amount</b> (MVR):",
+            parse_mode='HTML'
+        )
+
+        return RETURN_AMOUNT
+
+    except Exception as e:
+        logger.error(f"Error getting user investments: {e}")
+        await query.edit_message_text(
+            f"❌ Error: {str(e)}",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
+
+
+async def investment_return_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle return amount input and process return"""
+    from datetime import datetime
+
+    try:
+        return_amount = float(update.message.text.strip())
+
+        if return_amount <= 0:
+            await update.message.reply_text(
+                "❌ Invalid amount. Please enter a positive number:"
+            )
+            return RETURN_AMOUNT
+
+        user_id = context.user_data['return_user_id']
+        investments = context.user_data['return_investments']
+        total_investment = context.user_data['return_total_investment']
+
+        # Calculate profit/loss
+        net_profit = return_amount - total_investment
+
+        # 50/50 split
+        club_share = total_investment + (net_profit / 2)  # Club gets initial back + 50% of profit
+        player_share = net_profit / 2  # Player gets 50% of profit
+
+        # Update all investments to Completed
+        today = datetime.now().strftime('%Y-%m-%d')
+
+        for inv in investments:
+            inv_id = inv.get('id')
+            # Update investment
+            api._put(f"investments/{inv_id}/", {
+                'status': 'Completed',
+                'profit_share': float(player_share / len(investments)),  # Split evenly across all investments
+                'loss_share': 0,
+                'end_date': today
+            })
+
+        # Get user details for confirmation
+        user_details = investments[0].get('user_details', {})
+        username = user_details.get('username', f'User {user_id}')
+
+        # Format confirmation message
+        message = f"✅ <b>Return Recorded!</b>\n\n"
+        message += f"👤 User: {username}\n"
+        message += f"💰 Investment: {total_investment:.2f} MVR\n"
+        message += f"📥 Return: {return_amount:.2f} MVR\n\n"
+
+        if net_profit >= 0:
+            message += f"📈 <b>PROFIT: {net_profit:.2f} MVR</b>\n\n"
+            message += f"💵 Player Share: {player_share:.2f} MVR\n"
+            message += f"🏛️ Club Share: {club_share:.2f} MVR"
+        else:
+            message += f"📉 <b>LOSS: {abs(net_profit):.2f} MVR</b>\n\n"
+            message += f"Club lost {abs(club_share - total_investment):.2f} MVR"
+
+        await update.message.reply_text(message, parse_mode='HTML')
+
+        # Clear context
+        context.user_data.clear()
+
+        return ConversationHandler.END
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid amount. Please enter a valid number (e.g., 10000 or 10000.50):"
+        )
+        return RETURN_AMOUNT
+    except Exception as e:
+        logger.error(f"Error recording return: {e}")
+        await update.message.reply_text(
+            f"❌ Error recording return: {str(e)}\n\n"
+            f"Please try again or contact support."
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
+
+
+async def cancel_investment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel investment conversation"""
+    await update.message.reply_text(
+        "❌ Operation cancelled.",
+        parse_mode='HTML'
+    )
+    context.user_data.clear()
+    return ConversationHandler.END
 
 
 async def admin_club_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1867,3 +2238,34 @@ def register_admin_handlers(application, notif_messages=None):
     )
 
     application.add_handler(approval_conv)
+
+    # Investment conversation handlers
+    investment_add_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(investment_add_start, pattern="^investment_add$")],
+        states={
+            INVESTMENT_TELEGRAM_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, investment_telegram_id_received)],
+            INVESTMENT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, investment_amount_received)],
+            INVESTMENT_NOTES: [MessageHandler(filters.TEXT & ~filters.COMMAND, investment_notes_received)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel_investment)],
+        per_user=True,
+        per_chat=True,
+        per_message=False,
+        name="investment_add_conv"
+    )
+
+    investment_return_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(investment_return_start, pattern="^investment_return$")],
+        states={
+            RETURN_SELECT_USER: [CallbackQueryHandler(investment_return_user_selected, pattern="^return_user_")],
+            RETURN_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, investment_return_amount_received)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel_investment)],
+        per_user=True,
+        per_chat=True,
+        per_message=False,
+        name="investment_return_conv"
+    )
+
+    application.add_handler(investment_add_conv)
+    application.add_handler(investment_return_conv)
