@@ -1528,28 +1528,64 @@ async def cashback_promo_deactivate(update: Update, context: ContextTypes.DEFAUL
 # ========== COUNTER CONTROL HANDLERS ==========
 
 async def admin_counter_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show current counter status"""
+    """Show current counter status with detailed information"""
     query = update.callback_query
     await query.answer()
 
-    status = api.get_counter_status()
-    is_open = status.get('is_open', True)
+    try:
+        status = api.get_counter_status()
+        is_open = status.get('is_open', True)
 
-    status_emoji = "🟢" if is_open else "🔴"
-    status_text = "OPEN" if is_open else "CLOSED"
+        status_emoji = "🟢" if is_open else "🔴"
+        status_text = "OPEN" if is_open else "CLOSED"
 
-    message = f"{status_emoji} <b>COUNTER STATUS</b>\n\n"
-    message += f"Status: <b>{status_text}</b>\n"
-    message += f"Updated At: {status.get('updated_at', 'N/A')}\n"
-    message += f"Updated By: {status.get('updated_by', 'N/A')}\n"
+        # Format updated_at timestamp nicely
+        updated_at = status.get('updated_at', 'N/A')
+        if updated_at != 'N/A' and isinstance(updated_at, str):
+            from datetime import datetime
+            try:
+                # Parse ISO format: "2025-01-15T10:30:45.123456Z"
+                dt = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+                updated_at = dt.strftime('%Y-%m-%d %H:%M:%S')
+            except:
+                pass  # Keep original if parsing fails
 
-    keyboard = [[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]]
+        # Get admin who updated
+        updated_by_id = status.get('updated_by', 0)
+        updated_by_text = f"Admin ID {updated_by_id}" if updated_by_id != 0 else "System"
 
-    await query.edit_message_text(
-        message,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+        message = f"{status_emoji} <b>COUNTER STATUS</b>\n\n"
+        message += f"━━━━━━━━━━━━━━━━━━\n\n"
+        message += f"Current Status: <b>{status_text}</b>\n\n"
+        message += f"📅 Last Updated: {updated_at}\n"
+        message += f"👤 Updated By: {updated_by_text}\n\n"
+        message += f"━━━━━━━━━━━━━━━━━━\n\n"
+
+        if is_open:
+            message += "✅ Counter is currently <b>OPEN</b>\n"
+            message += "Users can deposit and make requests.\n\n"
+            message += "To close counter, go back and click '🔴 Close Counter'"
+        else:
+            message += "❌ Counter is currently <b>CLOSED</b>\n"
+            message += "Users cannot make new requests.\n\n"
+            message += "To open counter, go back and click '🟢 Open Counter'"
+
+        keyboard = [[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]]
+
+        await query.edit_message_text(
+            message,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting counter status: {e}")
+        await query.edit_message_text(
+            f"❌ Error loading counter status: {str(e)}\n\n"
+            f"Please try again or contact support.",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
+        )
 
 
 async def admin_close_counter(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1557,28 +1593,46 @@ async def admin_close_counter(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
 
-    # Check if already closed
-    if not api.is_counter_open():
+    try:
+        # Check if already closed
+        if not api.is_counter_open():
+            await query.edit_message_text(
+                "⚠️ <b>Counter is already CLOSED</b>\n\n"
+                "The counter is currently not accepting new requests.",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
+            )
+            return
+
+        # Ask if admin wants to send announcement
+        keyboard = [
+            [InlineKeyboardButton("📸 Send with Poster", callback_data="counter_close_with_poster")],
+            [InlineKeyboardButton("💬 Send Text Only", callback_data="counter_close_text_only")],
+            [InlineKeyboardButton("🚫 No Announcement", callback_data="counter_close_silent")],
+            [InlineKeyboardButton("« Cancel", callback_data="admin_back")]
+        ]
+
         await query.edit_message_text(
-            "⚠️ Counter is already CLOSED.",
+            "🔴 <b>CLOSE COUNTER</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            "You are about to close the counter.\n\n"
+            "When closed:\n"
+            "• Users cannot deposit\n"
+            "• Users cannot withdraw\n"
+            "• Users cannot join club\n"
+            "• Users cannot request seats\n\n"
+            "Do you want to send a closing announcement to all users?",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    except Exception as e:
+        logger.error(f"Error in admin_close_counter: {e}")
+        await query.edit_message_text(
+            f"❌ Error: {str(e)}\n\nPlease try again.",
+            parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
         )
-        return
-
-    # Ask if admin wants to send announcement
-    keyboard = [
-        [InlineKeyboardButton("📸 Send with Poster", callback_data="counter_close_with_poster")],
-        [InlineKeyboardButton("💬 Send Text Only", callback_data="counter_close_text_only")],
-        [InlineKeyboardButton("🚫 No Announcement", callback_data="counter_close_silent")],
-        [InlineKeyboardButton("« Cancel", callback_data="admin_back")]
-    ]
-
-    await query.edit_message_text(
-        "🔴 <b>CLOSE COUNTER</b>\n\n"
-        "Do you want to send a closing announcement to all users?",
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
 
 
 async def admin_open_counter(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1586,28 +1640,46 @@ async def admin_open_counter(update: Update, context: ContextTypes.DEFAULT_TYPE)
     query = update.callback_query
     await query.answer()
 
-    # Check if already open
-    if api.is_counter_open():
+    try:
+        # Check if already open
+        if api.is_counter_open():
+            await query.edit_message_text(
+                "⚠️ <b>Counter is already OPEN</b>\n\n"
+                "The counter is currently accepting requests.",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
+            )
+            return
+
+        # Ask if admin wants to send announcement
+        keyboard = [
+            [InlineKeyboardButton("📸 Send with Poster", callback_data="counter_open_with_poster")],
+            [InlineKeyboardButton("💬 Send Text Only", callback_data="counter_open_text_only")],
+            [InlineKeyboardButton("🚫 No Announcement", callback_data="counter_open_silent")],
+            [InlineKeyboardButton("« Cancel", callback_data="admin_back")]
+        ]
+
         await query.edit_message_text(
-            "⚠️ Counter is already OPEN.",
+            "🟢 <b>OPEN COUNTER</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            "You are about to open the counter.\n\n"
+            "When open:\n"
+            "• Users can deposit\n"
+            "• Users can withdraw\n"
+            "• Users can join club\n"
+            "• Users can request seats\n\n"
+            "Do you want to send an opening announcement to all users?",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    except Exception as e:
+        logger.error(f"Error in admin_open_counter: {e}")
+        await query.edit_message_text(
+            f"❌ Error: {str(e)}\n\nPlease try again.",
+            parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
         )
-        return
-
-    # Ask if admin wants to send announcement
-    keyboard = [
-        [InlineKeyboardButton("📸 Send with Poster", callback_data="counter_open_with_poster")],
-        [InlineKeyboardButton("💬 Send Text Only", callback_data="counter_open_text_only")],
-        [InlineKeyboardButton("🚫 No Announcement", callback_data="counter_open_silent")],
-        [InlineKeyboardButton("« Cancel", callback_data="admin_back")]
-    ]
-
-    await query.edit_message_text(
-        "🟢 <b>OPEN COUNTER</b>\n\n"
-        "Do you want to send an opening announcement to all users?",
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
 
 
 async def admin_investments(update: Update, context: ContextTypes.DEFAULT_TYPE):
