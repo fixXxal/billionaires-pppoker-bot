@@ -833,7 +833,7 @@ Player ID: <code>{pppoker_id}</code>
     photo_file_id = context.user_data.get('photo_file_id')
     document_file_id = context.user_data.get('document_file_id')
 
-    # Get all admin IDs
+    # Get all admin IDs (avoid duplicates)
     all_admin_ids = [ADMIN_USER_ID]
     try:
         regular_admins_response = api.get_all_admins()
@@ -845,7 +845,13 @@ Player ID: <code>{pppoker_id}</code>
             regular_admins = regular_admins_response
 
         logger.info(f"Found {len(regular_admins)} regular admins in database")
-        all_admin_ids.extend([admin['telegram_id'] for admin in regular_admins])
+
+        # Add admins from database, but skip if already in list (avoid duplicate super admin)
+        for admin in regular_admins:
+            admin_telegram_id = admin['telegram_id']
+            if admin_telegram_id not in all_admin_ids:
+                all_admin_ids.append(admin_telegram_id)
+
         logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
@@ -1311,7 +1317,13 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
             regular_admins = regular_admins_response
 
         logger.info(f"Found {len(regular_admins)} regular admins in database")
-        all_admin_ids.extend([admin['telegram_id'] for admin in regular_admins])
+
+        # Add admins from database, but skip if already in list (avoid duplicate super admin)
+        for admin in regular_admins:
+            admin_telegram_id = admin['telegram_id']
+            if admin_telegram_id not in all_admin_ids:
+                all_admin_ids.append(admin_telegram_id)
+
         logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
@@ -1451,7 +1463,13 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
             regular_admins = regular_admins_response
 
         logger.info(f"Found {len(regular_admins)} regular admins in database")
-        all_admin_ids.extend([admin['telegram_id'] for admin in regular_admins])
+
+        # Add admins from database, but skip if already in list (avoid duplicate super admin)
+        for admin in regular_admins:
+            admin_telegram_id = admin['telegram_id']
+            if admin_telegram_id not in all_admin_ids:
+                all_admin_ids.append(admin_telegram_id)
+
         logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
@@ -1904,7 +1922,7 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Send to all admins
+        # Send to all admins (avoid duplicates)
         all_admin_ids = [ADMIN_USER_ID]
         try:
             regular_admins_response = api.get_all_admins()
@@ -1915,7 +1933,11 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
             else:
                 regular_admins = regular_admins_response
 
-            all_admin_ids.extend([admin['telegram_id'] for admin in regular_admins])
+            # Add admins from database, but skip if already in list (avoid duplicate super admin)
+            for admin in regular_admins:
+                admin_telegram_id = admin['telegram_id']
+                if admin_telegram_id not in all_admin_ids:
+                    all_admin_ids.append(admin_telegram_id)
         except Exception as e:
             logger.error(f"Failed to get admin list: {e}")
 
@@ -5315,15 +5337,25 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
+        # Format amount nicely
+        amount = float(deposit['amount'])
+        currency = 'MVR' if deposit.get('method') != 'USDT' else 'USD'
+
         try:
             await context.bot.send_message(
                 chat_id=user_telegram_id,
-                text=f"✅ **Your Deposit Has Been Approved!**\n\n"
-                     f"**Request ID:** `{request_id}`\n"
-                     f"**Amount:** {deposit['amount']} {'MVR' if deposit.get('method') != 'USDT' else 'USD'}\n"
-                     f"**PPPoker ID:** {deposit['pppoker_id']}{bonus_message}{spins_message}\n\n"
-                     f"Your chips have been added to your account. Happy gaming! 🎮",
-                parse_mode='Markdown',
+                text=f"🎉 <b>DEPOSIT APPROVED!</b> 🎉\n\n"
+                     f"━━━━━━━━━━━━━━━━━━\n"
+                     f"✅ Your deposit has been successfully approved!\n\n"
+                     f"💰 <b>Amount:</b> {amount:.2f} {currency}\n"
+                     f"🎮 <b>PPPoker ID:</b> <code>{deposit['pppoker_id']}</code>\n"
+                     f"📋 <b>Request ID:</b> <code>{request_id}</code>\n"
+                     f"{bonus_message}{spins_message}\n"
+                     f"━━━━━━━━━━━━━━━━━━\n\n"
+                     f"💎 Your chips have been added to your account!\n"
+                     f"🎲 Ready to play? Click the button below!\n\n"
+                     f"Good luck and happy gaming! 🍀",
+                parse_mode='HTML',
                 reply_markup=reply_markup
             )
             logger.info(f"User {user_telegram_id} notified of approval")
@@ -5505,16 +5537,25 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
     user_details = withdrawal.get('user_details', {})
     user_telegram_id = user_details.get('telegram_id') or withdrawal.get('user')
 
+    # Format amount nicely
+    amount = float(withdrawal['amount'])
+    currency = 'MVR' if withdrawal.get('method') != 'USDT' else 'USD'
+
     try:
         await context.bot.send_message(
             chat_id=user_telegram_id,
-            text=f"✅ **Your Withdrawal Has Been Processed!**\n\n"
-                 f"**Request ID:** `{request_id}`\n"
-                 f"**Amount:** {withdrawal['amount']} {'MVR' if withdrawal.get('method') != 'USDT' else 'USD'}\n"
-                 f"**Method:** {withdrawal.get('method')}\n"
-                 f"**Account:** {withdrawal['account_number']}\n\n"
-                 f"Your funds have been transferred. Please check your account. 💰",
-            parse_mode='Markdown',
+            text=f"✅ <b>WITHDRAWAL APPROVED!</b> ✅\n\n"
+                 f"━━━━━━━━━━━━━━━━━━\n"
+                 f"💸 Your withdrawal has been processed!\n\n"
+                 f"💰 <b>Amount:</b> {amount:.2f} {currency}\n"
+                 f"🏦 <b>Method:</b> {withdrawal.get('method')}\n"
+                 f"📱 <b>Account:</b> <code>{withdrawal['account_number']}</code>\n"
+                 f"📋 <b>Request ID:</b> <code>{request_id}</code>\n\n"
+                 f"━━━━━━━━━━━━━━━━━━\n\n"
+                 f"💵 Your funds have been transferred!\n"
+                 f"⏰ Please allow a few minutes for the transaction to complete.\n\n"
+                 f"Thank you for playing with us! 🎮",
+            parse_mode='HTML',
             reply_markup=reply_markup
         )
     except Exception as e:
@@ -5781,12 +5822,22 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             user_details = deposit.get('user_details', {})
             user_telegram_id = user_details.get('telegram_id') or deposit.get('user')
 
+            # Format amount nicely
+            amount = float(deposit['amount'])
+            currency = 'MVR' if deposit.get('method') != 'USDT' else 'USD'
+
             try:
                 await context.bot.send_message(
                     chat_id=user_telegram_id,
-                    text=f"❌ <b>Deposit rejected</b>\n\n"
-                         f"Reason: {reason}\n\n"
-                         f"Contact support for help.",
+                    text=f"❌ <b>DEPOSIT REJECTED</b> ❌\n\n"
+                         f"━━━━━━━━━━━━━━━━━━\n"
+                         f"We're sorry, but your deposit request has been rejected.\n\n"
+                         f"💰 <b>Amount:</b> {amount:.2f} {currency}\n"
+                         f"📋 <b>Request ID:</b> <code>{request_id}</code>\n\n"
+                         f"📝 <b>Reason:</b>\n{reason}\n\n"
+                         f"━━━━━━━━━━━━━━━━━━\n\n"
+                         f"💬 Need help? Contact our support team for assistance.\n"
+                         f"📞 We're here to help you resolve this!",
                     parse_mode='HTML'
                 )
             except Exception as e:
@@ -5828,11 +5879,23 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             user_details = withdrawal.get('user_details', {})
             user_telegram_id = user_details.get('telegram_id') or withdrawal.get('user')
 
+            # Format amount nicely
+            amount = float(withdrawal['amount'])
+            currency = 'MVR' if withdrawal.get('payment_method') != 'USDT' else 'USD'
+
             try:
                 await context.bot.send_message(
                     chat_id=user_telegram_id,
-                    text=f"❌ <b>Withdrawal rejected</b>\n\n"
-                         f"Reason: {reason}",
+                    text=f"❌ <b>WITHDRAWAL REJECTED</b> ❌\n\n"
+                         f"━━━━━━━━━━━━━━━━━━\n"
+                         f"We're sorry, but your withdrawal request has been rejected.\n\n"
+                         f"💰 <b>Amount:</b> {amount:.2f} {currency}\n"
+                         f"🏦 <b>Method:</b> {withdrawal.get('payment_method', withdrawal.get('method'))}\n"
+                         f"📋 <b>Request ID:</b> <code>{request_id}</code>\n\n"
+                         f"📝 <b>Reason:</b>\n{reason}\n\n"
+                         f"━━━━━━━━━━━━━━━━━━\n\n"
+                         f"💬 Need help? Contact our support team for assistance.\n"
+                         f"📞 We're here to help you resolve this!",
                     parse_mode='HTML'
                 )
             except Exception as e:
@@ -6292,7 +6355,13 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
             regular_admins = regular_admins_response
 
         logger.info(f"Found {len(regular_admins)} regular admins in database")
-        all_admin_ids.extend([admin['telegram_id'] for admin in regular_admins])
+
+        # Add admins from database, but skip if already in list (avoid duplicate super admin)
+        for admin in regular_admins:
+            admin_telegram_id = admin['telegram_id']
+            if admin_telegram_id not in all_admin_ids:
+                all_admin_ids.append(admin_telegram_id)
+
         logger.info(f"Total admin IDs to notify: {all_admin_ids}")
     except Exception as e:
         logger.error(f"Failed to get admin list: {e}")
