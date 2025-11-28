@@ -519,11 +519,11 @@ class DjangoAPI:
         """Get all active investments"""
         return self._get('investments/active/')
 
-    def create_investment(self, user_id: int, investment_amount: float, start_date: str,
-                         notes: str = '') -> Dict:
-        """Create new 50-50 investment"""
+    def create_investment(self, pppoker_id: str, investment_amount: float, start_date: str,
+                         notes: str = '', user_id: int = None) -> Dict:
+        """Create new 50-50 investment (for trusted players, may not be Telegram users)"""
         data = {
-            'user': user_id,
+            'pppoker_id': pppoker_id,
             'investment_amount': investment_amount,
             'profit_share': 0,
             'loss_share': 0,
@@ -531,6 +531,9 @@ class DjangoAPI:
             'start_date': start_date,
             'notes': notes
         }
+        # Optional: link to Telegram user if provided
+        if user_id:
+            data['user'] = user_id
         return self._post('investments/', data)
 
     def get_all_investments(self) -> List[Dict]:

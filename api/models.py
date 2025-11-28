@@ -432,28 +432,33 @@ class FiftyFiftyInvestment(models.Model):
         ('Lost', 'Lost'),  # Auto-marked after 24 hours
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='investments')
+    # Optional user link - investments are for trusted players (may not be Telegram users)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='investments',
+                            null=True, blank=True)
+    pppoker_id = models.CharField(max_length=50, default='UNKNOWN')  # The player's PPPoker ID
     investment_amount = models.DecimalField(max_digits=15, decimal_places=2)
     profit_share = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     loss_share = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Active')
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
-    notes = models.TextField(blank=True, default='')
+    notes = models.TextField(blank=True, default='')  # Player name/reference
     created_at = models.DateTimeField(auto_now_add=True)
     synced_to_sheets = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'fifty_fifty_investments'
         indexes = [
-            models.Index(fields=['user', 'status']),
+            models.Index(fields=['pppoker_id', 'status']),
             models.Index(fields=['start_date', 'end_date']),
+            models.Index(fields=['status']),
             models.Index(fields=['synced_to_sheets']),
         ]
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Investment {self.id} - {self.user.username} - {self.investment_amount} - {self.status}"
+        player_name = self.notes.split('\n')[0] if self.notes else self.pppoker_id
+        return f"Investment {self.id} - {player_name} ({self.pppoker_id}) - {self.investment_amount} - {self.status}"
 
 
 class ClubBalance(models.Model):

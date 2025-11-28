@@ -209,12 +209,12 @@ class ExchangeRateSerializer(serializers.ModelSerializer):
 
 class FiftyFiftyInvestmentSerializer(serializers.ModelSerializer):
     """Serializer for FiftyFiftyInvestment model"""
-    user_details = UserSerializer(source='user', read_only=True)
+    user_details = UserSerializer(source='user', read_only=True, allow_null=True)
 
     class Meta:
         model = FiftyFiftyInvestment
         fields = [
-            'id', 'user', 'user_details', 'investment_amount',
+            'id', 'user', 'user_details', 'pppoker_id', 'investment_amount',
             'profit_share', 'loss_share', 'status', 'start_date',
             'end_date', 'notes', 'created_at'
         ]

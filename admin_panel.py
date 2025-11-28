@@ -1836,34 +1836,30 @@ async def investment_view_active(update: Update, context: ContextTypes.DEFAULT_T
 
         message = "💎 <b>Active Investments</b>\n\n"
 
-        # Group by user
+        # Group by PPPoker ID
         from collections import defaultdict
-        user_groups = defaultdict(lambda: {'total': 0, 'count': 0, 'notes': '', 'date': ''})
+        player_groups = defaultdict(lambda: {'total': 0, 'count': 0, 'notes': '', 'date': ''})
 
         for inv in active_investments:
-            user_details = inv.get('user_details', {})
-            username = user_details.get('username', f"User {inv.get('user')}")
-            user_id = inv.get('user')
+            pppoker_id = inv.get('pppoker_id', 'Unknown')
 
-            user_groups[user_id]['total'] += float(inv.get('investment_amount', 0))
-            user_groups[user_id]['count'] += 1
-            user_groups[user_id]['username'] = username
-            if not user_groups[user_id]['notes'] and inv.get('notes'):
-                user_groups[user_id]['notes'] = inv.get('notes', '')
-            if not user_groups[user_id]['date']:
-                user_groups[user_id]['date'] = inv.get('start_date', '')
+            player_groups[pppoker_id]['total'] += float(inv.get('investment_amount', 0))
+            player_groups[pppoker_id]['count'] += 1
+            if not player_groups[pppoker_id]['notes'] and inv.get('notes'):
+                player_groups[pppoker_id]['notes'] = inv.get('notes', '')
+            if not player_groups[pppoker_id]['date']:
+                player_groups[pppoker_id]['date'] = inv.get('start_date', '')
 
         # Display grouped
-        for user_id, data in user_groups.items():
-            player_display = data['username']
-            if data['notes']:
-                player_display += f" ({data['notes']})"
+        for pppoker_id, data in player_groups.items():
+            player_display = data['notes'] if data['notes'] else pppoker_id
 
             message += f"🎮 <b>{player_display}</b>\n"
             message += f"💰 {data['total']:.2f} MVR"
             if data['count'] > 1:
                 message += f" ({data['count']} investments)"
-            message += f"\n📅 {data['date']}\n\n"
+            message += f"\n🆔 PPPoker: {pppoker_id}\n"
+            message += f"📅 {data['date']}\n\n"
 
         await query.edit_message_text(
             message,
@@ -1961,11 +1957,8 @@ async def investment_add_start(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
 
     await query.edit_message_text(
-        "💎 <b>Add New Investment</b>\n\n"
-        "Enter the user's identifier:\n\n"
-        "• <b>Telegram ID</b> (recommended) - numeric ID\n"
-        "• <b>PPPoker ID</b> - if user already registered\n\n"
-        "Example: 123456789 or PPPokerID123",
+        "💎 <b>Add 50/50 Investment</b>\n\n"
+        "Enter the player's <b>PPPoker ID</b>:",
         parse_mode='HTML'
     )
 
@@ -1973,14 +1966,15 @@ async def investment_add_start(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def investment_telegram_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle telegram ID/PPPoker ID input"""
-    user_input = update.message.text.strip()
+    """Handle PPPoker ID input"""
+    pppoker_id = update.message.text.strip()
 
-    # Store the identifier
-    context.user_data['investment_user_id'] = user_input
+    # Store the PPPoker ID
+    context.user_data['investment_pppoker_id'] = pppoker_id
 
     await update.message.reply_text(
-        "💰 <b>Enter investment amount (MVR):</b>",
+        "💰 <b>Investment Amount</b>\n\n"
+        "Enter the amount you gave to the player (MVR):",
         parse_mode='HTML'
     )
 
@@ -2001,8 +1995,9 @@ async def investment_amount_received(update: Update, context: ContextTypes.DEFAU
         context.user_data['investment_amount'] = amount
 
         await update.message.reply_text(
-            "📝 <b>Enter notes (optional)</b>\n\n"
-            "You can enter player name or notes, or send /skip to continue:",
+            "💎 <b>Add Note (Optional)</b>\n\n"
+            "Enter player name or note (e.g., 'Ahmed', 'Friend 1')\n"
+            "Or send /skip to skip:",
             parse_mode='HTML'
         )
 
@@ -2021,61 +2016,16 @@ async def investment_notes_received(update: Update, context: ContextTypes.DEFAUL
     import traceback
 
     notes = update.message.text.strip() if update.message.text != '/skip' else ''
-    user_identifier = context.user_data['investment_user_id']
+    pppoker_id = context.user_data['investment_pppoker_id']
     amount = context.user_data['investment_amount']
 
-    # Try to find user by Telegram ID or PPPoker ID
-    user = None
-    user_db_id = None
-    display_id = user_identifier
-
     try:
-        # First, try as Telegram ID (numeric)
-        try:
-            telegram_id = int(user_identifier)
-            logger.info(f"🔍 Trying to find user by Telegram ID: {telegram_id}")
-            user = api.get_user_by_telegram_id(telegram_id)
-
-            if user:
-                user_db_id = user.get('id')
-                logger.info(f"✅ Found user by Telegram ID: {user_db_id}")
-            else:
-                # Create new user with this Telegram ID
-                logger.info(f"🆕 Creating new user with Telegram ID: {telegram_id}")
-                user = api.get_or_create_user(telegram_id, f"user_{telegram_id}", '')
-                user_db_id = user.get('id')
-                logger.info(f"✅ Created user with ID: {user_db_id}")
-        except ValueError:
-            # Not a number, treat as PPPoker ID
-            logger.info(f"🔍 Trying to find user by PPPoker ID: {user_identifier}")
-            # Search for user by PPPoker ID
-            users = api.get_all_users()
-
-            # Handle paginated response
-            if isinstance(users, dict) and 'results' in users:
-                users = users['results']
-
-            for u in users:
-                if u.get('pppoker_id') == user_identifier:
-                    user = u
-                    user_db_id = u.get('id')
-                    logger.info(f"✅ Found user by PPPoker ID: {user_db_id}")
-                    break
-
-            if not user_db_id:
-                await update.message.reply_text(
-                    f"❌ No user found with PPPoker ID: {user_identifier}\n\n"
-                    f"Please use a Telegram ID (numeric) or ensure the user has registered first.\n\n"
-                    f"Use /cancel to cancel."
-                )
-                return INVESTMENT_TELEGRAM_ID
-
-        # Create investment
+        # Create investment with PPPoker ID (no Telegram user required)
         today = datetime.now().strftime('%Y-%m-%d')
-        logger.info(f"💎 Creating investment: user_db_id={user_db_id}, amount={amount}, notes={notes}")
+        logger.info(f"💎 Creating investment: pppoker_id={pppoker_id}, amount={amount}, notes={notes}")
 
         investment = api.create_investment(
-            user_id=user_db_id,
+            pppoker_id=pppoker_id,
             investment_amount=amount,
             start_date=today,
             notes=notes
@@ -2085,11 +2035,11 @@ async def investment_notes_received(update: Update, context: ContextTypes.DEFAUL
 
         await update.message.reply_text(
             f"✅ <b>Investment Added!</b>\n\n"
-            f"👤 User ID: {display_id}\n"
+            f"🎮 PPPoker ID: {pppoker_id}\n"
             f"💰 Amount: {amount:.2f} MVR\n"
             f"📝 Notes: {notes or 'N/A'}\n"
             f"📅 Date: {today}\n\n"
-            f"⚠️ <b>Important:</b> This investment will count as a loss after 24 hours if not returned.",
+            f"⏰ <b>Important:</b> This investment will count as a loss after 24 hours if not returned.",
             parse_mode='HTML'
         )
 
@@ -2100,7 +2050,7 @@ async def investment_notes_received(update: Update, context: ContextTypes.DEFAUL
 
     except Exception as e:
         logger.error(f"❌ Error creating investment: {e}")
-        logger.error(f"   User identifier: {user_identifier}, Amount: {amount}, Notes: {notes}")
+        logger.error(f"   PPPoker ID: {pppoker_id}, Amount: {amount}, Notes: {notes}")
         traceback.print_exc()
 
         await update.message.reply_text(
