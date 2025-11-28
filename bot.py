@@ -7145,7 +7145,15 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
 
         # Get all pending spins for this user
         pending = spin_bot.api.get_pending_spin_rewards()
-        user_pending = [p for p in pending if str(p.get('user_id')) == str(target_user_id)]
+
+        # Handle paginated response
+        if isinstance(pending, dict) and 'results' in pending:
+            pending = pending['results']
+
+        # Filter by telegram_id (from user_details, not user_id)
+        user_pending = [p for p in pending if str(p.get('user_details', {}).get('telegram_id')) == str(target_user_id)]
+
+        logger.info(f"🔍 Found {len(user_pending)} pending spins for user {target_user_id}")
 
         if not user_pending:
             # Try to find who already approved by checking spin history

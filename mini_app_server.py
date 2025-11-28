@@ -140,9 +140,17 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
 
         # Get ALL pending chips for this user (including this new win)
         pending_rewards = api.get_pending_spin_rewards()
-        user_pending = [p for p in pending_rewards if str(p.get('user_id')) == str(user_id)]
+
+        # Handle paginated response
+        if isinstance(pending_rewards, dict) and 'results' in pending_rewards:
+            pending_rewards = pending_rewards['results']
+
+        # Filter by telegram_id (from user_details, not user_id)
+        user_pending = [p for p in pending_rewards if str(p.get('user_details', {}).get('telegram_id')) == str(user_id)]
         total_pending_chips = sum(p.get('chips', 0) for p in user_pending)
         pending_count = len(user_pending)
+
+        logger.info(f"📊 Pending rewards for user {user_id}: {pending_count} spins, {total_pending_chips} chips")
 
         message = (
             f"🎰 <b>SPIN WHEEL WIN!</b> 🎰\n\n"
