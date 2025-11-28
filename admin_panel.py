@@ -259,7 +259,21 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if spin_bot:
             try:
-                amount_mvr = float(deposit['amount'])
+                # Convert USD/USDT to MVR for spin calculation
+                amount = float(deposit['amount'])
+                method = deposit.get('method', 'BML')
+
+                if method == 'USD':
+                    usd_rate = api.get_exchange_rate('USD', 'MVR') or 15.40
+                    amount_mvr = amount * usd_rate
+                    logger.info(f"Converting {amount} USD to {amount_mvr} MVR (rate: {usd_rate})")
+                elif method == 'USDT':
+                    usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.40
+                    amount_mvr = amount * usdt_rate
+                    logger.info(f"Converting {amount} USDT to {amount_mvr} MVR (rate: {usdt_rate})")
+                else:
+                    amount_mvr = amount  # Already in MVR
+
                 spins_added = await spin_bot.add_spins_from_deposit(
                     user_id=user_id,
                     username=username,
