@@ -1949,7 +1949,10 @@ async def investment_add_start(update: Update, context: ContextTypes.DEFAULT_TYP
 
     await query.edit_message_text(
         "💎 <b>Add New Investment</b>\n\n"
-        "Please enter the user's <b>Telegram ID</b> or <b>PPPoker ID</b>:",
+        "Enter the user's identifier:\n\n"
+        "• <b>Telegram ID</b> (recommended) - numeric ID\n"
+        "• <b>PPPoker ID</b> - if user already registered\n\n"
+        "Example: 123456789 or PPPokerID123",
         parse_mode='HTML'
     )
 
@@ -2002,29 +2005,62 @@ async def investment_amount_received(update: Update, context: ContextTypes.DEFAU
 async def investment_notes_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle investment notes input"""
     from datetime import datetime
+    import traceback
 
     notes = update.message.text.strip() if update.message.text != '/skip' else ''
-    user_id = context.user_data['investment_user_id']
+    user_identifier = context.user_data['investment_user_id']
     amount = context.user_data['investment_amount']
 
-    # Get or create user
-    try:
-        # Try to parse as telegram_id (integer)
-        telegram_id = int(user_id)
-        user = api.get_or_create_user(telegram_id, f"user_{telegram_id}", '')
-        user_db_id = user.get('id')
-    except ValueError:
-        # It's a PPPoker ID or username, create a temporary entry
-        # For now, we'll just reject this and ask for Telegram ID
-        await update.message.reply_text(
-            "❌ Please use Telegram ID (numeric) for now.\n\n"
-            "Use /cancel to cancel or enter a valid Telegram ID:"
-        )
-        return INVESTMENT_TELEGRAM_ID
+    # Try to find user by Telegram ID or PPPoker ID
+    user = None
+    user_db_id = None
+    display_id = user_identifier
 
-    # Create investment
     try:
+        # First, try as Telegram ID (numeric)
+        try:
+            telegram_id = int(user_identifier)
+            logger.info(f"🔍 Trying to find user by Telegram ID: {telegram_id}")
+            user = api.get_user_by_telegram_id(telegram_id)
+
+            if user:
+                user_db_id = user.get('id')
+                logger.info(f"✅ Found user by Telegram ID: {user_db_id}")
+            else:
+                # Create new user with this Telegram ID
+                logger.info(f"🆕 Creating new user with Telegram ID: {telegram_id}")
+                user = api.get_or_create_user(telegram_id, f"user_{telegram_id}", '')
+                user_db_id = user.get('id')
+                logger.info(f"✅ Created user with ID: {user_db_id}")
+        except ValueError:
+            # Not a number, treat as PPPoker ID
+            logger.info(f"🔍 Trying to find user by PPPoker ID: {user_identifier}")
+            # Search for user by PPPoker ID
+            users = api.get_all_users()
+
+            # Handle paginated response
+            if isinstance(users, dict) and 'results' in users:
+                users = users['results']
+
+            for u in users:
+                if u.get('pppoker_id') == user_identifier:
+                    user = u
+                    user_db_id = u.get('id')
+                    logger.info(f"✅ Found user by PPPoker ID: {user_db_id}")
+                    break
+
+            if not user_db_id:
+                await update.message.reply_text(
+                    f"❌ No user found with PPPoker ID: {user_identifier}\n\n"
+                    f"Please use a Telegram ID (numeric) or ensure the user has registered first.\n\n"
+                    f"Use /cancel to cancel."
+                )
+                return INVESTMENT_TELEGRAM_ID
+
+        # Create investment
         today = datetime.now().strftime('%Y-%m-%d')
+        logger.info(f"💎 Creating investment: user_db_id={user_db_id}, amount={amount}, notes={notes}")
+
         investment = api.create_investment(
             user_id=user_db_id,
             investment_amount=amount,
@@ -2032,9 +2068,11 @@ async def investment_notes_received(update: Update, context: ContextTypes.DEFAUL
             notes=notes
         )
 
+        logger.info(f"✅ Investment created successfully: {investment}")
+
         await update.message.reply_text(
             f"✅ <b>Investment Added!</b>\n\n"
-            f"👤 User ID: {telegram_id}\n"
+            f"👤 User ID: {display_id}\n"
             f"💰 Amount: {amount:.2f} MVR\n"
             f"📝 Notes: {notes or 'N/A'}\n"
             f"📅 Date: {today}\n\n"
@@ -2048,10 +2086,13 @@ async def investment_notes_received(update: Update, context: ContextTypes.DEFAUL
         return ConversationHandler.END
 
     except Exception as e:
-        logger.error(f"Error creating investment: {e}")
+        logger.error(f"❌ Error creating investment: {e}")
+        logger.error(f"   User identifier: {user_identifier}, Amount: {amount}, Notes: {notes}")
+        traceback.print_exc()
+
         await update.message.reply_text(
-            f"❌ Error creating investment: {str(e)}\n\n"
-            f"Please try again or contact support."
+            f"❌ Failed to add investment. Please try again later.\n\n"
+            f"Error details: {str(e)}"
         )
         context.user_data.clear()
         return ConversationHandler.END
