@@ -13,6 +13,7 @@ from telegram.ext import (
 # DJANGO MIGRATION: Using SheetsCompatAPI for backward compatibility
 from sheets_compat import SheetsCompatAPI
 from dotenv import load_dotenv
+import spin_bot as spin_bot_module
 
 load_dotenv()
 
@@ -33,6 +34,9 @@ RETURN_SELECT_USER, RETURN_AMOUNT = range(5, 7)
 
 # Notification messages storage (will be set by bot.py)
 notification_messages = {}
+
+# Spin bot instance (will be set by bot.py)
+spin_bot = None
 
 
 def escape_markdown(text: str) -> str:
@@ -246,11 +250,51 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Notify user with club link button
         user_details = deposit.get('user_details', {})
         user_id = user_details.get('telegram_id') or deposit.get('user')
+        username = user_details.get('username', 'User')
         currency = 'MVR' if deposit.get('method') != 'USDT' else 'USD'
-        user_message = f"✅ <b>Deposit approved!</b>\n\n💰 {deposit['amount']} {currency} → Chips credited"
+
+        # Add free spins based on deposit amount
+        spins_message = ""
+        spins_added = 0
+
+        if spin_bot:
+            try:
+                amount_mvr = float(deposit['amount'])
+                spins_added = await spin_bot.add_spins_from_deposit(
+                    user_id=user_id,
+                    username=username,
+                    amount_mvr=amount_mvr,
+                    pppoker_id=deposit.get('pppoker_id', '')
+                )
+                if spins_added > 0:
+                    spins_message = f"\n\n🎰 <b>FREE SPINS BONUS!</b>\n+{spins_added} free spins added!"
+                logger.info(f"Added {spins_added} spins to user {user_id} for deposit of {amount_mvr} MVR")
+            except Exception as e:
+                logger.error(f"Error adding spins for deposit: {e}")
+                import traceback
+                traceback.print_exc()
+
+        user_message = (
+            f"🎉 <b>DEPOSIT APPROVED!</b> 🎉\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"✅ Your deposit has been successfully approved!\n\n"
+            f"💰 <b>Amount:</b> {deposit['amount']} {currency}\n"
+            f"🎮 <b>PPPoker ID:</b> <code>{deposit.get('pppoker_id', 'N/A')}</code>\n"
+            f"📋 <b>Request ID:</b> <code>{request_id}</code>\n"
+            f"{spins_message}\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"💎 Your chips have been added to your account!\n"
+            f"🎲 Ready to play? Click the button below!\n\n"
+            f"Good luck and happy gaming! 🍀"
+        )
 
         club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
         keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
+
+        # Add "Play Spins" button if spins were added
+        if spins_added > 0:
+            keyboard.append([InlineKeyboardButton("🎲 Play Free Spins", callback_data="play_freespins")])
+
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         try:
@@ -2316,11 +2360,13 @@ async def balances_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-def register_admin_handlers(application, notif_messages=None):
+def register_admin_handlers(application, notif_messages=None, spin_bot_instance=None):
     """Register all admin handlers"""
-    global notification_messages
+    global notification_messages, spin_bot
     if notif_messages is not None:
         notification_messages = notif_messages
+    if spin_bot_instance is not None:
+        spin_bot = spin_bot_instance
 
     # Admin panel
     application.add_handler(CommandHandler("admin", admin_panel))

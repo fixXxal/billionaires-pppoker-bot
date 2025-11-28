@@ -5288,6 +5288,7 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
 
         # Add free spins based on deposit amount
         spins_message = ""
+        spins_added = 0  # Initialize to 0
 
         try:
             amount_mvr = float(deposit['amount'])
@@ -5298,10 +5299,12 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
                 pppoker_id=deposit.get('pppoker_id', '')
             )
             if spins_added > 0:
-                spins_message = f"\n\n🎰 **FREE SPINS BONUS!**\n+{spins_added} free spins added!\nClick button below to play!"
+                spins_message = f"\n\n🎰 <b>FREE SPINS BONUS!</b>\n+{spins_added} free spins added!\nClick button below to play!"
             logger.info(f"Added {spins_added} spins to user {user_telegram_id} for deposit of {amount_mvr} MVR")
         except Exception as e:
             logger.error(f"Error adding spins for deposit: {e}")
+            import traceback
+            traceback.print_exc()
 
         # Check for promotion bonus
         promo_data = context.bot_data.get(f'promo_{request_id}')
@@ -8102,8 +8105,8 @@ def main():
     # Photo handler for seat slip uploads
     application.add_handler(MessageHandler(filters.PHOTO, handle_seat_slip_upload))
 
-    # Register admin handlers and share notification_messages dict
-    admin_panel.register_admin_handlers(application, notification_messages)
+    # Register admin handlers and share notification_messages dict and spin_bot instance
+    admin_panel.register_admin_handlers(application, notification_messages, spin_bot)
 
     # Add general text handler
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
