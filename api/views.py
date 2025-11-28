@@ -537,6 +537,47 @@ class FiftyFiftyInvestmentViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(investments, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['post'])
+    def mark_expired_as_lost(self, request):
+        """Mark investments older than 24 hours as Lost"""
+        from datetime import datetime, timedelta
+        from django.utils import timezone as django_timezone
+
+        try:
+            # Calculate 24 hours ago from now
+            cutoff_time = datetime.now().date() - timedelta(hours=24)
+
+            # Find active investments older than 24 hours
+            expired_investments = FiftyFiftyInvestment.objects.filter(
+                status='Active',
+                start_date__lt=cutoff_time
+            )
+
+            marked_count = 0
+            today = datetime.now().date()
+
+            for investment in expired_investments:
+                # Mark as Lost
+                # Loss share = full investment amount (club loses everything)
+                investment.status = 'Lost'
+                investment.loss_share = investment.investment_amount
+                investment.profit_share = 0
+                investment.end_date = today
+                investment.save()
+                marked_count += 1
+
+            return Response({
+                'success': True,
+                'marked_count': marked_count,
+                'message': f'Marked {marked_count} expired investments as Lost'
+            })
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class ClubBalanceViewSet(viewsets.ModelViewSet):
     """API endpoint for Club Balances"""

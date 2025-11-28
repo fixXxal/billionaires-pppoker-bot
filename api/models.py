@@ -429,6 +429,7 @@ class FiftyFiftyInvestment(models.Model):
         ('Active', 'Active'),
         ('Completed', 'Completed'),
         ('Cancelled', 'Cancelled'),
+        ('Lost', 'Lost'),  # Auto-marked after 24 hours
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='investments')

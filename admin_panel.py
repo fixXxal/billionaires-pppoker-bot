@@ -1799,12 +1799,14 @@ async def admin_investments(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📥 Add Return", callback_data="investment_return")],
         [InlineKeyboardButton("📊 View Active (24h)", callback_data="investment_view_active")],
         [InlineKeyboardButton("📈 View Completed", callback_data="investment_view_completed")],
+        [InlineKeyboardButton("⏰ Check Expired Now", callback_data="investment_check_expired")],
         [InlineKeyboardButton("« Back", callback_data="admin_back")]
     ]
 
     await query.edit_message_text(
         "💎 <b>50/50 Investments</b>\n\n"
-        "Manage chip investments with trusted players.",
+        "Manage chip investments with trusted players.\n\n"
+        "⏰ Investments auto-expire after 24 hours",
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -1891,41 +1893,52 @@ async def investment_view_completed(update: Update, context: ContextTypes.DEFAUL
         if isinstance(all_investments, dict) and 'results' in all_investments:
             all_investments = all_investments['results']
 
-        # Filter completed
+        # Filter completed and lost
         completed = [inv for inv in all_investments if inv.get('status') == 'Completed']
+        lost = [inv for inv in all_investments if inv.get('status') == 'Lost']
 
-        if not completed:
+        if not completed and not lost:
             await query.edit_message_text(
                 "📈 <b>Completed Investments</b>\n\n"
-                "No completed investments found.",
+                "No completed or lost investments found.",
                 parse_mode='HTML',
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
             )
             return
 
-        # Calculate stats
+        # Calculate stats for completed
         total_investment = sum(float(inv.get('investment_amount', 0)) for inv in completed)
         total_profit_share = sum(float(inv.get('profit_share', 0)) for inv in completed)
         total_loss_share = sum(float(inv.get('loss_share', 0)) for inv in completed)
+
+        # Calculate stats for lost (expired after 24h)
+        lost_investment = sum(float(inv.get('investment_amount', 0)) for inv in lost)
+        lost_loss_share = sum(float(inv.get('loss_share', 0)) for inv in lost)
 
         # Club gets: initial investment back + their share of profit
         # Profit share is what the PLAYER gets, so club gets the other 50%
         club_total_profit = total_profit_share  # Club and player split 50/50, so if player gets X, club also gets X
 
-        message = "📈 <b>Completed Investments Summary</b>\n\n"
-        message += f"✅ Completed: {len(completed)}\n"
-        message += f"💰 Total Invested: {total_investment:.2f} MVR\n"
-        message += f"🏛️ Club Profit Share: {club_total_profit:.2f} MVR\n"
+        message = "📈 <b>Completed & Lost Investments</b>\n\n"
 
-        if total_loss_share > 0:
-            message += f"❌ Total Losses: {total_loss_share:.2f} MVR\n"
+        if completed:
+            message += f"✅ <b>Completed:</b> {len(completed)}\n"
+            message += f"💰 Invested: {total_investment:.2f} MVR\n"
+            message += f"🏛️ Club Profit: {club_total_profit:.2f} MVR\n\n"
 
-        net_result = club_total_profit - total_loss_share
-        message += f"\n📊 <b>Net Result: "
-        if net_result >= 0:
-            message += f"+{net_result:.2f} MVR</b>"
+        if lost:
+            message += f"⏰ <b>Lost (24h expired):</b> {len(lost)}\n"
+            message += f"💸 Investment Lost: {lost_investment:.2f} MVR\n"
+            message += f"❌ Club Loss: {lost_loss_share:.2f} MVR\n\n"
+
+        # Total net result
+        total_net = club_total_profit - total_loss_share - lost_loss_share
+        message += f"━━━━━━━━━━━━━━━━━━\n"
+        message += f"📊 <b>Net Result: "
+        if total_net >= 0:
+            message += f"+{total_net:.2f} MVR</b>"
         else:
-            message += f"{net_result:.2f} MVR</b>"
+            message += f"{total_net:.2f} MVR</b>"
 
         await query.edit_message_text(
             message,
@@ -2297,6 +2310,52 @@ async def cancel_investment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def investment_check_expired(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manually check and mark expired investments"""
+    query = update.callback_query
+    await query.answer()
+
+    try:
+        # Show processing message
+        await query.edit_message_text(
+            "⏰ <b>Checking for expired investments...</b>\n\n"
+            "Please wait...",
+            parse_mode='HTML'
+        )
+
+        # Call API to mark expired investments
+        marked_count = api.mark_expired_investments_as_lost()
+
+        # Show result
+        if marked_count > 0:
+            message = (
+                f"✅ <b>Expired Investments Marked</b>\n\n"
+                f"📊 <b>Count:</b> {marked_count}\n"
+                f"❌ <b>Status:</b> Changed to 'Lost'\n\n"
+                f"These investments were active for more than 24 hours and have been automatically marked as club losses."
+            )
+        else:
+            message = (
+                "✅ <b>Check Complete</b>\n\n"
+                "No expired investments found.\n\n"
+                "All active investments are still within the 24-hour window."
+            )
+
+        await query.edit_message_text(
+            message,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+        )
+
+    except Exception as e:
+        logger.error(f"Error checking expired investments: {e}")
+        await query.edit_message_text(
+            f"❌ Error checking expired investments: {str(e)}",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_investments")]])
+        )
+
+
 async def admin_club_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show club balances menu"""
     query = update.callback_query
@@ -2458,6 +2517,7 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
     application.add_handler(CallbackQueryHandler(admin_investments, pattern="^admin_investments$"))
     application.add_handler(CallbackQueryHandler(investment_view_active, pattern="^investment_view_active$"))
     application.add_handler(CallbackQueryHandler(investment_view_completed, pattern="^investment_view_completed$"))
+    application.add_handler(CallbackQueryHandler(investment_check_expired, pattern="^investment_check_expired$"))
     application.add_handler(CallbackQueryHandler(admin_club_balances, pattern="^admin_club_balances$"))
     application.add_handler(CallbackQueryHandler(balances_history, pattern="^balances_history$"))
     application.add_handler(CallbackQueryHandler(admin_back, pattern="^admin_back$"))

@@ -537,6 +537,15 @@ class DjangoAPI:
         """Get all investments"""
         return self._get('investments/')
 
+    def mark_expired_investments_as_lost(self) -> int:
+        """Mark investments older than 24 hours as Lost"""
+        try:
+            result = self._post('investments/mark_expired_as_lost/', {})
+            return result.get('marked_count', 0)
+        except Exception as e:
+            logger.error(f"Error marking expired investments: {e}")
+            return 0
+
     # ==================== CLUB BALANCE METHODS ====================
 
     def create_club_balance(self, user_id: int, balance: float, notes: str = '') -> Dict:
