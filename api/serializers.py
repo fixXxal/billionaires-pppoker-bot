@@ -5,7 +5,7 @@ Converts Django models to/from JSON for API endpoints
 
 from rest_framework import serializers
 from .models import (
-    User, Deposit, Withdrawal, SpinUser, SpinHistory,
+    User, Deposit, Withdrawal, SpinUser, SpinAward, SpinUsage, SpinHistory,
     JoinRequest, SeatRequest, CashbackRequest, PaymentAccount,
     Admin, CounterStatus, PromoCode, SupportMessage,
     UserCredit, ExchangeRate, FiftyFiftyInvestment,
@@ -68,8 +68,37 @@ class SpinUserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'updated_at']
 
 
+class SpinAwardSerializer(serializers.ModelSerializer):
+    """Serializer for SpinAward model - tracks when spins are given"""
+    user_details = UserSerializer(source='user', read_only=True)
+    deposit_details = DepositSerializer(source='deposit', read_only=True)
+
+    class Meta:
+        model = SpinAward
+        fields = [
+            'id', 'user', 'user_details', 'deposit', 'deposit_details',
+            'spins_awarded', 'source', 'amount_mvr', 'awarded_by',
+            'notes', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class SpinUsageSerializer(serializers.ModelSerializer):
+    """Serializer for SpinUsage model - tracks when spins are played"""
+    user_details = UserSerializer(source='user', read_only=True)
+    spin_award_details = SpinAwardSerializer(source='spin_award', read_only=True)
+
+    class Meta:
+        model = SpinUsage
+        fields = [
+            'id', 'user', 'user_details', 'spin_award', 'spin_award_details',
+            'prize_name', 'chips_won', 'pppoker_id', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
 class SpinHistorySerializer(serializers.ModelSerializer):
-    """Serializer for SpinHistory model"""
+    """Serializer for SpinHistory model (LEGACY)"""
     user_details = UserSerializer(source='user', read_only=True)
 
     class Meta:

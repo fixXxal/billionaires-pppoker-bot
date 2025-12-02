@@ -12,7 +12,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 
 from .models import (
-    User, Deposit, Withdrawal, SpinUser, SpinHistory,
+    User, Deposit, Withdrawal, SpinUser, SpinAward, SpinUsage, SpinHistory,
     JoinRequest, SeatRequest, CashbackRequest, PaymentAccount,
     Admin, CounterStatus, PromoCode, SupportMessage,
     UserCredit, ExchangeRate, FiftyFiftyInvestment,
@@ -20,9 +20,9 @@ from .models import (
 )
 from .serializers import (
     UserSerializer, DepositSerializer, WithdrawalSerializer,
-    SpinUserSerializer, SpinHistorySerializer, JoinRequestSerializer,
-    SeatRequestSerializer, CashbackRequestSerializer, PaymentAccountSerializer,
-    AdminSerializer, CounterStatusSerializer, PromoCodeSerializer,
+    SpinUserSerializer, SpinAwardSerializer, SpinUsageSerializer, SpinHistorySerializer,
+    JoinRequestSerializer, SeatRequestSerializer, CashbackRequestSerializer,
+    PaymentAccountSerializer, AdminSerializer, CounterStatusSerializer, PromoCodeSerializer,
     SupportMessageSerializer, UserCreditSerializer, ExchangeRateSerializer,
     FiftyFiftyInvestmentSerializer, ClubBalanceSerializer,
     InventoryTransactionSerializer
@@ -323,8 +323,94 @@ class SpinUserViewSet(viewsets.ModelViewSet):
             )
 
 
+class SpinAwardViewSet(viewsets.ModelViewSet):
+    """API endpoint for Spin Awards - tracks when spins are given"""
+    queryset = SpinAward.objects.all()
+    serializer_class = SpinAwardSerializer
+
+    @action(detail=False, methods=['get'])
+    def by_user(self, request):
+        """Get spin awards for a specific user by telegram_id"""
+        telegram_id = request.query_params.get('telegram_id')
+
+        if not telegram_id:
+            return Response(
+                {'error': 'telegram_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(telegram_id=telegram_id)
+            awards = SpinAward.objects.filter(user=user)
+            serializer = self.get_serializer(awards, many=True)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=False, methods=['get'])
+    def by_deposit(self, request):
+        """Get spin awards for a specific deposit"""
+        deposit_id = request.query_params.get('deposit_id')
+
+        if not deposit_id:
+            return Response(
+                {'error': 'deposit_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        awards = SpinAward.objects.filter(deposit_id=deposit_id)
+        serializer = self.get_serializer(awards, many=True)
+        return Response(serializer.data)
+
+
+class SpinUsageViewSet(viewsets.ModelViewSet):
+    """API endpoint for Spin Usages - tracks when spins are played"""
+    queryset = SpinUsage.objects.all()
+    serializer_class = SpinUsageSerializer
+
+    @action(detail=False, methods=['get'])
+    def by_user(self, request):
+        """Get spin usages for a specific user by telegram_id"""
+        telegram_id = request.query_params.get('telegram_id')
+
+        if not telegram_id:
+            return Response(
+                {'error': 'telegram_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(telegram_id=telegram_id)
+            usages = SpinUsage.objects.filter(user=user)
+            serializer = self.get_serializer(usages, many=True)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=False, methods=['get'])
+    def by_award(self, request):
+        """Get spin usages for a specific award"""
+        award_id = request.query_params.get('award_id')
+
+        if not award_id:
+            return Response(
+                {'error': 'award_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        usages = SpinUsage.objects.filter(spin_award_id=award_id)
+        serializer = self.get_serializer(usages, many=True)
+        return Response(serializer.data)
+
+
 class SpinHistoryViewSet(viewsets.ModelViewSet):
-    """API endpoint for Spin History"""
+    """API endpoint for Spin History (LEGACY - kept for backward compatibility)"""
     queryset = SpinHistory.objects.all()
     serializer_class = SpinHistorySerializer
 

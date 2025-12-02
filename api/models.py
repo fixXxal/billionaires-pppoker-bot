@@ -117,8 +117,64 @@ class SpinUser(models.Model):
         return f"SpinUser {self.user.username} - {self.available_spins} spins"
 
 
+class SpinAward(models.Model):
+    """Spin Award model - tracks when spins are given to users"""
+    AWARD_SOURCE_CHOICES = [
+        ('deposit_bonus', 'Deposit Bonus'),
+        ('promotion', 'Promotion'),
+        ('admin_grant', 'Admin Grant'),
+        ('compensation', 'Compensation'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='spin_awards')
+    deposit = models.ForeignKey(Deposit, on_delete=models.SET_NULL, null=True, blank=True, related_name='spin_awards')
+    spins_awarded = models.IntegerField()
+    source = models.CharField(max_length=20, choices=AWARD_SOURCE_CHOICES, default='deposit_bonus')
+    amount_mvr = models.DecimalField(max_digits=15, decimal_places=2, help_text="Deposit amount in MVR that triggered the award")
+    awarded_by = models.BigIntegerField(null=True, blank=True, help_text="Admin who approved the deposit/granted spins")
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    synced_to_sheets = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'spin_awards'
+        indexes = [
+            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['deposit']),
+            models.Index(fields=['source', 'created_at']),
+            models.Index(fields=['synced_to_sheets']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"SpinAward {self.id} - {self.user.username} - {self.spins_awarded} spins from {self.get_source_display()}"
+
+
+class SpinUsage(models.Model):
+    """Spin Usage model - tracks when spins are actually played/used"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='spin_usages')
+    spin_award = models.ForeignKey(SpinAward, on_delete=models.SET_NULL, null=True, blank=True, related_name='usages')
+    prize_name = models.CharField(max_length=100)
+    chips_won = models.IntegerField()
+    pppoker_id = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+    synced_to_sheets = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'spin_usages'
+        indexes = [
+            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['spin_award']),
+            models.Index(fields=['synced_to_sheets']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"SpinUsage {self.id} - {self.user.username} - {self.prize_name} - {self.chips_won} chips"
+
+
 class SpinHistory(models.Model):
-    """Spin History model - matches Spin_History sheet"""
+    """Spin History model - matches Spin_History sheet (LEGACY - kept for backward compatibility)"""
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
         ('Approved', 'Approved'),
