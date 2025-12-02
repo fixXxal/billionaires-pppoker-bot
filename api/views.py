@@ -272,6 +272,56 @@ class SpinUserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(spin_user)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'])
+    def statistics(self, request):
+        """Get spin bot statistics"""
+        from django.db.models import Sum
+
+        try:
+            # Total users with spins
+            total_users = SpinUser.objects.count()
+
+            # Total spins used across all users
+            total_spins_used = SpinUser.objects.aggregate(
+                total=Sum('total_spins_used')
+            )['total'] or 0
+
+            # Total chips awarded across all users
+            total_chips_awarded = SpinUser.objects.aggregate(
+                total=Sum('total_chips_earned')
+            )['total'] or 0
+
+            # Pending rewards count
+            pending_rewards = SpinHistory.objects.filter(status='Pending').count()
+
+            # Approved rewards count
+            approved_rewards = SpinHistory.objects.filter(status='Approved').count()
+
+            # Top 5 users by total spins used
+            top_users = SpinUser.objects.order_by('-total_spins_used')[:5]
+            top_users_data = []
+            for spin_user in top_users:
+                top_users_data.append({
+                    'username': spin_user.user.username if spin_user.user else 'Unknown',
+                    'total_spins': spin_user.total_spins_used,
+                    'total_chips': spin_user.total_chips_earned
+                })
+
+            return Response({
+                'total_users': total_users,
+                'total_spins_used': total_spins_used,
+                'total_chips_awarded': total_chips_awarded,
+                'pending_rewards': pending_rewards,
+                'approved_rewards': approved_rewards,
+                'top_users': top_users_data
+            })
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class SpinHistoryViewSet(viewsets.ModelViewSet):
     """API endpoint for Spin History"""

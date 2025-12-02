@@ -271,6 +271,10 @@ class DjangoAPI:
         """Get all spin history"""
         return self._get('spin-history/')
 
+    def get_spin_statistics(self) -> Dict:
+        """Get spin bot statistics (total users, spins, chips, etc.)"""
+        return self._get('spin-users/statistics/')
+
     # ==================== JOIN REQUEST METHODS ====================
 
     def create_join_request(self, user_id: int, pppoker_id: str) -> Dict:

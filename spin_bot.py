@@ -969,6 +969,10 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
         # Get pending rewards (display prizes)
         pending = spin_bot.api.get_pending_spin_rewards()
 
+        # Handle paginated response
+        if isinstance(pending, dict) and 'results' in pending:
+            pending = pending['results']
+
         if not pending:
             if update.callback_query:
                 await update.callback_query.message.reply_text("✅ No pending spin rewards!")
@@ -976,28 +980,32 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
                 await update.message.reply_text("✅ No pending spin rewards!")
             return
 
-        # Group rewards by user (from Spin History sheet)
+        logger.info(f"📊 Processing {len(pending)} pending spin rewards")
+
+        # Group rewards by user (from Django API - use user_details.telegram_id)
         user_rewards = {}
         for reward in pending:
-            user_id = reward.get('user_id')
+            # Get telegram_id from user_details (Django nested serializer)
+            user_details = reward.get('user_details', {})
+            user_id = user_details.get('telegram_id')
 
             # Skip if user_id is None or invalid
             if not user_id:
-                logger.warning(f"Skipping reward with no user_id: {reward}")
+                logger.warning(f"Skipping reward with no telegram_id: {reward}")
                 continue
 
             if user_id not in user_rewards:
                 user_rewards[user_id] = {
-                    'username': reward.get('username', 'Unknown'),
+                    'username': user_details.get('username', 'Unknown'),
                     'user_id': user_id,
                     'pppoker_id': reward.get('pppoker_id', ''),
                     'rewards': [],
-                    'total_chips': 0,
-                    'row_numbers': []
+                    'total_chips': 0
                 }
             user_rewards[user_id]['rewards'].append(reward)
             user_rewards[user_id]['total_chips'] += int(reward.get('chips', 0))
-            user_rewards[user_id]['row_numbers'].append(reward.get('row_number'))  # Track row number for approval
+
+        logger.info(f"✅ Grouped rewards for {len(user_rewards)} users")
 
         message = "━━━━━━━━━━━━━━━━━━\n"
         message += "🎰 *PENDING SPIN REWARDS* 🎰\n"
