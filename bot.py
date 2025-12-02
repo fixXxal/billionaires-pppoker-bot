@@ -3085,7 +3085,7 @@ async def set_usd_rate_command(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text("❌ Rate must be a positive number.")
             return
 
-        success = api.set_exchange_rate('USD', rate)
+        success = api.set_exchange_rate('USD', 'MVR', rate)
         if success:
             await update.message.reply_text(
                 f"✅ USD exchange rate updated!\n\n"
@@ -3135,7 +3135,7 @@ async def set_usdt_rate_command(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text("❌ Rate must be a positive number.")
             return
 
-        success = api.set_exchange_rate('USDT', rate)
+        success = api.set_exchange_rate('USDT', 'MVR', rate)
         if success:
             await update.message.reply_text(
                 f"✅ USDT exchange rate updated!\n\n"
