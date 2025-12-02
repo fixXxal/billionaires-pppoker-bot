@@ -553,9 +553,61 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error getting investment summary: {e}")
             return {'total': 0, 'count': 0}
 
-    def record_investment_return(self, investment_id: int, profit_share: float, loss_share: float) -> bool:
-        """Record investment return - placeholder"""
-        return True
+    def record_investment_return(self, pppoker_id: str, return_amount: float) -> Dict:
+        """Record investment return and calculate profit/loss split"""
+        try:
+            from datetime import datetime
+
+            # Get all active investments for this PPPoker ID
+            all_investments = self.get_active_investments()
+            investments = [inv for inv in all_investments if inv.get('pppoker_id') == pppoker_id]
+
+            if not investments:
+                return {
+                    'success': False,
+                    'error': f'No active investments found for PPPoker ID: {pppoker_id}'
+                }
+
+            # Calculate total investment
+            total_investment = sum(inv.get('investment_amount', 0) for inv in investments)
+
+            # Calculate profit/loss
+            net_profit = return_amount - total_investment
+
+            # 50/50 split
+            club_share = total_investment + (net_profit / 2)  # Club gets initial back + 50% of profit
+            player_share = net_profit / 2  # Player gets 50% of profit
+
+            # Update all investments to Completed
+            today = datetime.now().strftime('%Y-%m-%d')
+
+            for inv in investments:
+                inv_id = inv.get('id')
+                # Update investment status
+                self._put(f"investments/{inv_id}/", {
+                    'status': 'Completed',
+                    'profit_share': float(player_share / len(investments)),  # Split evenly across all investments
+                    'loss_share': 0 if net_profit >= 0 else abs(net_profit) / len(investments),
+                    'end_date': today
+                })
+
+            return {
+                'success': True,
+                'net_profit': net_profit,
+                'player_share': player_share,
+                'club_share': club_share,
+                'total_investment': total_investment,
+                'return_amount': return_amount
+            }
+
+        except Exception as e:
+            logger.error(f"Error recording investment return: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'error': str(e)
+            }
 
     def mark_expired_investments_as_lost(self) -> int:
         """Mark expired investments as lost - placeholder"""
