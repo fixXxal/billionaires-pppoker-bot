@@ -4051,7 +4051,7 @@ async def return_id_selected(update: Update, context: ContextTypes.DEFAULT_TYPE)
     pppoker_id = ''.join(filter(str.isdigit, pppoker_id))
 
     # Check if this PPPoker ID has active investments
-    investments_data = api.get_active_investments_by_id(pppoker_id)
+    investments_data = api.get_active_investments_by_pppoker_id(pppoker_id)
 
     if investments_data['count'] == 0:
         await update.message.reply_text(

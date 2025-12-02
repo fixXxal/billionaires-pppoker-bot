@@ -582,6 +582,42 @@ class SheetsCompatAPI(DjangoAPI):
             traceback.print_exc()
             return []
 
+    def get_active_investments_by_pppoker_id(self, pppoker_id: str) -> Dict:
+        """Get active investments for a specific PPPoker ID with summary info"""
+        try:
+            all_investments = self.get_active_investments()
+            investments = [inv for inv in all_investments if inv.get('pppoker_id') == pppoker_id]
+
+            if not investments:
+                return {
+                    'count': 0,
+                    'total_amount': 0,
+                    'investments': []
+                }
+
+            # Calculate total investment amount
+            total_amount = 0
+            for inv in investments:
+                amount = inv.get('investment_amount', 0)
+                if isinstance(amount, str):
+                    amount = float(amount)
+                total_amount += amount
+
+            return {
+                'count': len(investments),
+                'total_amount': total_amount,
+                'investments': investments
+            }
+        except Exception as e:
+            logger.error(f"Error getting investments by PPPoker ID {pppoker_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'count': 0,
+                'total_amount': 0,
+                'investments': []
+            }
+
     def record_investment_return(self, pppoker_id: str, return_amount: float) -> Dict:
         """Record investment return and calculate profit/loss split"""
         try:
