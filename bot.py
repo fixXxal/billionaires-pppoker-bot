@@ -7021,7 +7021,15 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
 
         # Get all pending spins for this user
         pending = spin_bot.api.get_pending_spin_rewards()
-        user_pending = [p for p in pending if str(p.get('user_id')) == str(target_user_id)]
+
+        # Handle paginated response
+        if isinstance(pending, dict) and 'results' in pending:
+            pending = pending['results']
+
+        # Filter by telegram_id (from user_details, not user_id)
+        user_pending = [p for p in pending if str(p.get('user_details', {}).get('telegram_id')) == str(target_user_id)]
+
+        logger.info(f"🔍 [APPROVE CALLBACK] Found {len(user_pending)} pending spins for user {target_user_id}")
 
         if not user_pending:
             await query.edit_message_text(
@@ -7034,7 +7042,8 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
         approver_name = user.username or user.first_name
         approved_count = 0
         total_chips = 0
-        username = user_pending[0].get('username', 'Unknown')
+        # Get username from user_details
+        username = user_pending[0].get('user_details', {}).get('username', 'Unknown')
 
         # Get user data first
         user_data = spin_bot.api.get_spin_user(target_user_id)
