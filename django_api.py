@@ -58,6 +58,17 @@ class DjangoAPI:
             logger.error(f"PUT {url} failed: {e}, Response: {response.text if 'response' in locals() else 'N/A'}")
             raise
 
+    def _patch(self, endpoint: str, data: Optional[Dict] = None) -> Any:
+        """Make PATCH request to API"""
+        url = f"{self.base_url}/{endpoint}"
+        try:
+            response = self.session.patch(url, json=data, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"PATCH {url} failed: {e}, Response: {response.text if 'response' in locals() else 'N/A'}")
+            raise
+
     def _delete(self, endpoint: str) -> Any:
         """Make DELETE request to API"""
         url = f"{self.base_url}/{endpoint}"

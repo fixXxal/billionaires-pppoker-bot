@@ -653,8 +653,8 @@ class SheetsCompatAPI(DjangoAPI):
 
             for inv in investments:
                 inv_id = inv.get('id')
-                # Update investment status
-                self._put(f"investments/{inv_id}/", {
+                # Update investment status using PATCH for partial update
+                self._patch(f"investments/{inv_id}/", {
                     'status': 'Completed',
                     'profit_share': float(player_share / len(investments)),  # Split evenly across all investments
                     'loss_share': 0 if net_profit >= 0 else abs(net_profit) / len(investments),
