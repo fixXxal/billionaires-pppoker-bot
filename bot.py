@@ -3957,9 +3957,11 @@ async def investment_amount_received(update: Update, context: ContextTypes.DEFAU
 
         pppoker_id = context.user_data['investment_pppoker_id']
         note = context.user_data.get('investment_note', '')
+        telegram_id = update.effective_user.id
+        start_date = datetime.now().strftime('%Y-%m-%d')
 
         # Add investment to Google Sheets
-        success = api.add_investment(pppoker_id, note, amount)
+        success = api.add_investment(telegram_id, amount, start_date, note, pppoker_id)
 
         if success:
             player_display = pppoker_id
