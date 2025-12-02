@@ -639,3 +639,464 @@ class InventoryTransactionViewSet(viewsets.ModelViewSet):
     """API endpoint for Inventory Transactions"""
     queryset = InventoryTransaction.objects.all()
     serializer_class = InventoryTransactionSerializer
+
+
+@api_view(['GET'])
+def financial_report(request):
+    """
+    Generate financial reports with customizable date ranges
+    Query params:
+        - period: 'daily', 'weekly', 'monthly', '6months', 'yearly', 'custom'
+        - start_date: YYYY-MM-DD (for custom period)
+        - end_date: YYYY-MM-DD (for custom period)
+    """
+    from django.db.models import Sum, Count, Q
+    from datetime import datetime, timedelta
+
+    # Get period parameter
+    period = request.query_params.get('period', 'daily')
+
+    # Calculate date range based on period
+    today = timezone.now().date()
+
+    if period == 'custom':
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+
+        if not start_date_str or not end_date_str:
+            return Response(
+                {'error': 'start_date and end_date required for custom period'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    elif period == 'daily':
+        start_date = today
+        end_date = today
+    elif period == 'weekly':
+        start_date = today - timedelta(days=7)
+        end_date = today
+    elif period == 'monthly':
+        start_date = today - timedelta(days=30)
+        end_date = today
+    elif period == '6months':
+        start_date = today - timedelta(days=180)
+        end_date = today
+    elif period == 'yearly':
+        start_date = today - timedelta(days=365)
+        end_date = today
+    else:
+        return Response(
+            {'error': 'Invalid period. Use: daily, weekly, monthly, 6months, yearly, custom'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Convert to datetime for filtering
+    start_datetime = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+    end_datetime = timezone.make_aware(datetime.combine(end_date, datetime.max.time()))
+
+    # === DEPOSITS ===
+    deposits_data = Deposit.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_deposits=Sum('amount', filter=Q(status='Approved')) or 0,
+        total_pending_deposits=Sum('amount', filter=Q(status='Pending')) or 0,
+        approved_count=Count('id', filter=Q(status='Approved')),
+        pending_count=Count('id', filter=Q(status='Pending')),
+        rejected_count=Count('id', filter=Q(status='Rejected'))
+    )
+
+    # === WITHDRAWALS ===
+    withdrawals_data = Withdrawal.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_withdrawals=Sum('amount', filter=Q(status='Approved')) or 0,
+        total_pending_withdrawals=Sum('amount', filter=Q(status='Pending')) or 0,
+        approved_count=Count('id', filter=Q(status='Approved')),
+        pending_count=Count('id', filter=Q(status='Pending')),
+        rejected_count=Count('id', filter=Q(status='Rejected'))
+    )
+
+    # === 50/50 INVESTMENTS ===
+    investments_data = FiftyFiftyInvestment.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_investment=Sum('investment_amount') or 0,
+        total_profit=Sum('profit_share') or 0,
+        total_loss=Sum('loss_share') or 0,
+        active_count=Count('id', filter=Q(status='Active')),
+        completed_count=Count('id', filter=Q(status='Completed')),
+        lost_count=Count('id', filter=Q(status='Lost'))
+    )
+
+    # Net investment profit/loss
+    investment_net = (investments_data['total_profit'] or 0) - (investments_data['total_loss'] or 0)
+
+    # === CASHBACK ===
+    cashback_data = CashbackRequest.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_cashback=Sum('cashback_amount', filter=Q(status='Approved')) or 0,
+        approved_count=Count('id', filter=Q(status='Approved')),
+        pending_count=Count('id', filter=Q(status='Pending'))
+    )
+
+    # === SPIN REWARDS ===
+    spin_data = SpinHistory.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_chips=Sum('chips', filter=Q(status='Approved')) or 0,
+        total_spins=Count('id'),
+        approved_count=Count('id', filter=Q(status='Approved')),
+        pending_count=Count('id', filter=Q(status='Pending'))
+    )
+
+    # === USER CREDITS ===
+    credits_data = UserCredit.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_credits=Sum('amount') or 0,
+        count=Count('id')
+    )
+
+    # === USER GROWTH ===
+    new_users = User.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).count()
+
+    total_users = User.objects.count()
+
+    # === INVENTORY ===
+    inventory_data = InventoryTransaction.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_spent=Sum('total_amount', filter=Q(transaction_type='Add')) or 0,
+        total_revenue=Sum('total_amount', filter=Q(transaction_type='Remove')) or 0
+    )
+
+    # === FINANCIAL SUMMARY ===
+    total_income = (
+        (deposits_data['total_deposits'] or 0) +
+        (investments_data['total_profit'] or 0)
+    )
+
+    total_expenses = (
+        (withdrawals_data['total_withdrawals'] or 0) +
+        (cashback_data['total_cashback'] or 0) +
+        (credits_data['total_credits'] or 0) +
+        (investments_data['total_loss'] or 0)
+    )
+
+    net_profit = total_income - total_expenses
+
+    # === COMPILE REPORT ===
+    report = {
+        'period': period,
+        'start_date': start_date.isoformat(),
+        'end_date': end_date.isoformat(),
+        'generated_at': timezone.now().isoformat(),
+
+        'summary': {
+            'total_income': float(total_income),
+            'total_expenses': float(total_expenses),
+            'net_profit': float(net_profit),
+            'profit_margin': f"{(net_profit / total_income * 100) if total_income > 0 else 0:.2f}%"
+        },
+
+        'deposits': {
+            'total_approved': float(deposits_data['total_deposits'] or 0),
+            'total_pending': float(deposits_data['total_pending_deposits'] or 0),
+            'approved_count': deposits_data['approved_count'],
+            'pending_count': deposits_data['pending_count'],
+            'rejected_count': deposits_data['rejected_count']
+        },
+
+        'withdrawals': {
+            'total_approved': float(withdrawals_data['total_withdrawals'] or 0),
+            'total_pending': float(withdrawals_data['total_pending_withdrawals'] or 0),
+            'approved_count': withdrawals_data['approved_count'],
+            'pending_count': withdrawals_data['pending_count'],
+            'rejected_count': withdrawals_data['rejected_count']
+        },
+
+        'investments': {
+            'total_investment': float(investments_data['total_investment'] or 0),
+            'total_profit': float(investments_data['total_profit'] or 0),
+            'total_loss': float(investments_data['total_loss'] or 0),
+            'net_profit': float(investment_net),
+            'active_count': investments_data['active_count'],
+            'completed_count': investments_data['completed_count'],
+            'lost_count': investments_data['lost_count']
+        },
+
+        'cashback': {
+            'total_given': float(cashback_data['total_cashback'] or 0),
+            'approved_count': cashback_data['approved_count'],
+            'pending_count': cashback_data['pending_count']
+        },
+
+        'spin_rewards': {
+            'total_chips_awarded': int(spin_data['total_chips'] or 0),
+            'total_spins': spin_data['total_spins'],
+            'approved_count': spin_data['approved_count'],
+            'pending_count': spin_data['pending_count']
+        },
+
+        'user_credits': {
+            'total_credits_given': float(credits_data['total_credits'] or 0),
+            'count': credits_data['count']
+        },
+
+        'users': {
+            'new_users': new_users,
+            'total_users': total_users
+        },
+
+        'inventory': {
+            'total_spent': float(inventory_data['total_spent'] or 0),
+            'total_revenue': float(inventory_data['total_revenue'] or 0),
+            'net': float((inventory_data['total_revenue'] or 0) - (inventory_data['total_spent'] or 0))
+        }
+    }
+
+    return Response(report)
+
+
+@api_view(['GET'])
+def financial_report_dashboard(request):
+    """
+    HTML dashboard view for financial reports
+    Provides a user-friendly interface with charts and export options
+    """
+    from django.shortcuts import render
+    from django.db.models import Sum, Count, Q
+    from datetime import datetime, timedelta
+    from decimal import Decimal
+
+    # Get period from query params
+    period = request.GET.get('period', 'daily')
+    custom_start = request.GET.get('start_date', '')
+    custom_end = request.GET.get('end_date', '')
+
+    # Calculate date range
+    today = timezone.now().date()
+
+    if period == 'custom' and custom_start and custom_end:
+        try:
+            start_date = datetime.strptime(custom_start, '%Y-%m-%d').date()
+            end_date = datetime.strptime(custom_end, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = today
+            end_date = today
+            period = 'daily'
+    elif period == 'daily':
+        start_date = today
+        end_date = today
+    elif period == 'weekly':
+        start_date = today - timedelta(days=7)
+        end_date = today
+    elif period == 'monthly':
+        start_date = today - timedelta(days=30)
+        end_date = today
+    elif period == '6months':
+        start_date = today - timedelta(days=180)
+        end_date = today
+    elif period == 'yearly':
+        start_date = today - timedelta(days=365)
+        end_date = today
+    else:
+        start_date = today
+        end_date = today
+        period = 'daily'
+
+    # Convert to datetime for filtering
+    start_datetime = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+    end_datetime = timezone.make_aware(datetime.combine(end_date, datetime.max.time()))
+
+    # === COLLECT DATA ===
+
+    # Deposits
+    deposits_data = Deposit.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_deposits=Sum('amount', filter=Q(status='Approved')),
+        total_pending_deposits=Sum('amount', filter=Q(status='Pending')),
+        approved_count=Count('id', filter=Q(status='Approved')),
+        pending_count=Count('id', filter=Q(status='Pending')),
+        rejected_count=Count('id', filter=Q(status='Rejected'))
+    )
+
+    # Withdrawals
+    withdrawals_data = Withdrawal.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_withdrawals=Sum('amount', filter=Q(status='Approved')),
+        total_pending_withdrawals=Sum('amount', filter=Q(status='Pending')),
+        approved_count=Count('id', filter=Q(status='Approved')),
+        pending_count=Count('id', filter=Q(status='Pending')),
+        rejected_count=Count('id', filter=Q(status='Rejected'))
+    )
+
+    # 50/50 Investments
+    investments_data = FiftyFiftyInvestment.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_investment=Sum('investment_amount'),
+        total_profit=Sum('profit_share'),
+        total_loss=Sum('loss_share'),
+        active_count=Count('id', filter=Q(status='Active')),
+        completed_count=Count('id', filter=Q(status='Completed')),
+        lost_count=Count('id', filter=Q(status='Lost'))
+    )
+
+    # Cashback
+    cashback_data = CashbackRequest.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_cashback=Sum('cashback_amount', filter=Q(status='Approved')),
+        approved_count=Count('id', filter=Q(status='Approved')),
+        pending_count=Count('id', filter=Q(status='Pending'))
+    )
+
+    # Spin Rewards
+    spin_data = SpinHistory.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_chips=Sum('chips', filter=Q(status='Approved')),
+        total_spins=Count('id'),
+        approved_count=Count('id', filter=Q(status='Approved')),
+        pending_count=Count('id', filter=Q(status='Pending'))
+    )
+
+    # User Credits
+    credits_data = UserCredit.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_credits=Sum('amount'),
+        count=Count('id')
+    )
+
+    # User Growth
+    new_users = User.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).count()
+
+    total_users = User.objects.count()
+
+    # Inventory
+    inventory_data = InventoryTransaction.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).aggregate(
+        total_spent=Sum('total_amount', filter=Q(transaction_type='Add')),
+        total_revenue=Sum('total_amount', filter=Q(transaction_type='Remove'))
+    )
+
+    # === CALCULATE FINANCIALS ===
+
+    # Convert None to Decimal(0) for calculations
+    def to_decimal(value):
+        return Decimal(str(value)) if value else Decimal('0')
+
+    total_deposits = to_decimal(deposits_data['total_deposits'])
+    total_withdrawals = to_decimal(withdrawals_data['total_withdrawals'])
+    total_investment_profit = to_decimal(investments_data['total_profit'])
+    total_investment_loss = to_decimal(investments_data['total_loss'])
+    total_cashback = to_decimal(cashback_data['total_cashback'])
+    total_credits = to_decimal(credits_data['total_credits'])
+
+    # Income = Deposits + Investment Profits
+    total_income = total_deposits + total_investment_profit
+
+    # Expenses = Withdrawals + Investment Losses + Cashback + Credits
+    total_expenses = total_withdrawals + total_investment_loss + total_cashback + total_credits
+
+    # Net Profit
+    net_profit = total_income - total_expenses
+
+    # Profit Margin
+    profit_margin = (net_profit / total_income * 100) if total_income > 0 else Decimal('0')
+
+    # Investment Net
+    investment_net = total_investment_profit - total_investment_loss
+
+    # === PREPARE CONTEXT ===
+    context = {
+        'title': 'Financial Reports Dashboard',
+        'period': period,
+        'start_date': start_date,
+        'end_date': end_date,
+        'custom_start': custom_start,
+        'custom_end': custom_end,
+
+        # Summary
+        'total_income': total_income,
+        'total_expenses': total_expenses,
+        'net_profit': net_profit,
+        'profit_margin': f"{profit_margin:.2f}",
+
+        # Deposits
+        'deposits_total': total_deposits,
+        'deposits_pending': to_decimal(deposits_data['total_pending_deposits']),
+        'deposits_approved_count': deposits_data['approved_count'],
+        'deposits_pending_count': deposits_data['pending_count'],
+        'deposits_rejected_count': deposits_data['rejected_count'],
+
+        # Withdrawals
+        'withdrawals_total': total_withdrawals,
+        'withdrawals_pending': to_decimal(withdrawals_data['total_pending_withdrawals']),
+        'withdrawals_approved_count': withdrawals_data['approved_count'],
+        'withdrawals_pending_count': withdrawals_data['pending_count'],
+        'withdrawals_rejected_count': withdrawals_data['rejected_count'],
+
+        # Investments
+        'investments_total': to_decimal(investments_data['total_investment']),
+        'investments_profit': total_investment_profit,
+        'investments_loss': total_investment_loss,
+        'investments_net': investment_net,
+        'investments_active': investments_data['active_count'],
+        'investments_completed': investments_data['completed_count'],
+        'investments_lost': investments_data['lost_count'],
+
+        # Cashback
+        'cashback_total': total_cashback,
+        'cashback_approved_count': cashback_data['approved_count'],
+        'cashback_pending_count': cashback_data['pending_count'],
+
+        # Spin Rewards
+        'spin_total_chips': spin_data['total_chips'] or 0,
+        'spin_total_spins': spin_data['total_spins'],
+        'spin_approved_count': spin_data['approved_count'],
+        'spin_pending_count': spin_data['pending_count'],
+
+        # User Credits
+        'credits_total': total_credits,
+        'credits_count': credits_data['count'],
+
+        # Users
+        'new_users': new_users,
+        'total_users': total_users,
+
+        # Inventory
+        'inventory_spent': to_decimal(inventory_data['total_spent']),
+        'inventory_revenue': to_decimal(inventory_data['total_revenue']),
+        'inventory_net': to_decimal(inventory_data['total_revenue']) - to_decimal(inventory_data['total_spent']),
+    }
+
+    return render(request, 'reports/financial_dashboard.html', context)
