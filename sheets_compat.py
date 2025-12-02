@@ -543,15 +543,44 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error getting user investments: {e}")
             return []
 
-    def get_all_active_investments_summary(self) -> Dict:
-        """Get summary of all active investments"""
+    def get_all_active_investments_summary(self) -> List[Dict]:
+        """Get summary of all active investments grouped by PPPoker ID"""
         try:
             investments = self.get_active_investments()
-            total = sum(inv.get('investment_amount', 0) for inv in investments)
-            return {'total': total, 'count': len(investments)}
+
+            # Group investments by PPPoker ID
+            grouped = {}
+            for inv in investments:
+                pppoker_id = inv.get('pppoker_id', 'UNKNOWN')
+
+                if pppoker_id not in grouped:
+                    grouped[pppoker_id] = {
+                        'pppoker_id': pppoker_id,
+                        'player_note': inv.get('notes', ''),
+                        'total_amount': 0,
+                        'first_date': inv.get('start_date', ''),
+                        'investments': []
+                    }
+
+                # Add to total amount (ensure it's a float)
+                amount = inv.get('investment_amount', 0)
+                if isinstance(amount, str):
+                    amount = float(amount)
+                grouped[pppoker_id]['total_amount'] += amount
+                grouped[pppoker_id]['investments'].append(inv)
+
+                # Keep the earliest date
+                current_date = grouped[pppoker_id]['first_date']
+                new_date = inv.get('start_date', '')
+                if not current_date or (new_date and new_date < current_date):
+                    grouped[pppoker_id]['first_date'] = new_date
+
+            return list(grouped.values())
         except Exception as e:
             logger.error(f"Error getting investment summary: {e}")
-            return {'total': 0, 'count': 0}
+            import traceback
+            traceback.print_exc()
+            return []
 
     def record_investment_return(self, pppoker_id: str, return_amount: float) -> Dict:
         """Record investment return and calculate profit/loss split"""
