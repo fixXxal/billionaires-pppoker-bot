@@ -4,8 +4,6 @@ Registers all models to the admin panel for easy management
 """
 
 from django.contrib import admin
-from django.urls import path
-from django.shortcuts import redirect
 from .models import (
     User, Deposit, Withdrawal, SpinUser, SpinHistory,
     PaymentAccount, CounterStatus, Admin, JoinRequest,
@@ -13,40 +11,23 @@ from .models import (
     UserCredit, ExchangeRate, FiftyFiftyInvestment, ClubBalance,
     InventoryTransaction, CashbackEligibility, PromotionEligibility
 )
-from .admin_reports import FinancialReportsAdmin
 
 
-# Custom Admin Site to add Reports link
-class BillionairesAdminSite(admin.AdminSite):
-    site_header = "Billionaires PPPoker Admin"
-    site_title = "Billionaires Admin"
-    index_title = "Dashboard"
-
-    def get_urls(self):
-        urls = super().get_urls()
-        custom_urls = [
-            path('reports/financial/', self.admin_view(FinancialReportsAdmin(User, self).changelist_view), name='financial_reports'),
-        ]
-        return custom_urls + urls
-
-# Replace default admin site
-admin_site = BillionairesAdminSite(name='admin')
-
-# Re-register default Django models
-from django.contrib.auth.models import User as DjangoUser, Group
-admin_site.register(DjangoUser, admin.ModelAdmin)
-admin_site.register(Group, admin.ModelAdmin)
+# Customize the admin site header
+admin.site.site_header = "Billionaires PPPoker Admin"
+admin.site.site_title = "Billionaires Admin"
+admin.site.index_title = "Dashboard"
 
 
+@admin.register(User)
 class UserAdmin(admin.ModelAdmin):
     list_display = ['telegram_id', 'username', 'pppoker_id', 'balance', 'club_balance', 'created_at']
     search_fields = ['telegram_id', 'username', 'pppoker_id']
     list_filter = ['created_at', 'synced_to_sheets']
     ordering = ['-created_at']
 
-admin_site.register(User, UserAdmin)
 
-
+@admin.register(Deposit)
 class DepositAdmin(admin.ModelAdmin):
     list_display = ['id', 'user', 'amount', 'method', 'status', 'created_at', 'approved_by']
     list_filter = ['status', 'method', 'created_at']
@@ -54,9 +35,8 @@ class DepositAdmin(admin.ModelAdmin):
     ordering = ['-created_at']
     readonly_fields = ['created_at', 'approved_at']
 
-admin_site.register(Deposit, DepositAdmin)
 
-
+@admin.register(Withdrawal)
 class WithdrawalAdmin(admin.ModelAdmin):
     list_display = ['id', 'user', 'amount', 'method', 'status', 'created_at', 'approved_by']
     list_filter = ['status', 'method', 'created_at']
@@ -64,18 +44,16 @@ class WithdrawalAdmin(admin.ModelAdmin):
     ordering = ['-created_at']
     readonly_fields = ['created_at', 'approved_at']
 
-admin_site.register(Withdrawal, WithdrawalAdmin)
 
-
+@admin.register(SpinUser)
 class SpinUserAdmin(admin.ModelAdmin):
     list_display = ['user', 'available_spins', 'total_spins_used', 'total_chips_earned', 'updated_at']
     search_fields = ['user__username', 'user__telegram_id']
     list_filter = ['updated_at']
     ordering = ['-total_chips_earned']
 
-admin_site.register(SpinUser, SpinUserAdmin)
 
-
+@admin.register(SpinHistory)
 class SpinHistoryAdmin(admin.ModelAdmin):
     list_display = ['id', 'user', 'prize', 'chips', 'status', 'created_at', 'approved_by']
     list_filter = ['status', 'created_at']
@@ -83,18 +61,16 @@ class SpinHistoryAdmin(admin.ModelAdmin):
     ordering = ['-created_at']
     readonly_fields = ['created_at', 'approved_at']
 
-admin_site.register(SpinHistory, SpinHistoryAdmin)
 
-
+@admin.register(PaymentAccount)
 class PaymentAccountAdmin(admin.ModelAdmin):
     list_display = ['method', 'account_name', 'account_number', 'is_active', 'updated_at']
     list_filter = ['method', 'is_active']
     search_fields = ['account_name', 'account_number']
     ordering = ['method']
 
-admin_site.register(PaymentAccount, PaymentAccountAdmin)
 
-
+@admin.register(CounterStatus)
 class CounterStatusAdmin(admin.ModelAdmin):
     list_display = ['is_open', 'updated_by', 'updated_at']
     readonly_fields = ['updated_at']
@@ -103,26 +79,22 @@ class CounterStatusAdmin(admin.ModelAdmin):
         # Only allow one CounterStatus instance
         return not CounterStatus.objects.exists()
 
-admin_site.register(CounterStatus, CounterStatusAdmin)
 
-
+@admin.register(Admin)
 class AdminUserAdmin(admin.ModelAdmin):
     list_display = ['telegram_id', 'username', 'role', 'is_active', 'created_at']
     list_filter = ['role', 'is_active', 'created_at']
     search_fields = ['telegram_id', 'username']
     ordering = ['-created_at']
 
-admin_site.register(Admin, AdminUserAdmin)
 
-
+@admin.register(JoinRequest)
 class JoinRequestAdmin(admin.ModelAdmin):
     list_display = ['id', 'user', 'pppoker_id', 'status', 'created_at', 'approved_by']
     list_filter = ['status', 'created_at']
     search_fields = ['user__username', 'pppoker_id']
     ordering = ['-created_at']
     readonly_fields = ['created_at', 'approved_at']
-
-admin_site.register(JoinRequest, JoinRequestAdmin)
 
 
 @admin.register(SeatRequest)
