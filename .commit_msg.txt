@@ -1,0 +1,6 @@
+Add spin_bot initialization logging and fix spin awards on deposits
+
+- Added verification logs to confirm SpinBot is initialized
+- Added logs to confirm spin_bot is passed to admin_panel
+- This will help diagnose why spins aren't being awarded on Railway
+- Minimum deposit for spins: 200 MVR

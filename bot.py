@@ -99,6 +99,7 @@ api = SheetsCompatAPI(DJANGO_API_URL)
 
 # Initialize Spin Bot with Django API
 spin_bot = SpinBot(api, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
+logger.info(f"✅ SpinBot initialized successfully - Minimum deposit for spins: 200 MVR")
 
 # Conversation states
 (DEPOSIT_METHOD, DEPOSIT_AMOUNT, DEPOSIT_PPPOKER_ID, DEPOSIT_ACCOUNT_NAME,
@@ -8159,6 +8160,7 @@ def main():
     application.add_handler(MessageHandler(filters.PHOTO, handle_seat_slip_upload))
 
     # Register admin handlers and share notification_messages dict and spin_bot instance
+    logger.info(f"🔧 Registering admin handlers with spin_bot: {spin_bot is not None}")
     admin_panel.register_admin_handlers(application, notification_messages, spin_bot)
 
     # Add general text handler

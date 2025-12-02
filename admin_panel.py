@@ -2445,6 +2445,9 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
         notification_messages = notif_messages
     if spin_bot_instance is not None:
         spin_bot = spin_bot_instance
+        logger.info(f"✅ [ADMIN PANEL] spin_bot registered successfully: {spin_bot is not None}")
+    else:
+        logger.error(f"❌ [ADMIN PANEL] spin_bot_instance is None! Spins will NOT work!")
 
     # Admin panel
     application.add_handler(CommandHandler("admin", admin_panel))
