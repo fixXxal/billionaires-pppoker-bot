@@ -2049,13 +2049,16 @@ async def investment_notes_received(update: Update, context: ContextTypes.DEFAUL
         return ConversationHandler.END
 
     except Exception as e:
-        logger.error(f"❌ Error creating investment: {e}")
+        error_msg = str(e)
+        logger.error(f"❌ Error creating investment: {error_msg}")
         logger.error(f"   PPPoker ID: {pppoker_id}, Amount: {amount}, Notes: {notes}")
         traceback.print_exc()
 
         await update.message.reply_text(
-            f"❌ Failed to add investment. Please try again later.\n\n"
-            f"Error details: {str(e)}"
+            f"❌ <b>Failed to add investment</b>\n\n"
+            f"Error: <code>{error_msg}</code>\n\n"
+            f"Please contact support if this persists.",
+            parse_mode='HTML'
         )
         context.user_data.clear()
         return ConversationHandler.END
@@ -2517,7 +2520,10 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
         states={
             INVESTMENT_TELEGRAM_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, investment_telegram_id_received)],
             INVESTMENT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, investment_amount_received)],
-            INVESTMENT_NOTES: [MessageHandler(filters.TEXT & ~filters.COMMAND, investment_notes_received)],
+            INVESTMENT_NOTES: [
+                CommandHandler('skip', investment_notes_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, investment_notes_received)
+            ],
         },
         fallbacks=[CommandHandler('cancel', cancel_investment)],
         per_user=True,
