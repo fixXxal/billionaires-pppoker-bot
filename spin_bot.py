@@ -406,7 +406,7 @@ class SpinBot:
                 logger.info(f"📈 [SPIN_BOT] Updating: spins {current_spins} → {new_available}, deposit {current_deposit} → {new_total_deposit}")
 
                 result = self.api.update_spin_user(
-                    user_id=user_id,
+                    telegram_id=user_id,
                     username=username,
                     available_spins=new_available,
                     total_deposit=new_total_deposit,

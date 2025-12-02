@@ -401,8 +401,54 @@ class SheetsCompatAPI(DjangoAPI):
     # ==================== LEGACY SPIN METHODS ====================
 
     def update_spin_user(self, telegram_id: int, **kwargs) -> bool:
-        """Update spin user - placeholder"""
-        return True
+        """Update spin user with new data"""
+        try:
+            # Get the user's database ID first
+            user = self.get_or_create_user(telegram_id, kwargs.get('username', 'User'))
+            if not user:
+                logger.error(f"Failed to get user for telegram_id {telegram_id}")
+                return False
+
+            user_id = user['id']
+
+            # Build update data
+            update_data = {}
+            if 'available_spins' in kwargs:
+                update_data['available_spins'] = kwargs['available_spins']
+            if 'total_spins_used' in kwargs:
+                update_data['total_spins_used'] = kwargs['total_spins_used']
+            if 'total_chips_earned' in kwargs:
+                update_data['total_chips_earned'] = kwargs['total_chips_earned']
+
+            if not update_data:
+                logger.warning(f"No spin data to update for user {telegram_id}")
+                return False
+
+            # Get existing spin user
+            spin_user = self.get_spin_user(telegram_id)
+            if not spin_user:
+                logger.error(f"Spin user not found for telegram_id {telegram_id}")
+                return False
+
+            spin_user_id = spin_user['id']
+
+            # Update via Django API
+            response = requests.patch(
+                f"{self.base_url}/spin-users/{spin_user_id}/",
+                json=update_data,
+                timeout=10
+            )
+
+            if response.status_code in [200, 204]:
+                logger.info(f"Successfully updated spin user {telegram_id}: {update_data}")
+                return True
+            else:
+                logger.error(f"Failed to update spin user: {response.status_code} - {response.text}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Error updating spin user: {e}")
+            return False
 
     def get_spin_by_id(self, spin_id: int) -> Optional[Dict]:
         """Get spin by ID"""

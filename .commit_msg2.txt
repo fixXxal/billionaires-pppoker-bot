@@ -1,0 +1,9 @@
+Fix spin award system - implement update_spin_user and fix parameter bug
+
+Critical fixes:
+- Fixed TypeError: Changed user_id= to telegram_id= in spin_bot.py line 409
+- Implemented update_spin_user() in sheets_compat.py (was just a placeholder)
+- Now properly updates available_spins via Django API PATCH request
+- Spins will now be correctly added to users on deposits ≥200 MVR
+
+This fixes the issue where spins were calculated but not saved to database.
