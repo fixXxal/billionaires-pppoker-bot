@@ -634,7 +634,12 @@ class SheetsCompatAPI(DjangoAPI):
                 }
 
             # Calculate total investment
-            total_investment = sum(inv.get('investment_amount', 0) for inv in investments)
+            total_investment = 0
+            for inv in investments:
+                amount = inv.get('investment_amount', 0)
+                if isinstance(amount, str):
+                    amount = float(amount)
+                total_investment += amount
 
             # Calculate profit/loss
             net_profit = return_amount - total_investment
