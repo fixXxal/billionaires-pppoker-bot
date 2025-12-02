@@ -504,14 +504,27 @@ class SheetsCompatAPI(DjangoAPI):
     # ==================== LEGACY INVESTMENT METHODS ====================
 
     def add_investment(self, telegram_id: int, amount: float, start_date: str, notes: str = '') -> bool:
-        """Add 50-50 investment"""
+        """Add 50-50 investment (legacy method - requires telegram_id)"""
         try:
             user = self.get_or_create_user(telegram_id, str(telegram_id))
             user_id = user.get('id')
-            self.create_investment(user_id, amount, start_date, notes)
+
+            # Get PPPoker ID from user's deposits
+            pppoker_id = self.get_pppoker_id_from_deposits(telegram_id) or ''
+
+            # Create investment using inherited method from DjangoAPI
+            self.create_investment(
+                pppoker_id=pppoker_id,
+                investment_amount=amount,
+                start_date=start_date,
+                notes=notes,
+                user_id=user_id
+            )
             return True
         except Exception as e:
             logger.error(f"Error adding investment: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def get_active_investments_by_id(self, telegram_id: int) -> List[Dict]:
