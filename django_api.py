@@ -220,7 +220,8 @@ class DjangoAPI:
         return self._put(f'spin-users/{spin_user_id}/', updated_data)
 
     def update_spin_user(self, user_id: int, username: str = None, available_spins: int = None,
-                        total_deposit: float = None, pppoker_id: str = None) -> Dict:
+                        total_deposit: float = None, pppoker_id: str = None,
+                        total_chips_earned: int = None, total_spins_used: int = None) -> Dict:
         """Update existing spin user"""
         # Get the spin user first
         result = self._post('spin-users/by_telegram_id/', {'telegram_id': user_id})
@@ -241,8 +242,8 @@ class DjangoAPI:
         update_data = {
             'available_spins': available_spins if available_spins is not None else spin_user.get('available_spins', 0),
             'total_deposit': total_deposit if total_deposit is not None else spin_user.get('total_deposit', 0),
-            'total_spins_used': spin_user.get('total_spins_used', 0),
-            'total_chips_earned': spin_user.get('total_chips_earned', 0)
+            'total_spins_used': total_spins_used if total_spins_used is not None else spin_user.get('total_spins_used', 0),
+            'total_chips_earned': total_chips_earned if total_chips_earned is not None else spin_user.get('total_chips_earned', 0)
         }
 
         return self._put(f'spin-users/{spin_user_id}/', update_data)
