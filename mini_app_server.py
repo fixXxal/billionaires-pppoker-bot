@@ -68,6 +68,10 @@ user_data_cache = {}
 cache_timestamps = {}
 CACHE_TTL = 300  # seconds (5 minutes - increased for launch to reduce Sheets API calls)
 
+# Notification aggregator - collect wins over short time period for batch notifications
+pending_notifications = defaultdict(lambda: {'chips': 0, 'wins': [], 'timer': None, 'username': '', 'pppoker_id': ''})
+NOTIFICATION_DELAY = 3.0  # seconds - wait 3s to collect all wins before sending notification
+
 
 def get_cached_user_data(user_id):
     """Get user data from cache or fetch fresh"""
@@ -214,6 +218,32 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
         logger.error(f"❌ Failed to notify admins: {e}")
     except Exception as e:
         logger.error(f"❌ Unexpected error in notify_admin: {e}")
+
+
+def send_aggregated_notifications(user_id: int):
+    """Send combined notification for all wins accumulated in the time window"""
+    import threading
+
+    notification_data = pending_notifications[user_id]
+    total_chips = notification_data['chips']
+    username = notification_data['username']
+    pppoker_id = notification_data['pppoker_id']
+
+    if total_chips > 0:
+        logger.info(f"📬 Sending aggregated notification: {username} won {total_chips} chips total")
+
+        # Send notifications
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(notify_user_win(user_id, username, f"{total_chips} Chips Total", total_chips))
+            loop.run_until_complete(notify_admin(user_id, username, f"{total_chips} Chips Total", total_chips, pppoker_id))
+            logger.info(f"✅ Aggregated notifications sent successfully")
+        finally:
+            loop.close()
+
+    # Clear pending notifications for this user
+    del pending_notifications[user_id]
 
 
 @app.route('/')
@@ -408,35 +438,29 @@ def spin():
         # Invalidate cache so next request gets fresh data from Django
         invalidate_user_cache(user_id)
 
-        # Send notifications AFTER all spins are processed (in background - non-blocking)
+        # Aggregate notifications - collect wins over short time period for batch notifications
         total_chips_won = sum(r.get('chips', 0) for r in results if isinstance(r, dict) and r.get('chips', 0) > 0)
 
         if total_chips_won > 0:
-            logger.info(f"💰 Total chips won: {total_chips_won} - Sending notifications")
+            logger.info(f"💰 Chips won this spin: {total_chips_won} - Adding to pending notifications")
 
-            # Run notifications in background thread to not block the response
+            # Add to pending notifications
             import threading
-            def send_notifications():
-                try:
-                    # Create new event loop for this thread
-                    import time
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+            notification_data = pending_notifications[user_id]
+            notification_data['chips'] += total_chips_won
+            notification_data['username'] = username
+            notification_data['pppoker_id'] = pppoker_id
 
-                    try:
-                        # Send notifications
-                        loop.run_until_complete(notify_user_win(user_id, username, f"{total_chips_won} Chips", total_chips_won))
-                        loop.run_until_complete(notify_admin(user_id, username, f"{total_chips_won} Chips Total", total_chips_won, pppoker_id))
-                        logger.info(f"✅ Notifications sent successfully")
-                    finally:
-                        loop.close()
-                except Exception as e:
-                    logger.error(f"❌ Failed to send notifications: {e}")
-                    import traceback
-                    traceback.print_exc()
+            # Cancel existing timer if any
+            if notification_data['timer'] is not None:
+                notification_data['timer'].cancel()
 
-            threading.Thread(target=send_notifications, daemon=True).start()
-            logger.info(f"✅ Notification thread started")
+            # Start new timer - will send notification after delay if no more wins
+            timer = threading.Timer(NOTIFICATION_DELAY, send_aggregated_notifications, args=[user_id])
+            timer.start()
+            notification_data['timer'] = timer
+
+            logger.info(f"⏰ Notification timer set for {NOTIFICATION_DELAY}s (Total pending: {notification_data['chips']} chips)")
 
         # Build response
         response = {
