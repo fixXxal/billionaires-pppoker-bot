@@ -3672,13 +3672,13 @@ async def update_payment_account_start(update: Update, context: ContextTypes.DEF
         return ConversationHandler.END
 
     # Get current details
-    current_details = api.get_payment_account_details(context.user_data['update_method'])
+    current_details = api.get_payment_account(context.user_data['update_method'])
 
     if current_details and current_details.get('account_number'):
         current_text = f"📋 **Current {method_name} Account:**\n"
         current_text += f"Account Number: `{current_details['account_number']}`\n"
-        if current_details.get('account_holder'):
-            current_text += f"Account Holder: {current_details['account_holder']}\n"
+        if current_details.get('account_name'):
+            current_text += f"Account Holder: {current_details['account_name']}\n"
         current_text += f"\n"
     else:
         current_text = f"📋 **No {method_name} account configured yet.**\n\n"
@@ -6086,14 +6086,14 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
 
         if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
             payment_info += f"**BML:**\n`{payment_accounts['BML']['account_number']}`\n"
-            if payment_accounts['BML']['account_holder']:
-                payment_info += f"Name: {payment_accounts['BML']['account_holder']}\n"
+            if payment_accounts['BML'].get('account_name'):
+                payment_info += f"Name: {payment_accounts['BML']['account_name']}\n"
             payment_info += "\n"
 
         if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
             payment_info += f"**MIB:**\n`{payment_accounts['MIB']['account_number']}`\n"
-            if payment_accounts['MIB']['account_holder']:
-                payment_info += f"Name: {payment_accounts['MIB']['account_holder']}\n"
+            if payment_accounts['MIB'].get('account_name'):
+                payment_info += f"Name: {payment_accounts['MIB']['account_name']}\n"
             payment_info += "\n"
 
         # Notify user with payment details
