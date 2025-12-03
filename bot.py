@@ -7071,7 +7071,7 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
             current_chips = user_data.get('total_chips_earned', 0)
             new_total = current_chips + total_chips
             spin_bot.api.update_spin_user(
-                user_id=target_user_id,
+                telegram_id=target_user_id,
                 total_chips_earned=new_total
             )
 
@@ -7235,7 +7235,7 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
             current_chips = user_data.get('total_chips_earned', 0)
             new_total = current_chips + total_chips
             spin_bot.api.update_spin_user(
-                user_id=target_user_id,
+                telegram_id=target_user_id,
                 total_chips_earned=new_total
             )
 
