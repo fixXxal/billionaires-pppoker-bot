@@ -232,18 +232,32 @@ def send_aggregated_notifications(user_id: int):
     if total_chips > 0:
         logger.info(f"📬 Sending aggregated notification: {username} won {total_chips} chips total")
 
-        # Send notifications
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Send notifications with proper async handling
         try:
-            loop.run_until_complete(notify_user_win(user_id, username, f"{total_chips} Chips Total", total_chips))
-            loop.run_until_complete(notify_admin(user_id, username, f"{total_chips} Chips Total", total_chips, pppoker_id))
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            async def send_all():
+                """Send all notifications together"""
+                await notify_user_win(user_id, username, f"{total_chips} Chips Total", total_chips)
+                await notify_admin(user_id, username, f"{total_chips} Chips Total", total_chips, pppoker_id)
+
+            loop.run_until_complete(send_all())
             logger.info(f"✅ Aggregated notifications sent successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to send aggregated notifications: {e}")
+            import traceback
+            traceback.print_exc()
         finally:
-            loop.close()
+            # Ensure loop is properly cleaned up
+            try:
+                loop.close()
+            except:
+                pass
 
     # Clear pending notifications for this user
-    del pending_notifications[user_id]
+    if user_id in pending_notifications:
+        del pending_notifications[user_id]
 
 
 @app.route('/')
