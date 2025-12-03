@@ -1,6 +1,7 @@
 """
 Admin Panel for Billionaires PPPoker Bot
 Handles all admin commands and approval workflows
+Updated: 2025-12-03 - Added spin tracking integration
 """
 
 import os
