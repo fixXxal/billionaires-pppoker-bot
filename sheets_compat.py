@@ -198,9 +198,13 @@ class SheetsCompatAPI(DjangoAPI):
         """Get all seat requests from Django API"""
         return super().get_all_seat_requests()
 
-    def get_seat_request(self, request_id: int) -> Optional[Dict]:
+    def get_seat_request(self, request_id) -> Optional[Dict]:
         """Get single seat request by ID"""
         try:
+            # Convert to int if string
+            if isinstance(request_id, str):
+                request_id = int(request_id)
+
             requests = self.get_all_seat_requests()
             # Handle paginated response
             if isinstance(requests, dict) and 'results' in requests:
@@ -219,12 +223,30 @@ class SheetsCompatAPI(DjangoAPI):
         return True
 
     def approve_seat_request(self, request_id: int, admin_id: int) -> bool:
-        """Approve seat request - placeholder"""
-        return True
+        """Approve seat request"""
+        try:
+            # Convert to int if string
+            if isinstance(request_id, str):
+                request_id = int(request_id)
 
-    def reject_seat_request(self, request_id: int, admin_id: int) -> bool:
-        """Reject seat request - placeholder"""
-        return True
+            super().approve_seat_request(request_id, admin_id)
+            return True
+        except Exception as e:
+            logger.error(f"Error approving seat request: {e}")
+            return False
+
+    def reject_seat_request(self, request_id: int, admin_id: int, reason: str = '') -> bool:
+        """Reject seat request"""
+        try:
+            # Convert to int if string
+            if isinstance(request_id, str):
+                request_id = int(request_id)
+
+            super().reject_seat_request(request_id, admin_id, reason)
+            return True
+        except Exception as e:
+            logger.error(f"Error rejecting seat request: {e}")
+            return False
 
     # ==================== LEGACY CASHBACK METHODS ====================
 

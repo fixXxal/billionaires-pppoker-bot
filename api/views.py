@@ -528,6 +528,50 @@ class SeatRequestViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(seats, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Approve a seat request"""
+        seat_request = self.get_object()
+        admin_id = request.data.get('admin_id')
+
+        if not admin_id:
+            return Response(
+                {'error': 'admin_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        seat_request.status = 'Approved'
+        seat_request.approved_at = timezone.now()
+        seat_request.approved_by = admin_id
+        seat_request.synced_to_sheets = False
+        seat_request.save()
+
+        serializer = self.get_serializer(seat_request)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Reject a seat request"""
+        seat_request = self.get_object()
+        admin_id = request.data.get('admin_id')
+        reason = request.data.get('reason', '')
+
+        if not admin_id:
+            return Response(
+                {'error': 'admin_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        seat_request.status = 'Rejected'
+        seat_request.approved_at = timezone.now()
+        seat_request.approved_by = admin_id
+        seat_request.rejection_reason = reason
+        seat_request.synced_to_sheets = False
+        seat_request.save()
+
+        serializer = self.get_serializer(seat_request)
+        return Response(serializer.data)
+
 
 class CashbackRequestViewSet(viewsets.ModelViewSet):
     """API endpoint for Cashback Requests"""

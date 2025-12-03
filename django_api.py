@@ -327,6 +327,16 @@ class DjangoAPI:
         """Get all seat requests"""
         return self._get('seat-requests/')
 
+    def approve_seat_request(self, seat_request_id: int, admin_id: int) -> Dict:
+        """Approve a seat request"""
+        data = {'admin_id': admin_id}
+        return self._post(f'seat-requests/{seat_request_id}/approve/', data)
+
+    def reject_seat_request(self, seat_request_id: int, admin_id: int, reason: str = '') -> Dict:
+        """Reject a seat request"""
+        data = {'admin_id': admin_id, 'reason': reason}
+        return self._post(f'seat-requests/{seat_request_id}/reject/', data)
+
     # ==================== CASHBACK REQUEST METHODS ====================
 
     def create_cashback_request(self, user_id: int, week_start: str, week_end: str,
