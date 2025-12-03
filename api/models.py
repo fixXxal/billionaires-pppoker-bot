@@ -103,6 +103,7 @@ class SpinUser(models.Model):
     available_spins = models.IntegerField(default=0)
     total_spins_used = models.IntegerField(default=0)
     total_chips_earned = models.IntegerField(default=0)
+    total_deposit = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     updated_at = models.DateTimeField(auto_now=True)
     synced_to_sheets = models.BooleanField(default=False)
 

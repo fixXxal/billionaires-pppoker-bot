@@ -63,7 +63,7 @@ class SpinUserSerializer(serializers.ModelSerializer):
         model = SpinUser
         fields = [
             'id', 'user', 'user_details', 'available_spins',
-            'total_spins_used', 'total_chips_earned', 'updated_at'
+            'total_spins_used', 'total_chips_earned', 'total_deposit', 'updated_at'
         ]
         read_only_fields = ['id', 'updated_at']
 
