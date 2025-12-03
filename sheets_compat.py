@@ -194,10 +194,18 @@ class SheetsCompatAPI(DjangoAPI):
 
     # ==================== LEGACY SEAT REQUEST METHODS ====================
 
+    def get_all_seat_requests(self) -> List[Dict]:
+        """Get all seat requests from Django API"""
+        return self.api.get_all_seat_requests()
+
     def get_seat_request(self, request_id: int) -> Optional[Dict]:
         """Get single seat request by ID"""
         try:
             requests = self.get_all_seat_requests()
+            # Handle paginated response
+            if isinstance(requests, dict) and 'results' in requests:
+                requests = requests['results']
+
             for req in requests:
                 if req.get('id') == request_id:
                     return req
