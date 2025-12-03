@@ -156,12 +156,11 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
 
         logger.info(f"📊 Pending rewards for user {user_id}: {pending_count} spins, {total_pending_chips} chips")
 
-        # Get last deposit info and PPPoker ID from last deposit
+        # Get PPPoker ID from user's last deposit
         last_deposit_pppoker = pppoker_id  # Default to profile PPPoker ID
-        last_deposit_info = ""
         try:
             # Get user's deposits (most recent first)
-            deposits = api.get_deposits()
+            deposits = api.get_all_deposits()
             if isinstance(deposits, dict) and 'results' in deposits:
                 deposits = deposits['results']
 
@@ -170,22 +169,9 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
 
             if user_deposits:
                 last_deposit = user_deposits[0]  # Most recent
-                last_amount = last_deposit.get('amount', 0)
-                last_date = last_deposit.get('created_at', 'Unknown')
                 last_deposit_pppoker = last_deposit.get('pppoker_id', pppoker_id)  # PPPoker ID from last deposit
-
-                # Format date nicely
-                try:
-                    from datetime import datetime
-                    if last_date and last_date != 'Unknown':
-                        dt = datetime.fromisoformat(last_date.replace('Z', '+00:00'))
-                        last_date = dt.strftime('%Y-%m-%d %H:%M')
-                except:
-                    pass
-
-                last_deposit_info = f"\n\n💳 <b>Last Deposit:</b>\n📅 Date: {last_date}\n💰 Amount: {last_amount} MVR"
         except Exception as e:
-            logger.warning(f"Could not fetch last deposit info: {e}")
+            logger.warning(f"Could not fetch last deposit PPPoker ID: {e}")
 
         message = (
             f"🎰 <b>SPIN WHEEL WIN!</b> 🎰\n\n"
@@ -196,7 +182,6 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
             f"💎 Total Chips: {total_pending_chips}\n"
             f"📦 Pending Rewards: {pending_count}\n"
             f"🎮 PPPoker ID: {last_deposit_pppoker or 'Not set'}"
-            f"{last_deposit_info}"
         )
 
         # Create instant approve button
@@ -266,26 +251,38 @@ def send_aggregated_notifications(user_id: int):
 
         # Send notifications with proper async handling
         try:
+            # Create a fresh event loop for each notification batch
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
             async def send_all():
                 """Send all notifications together"""
-                await notify_user_win(user_id, username, f"{total_chips} Chips Total", total_chips)
-                await notify_admin(user_id, username, f"{total_chips} Chips Total", total_chips, pppoker_id)
+                try:
+                    await notify_user_win(user_id, username, f"{total_chips} Chips Total", total_chips)
+                    await notify_admin(user_id, username, f"{total_chips} Chips Total", total_chips, pppoker_id)
+                except Exception as e:
+                    logger.error(f"❌ Error in send_all: {e}")
+                    raise
 
-            loop.run_until_complete(send_all())
-            logger.info(f"✅ Aggregated notifications sent successfully")
+            try:
+                loop.run_until_complete(send_all())
+                logger.info(f"✅ Aggregated notifications sent successfully")
+            finally:
+                # Clean up all pending tasks before closing loop
+                pending_tasks = asyncio.all_tasks(loop)
+                for task in pending_tasks:
+                    task.cancel()
+
+                # Run loop one more time to allow cancellations to complete
+                loop.run_until_complete(asyncio.gather(*pending_tasks, return_exceptions=True))
+
+                # Close the loop
+                loop.close()
+
         except Exception as e:
             logger.error(f"❌ Failed to send aggregated notifications: {e}")
             import traceback
             traceback.print_exc()
-        finally:
-            # Ensure loop is properly cleaned up
-            try:
-                loop.close()
-            except:
-                pass
 
     # Clear pending notifications for this user
     if user_id in pending_notifications:
