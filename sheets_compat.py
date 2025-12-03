@@ -196,7 +196,7 @@ class SheetsCompatAPI(DjangoAPI):
 
     def get_all_seat_requests(self) -> List[Dict]:
         """Get all seat requests from Django API"""
-        return self.api.get_all_seat_requests()
+        return super().get_all_seat_requests()
 
     def get_seat_request(self, request_id: int) -> Optional[Dict]:
         """Get single seat request by ID"""
