@@ -399,7 +399,7 @@ class SpinBot:
                 logger.info(f"✅ [SPIN_BOT] Found existing spin user: {user_data}")
                 # Update existing user
                 current_spins = user_data.get('available_spins', 0)
-                current_deposit = user_data.get('total_deposit', 0)
+                current_deposit = float(user_data.get('total_deposit', 0))
                 new_available = current_spins + spins_to_add
                 new_total_deposit = current_deposit + amount_mvr
 
