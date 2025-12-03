@@ -1840,9 +1840,23 @@ async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return ConversationHandler.END
 
-    # Get user's last PPPoker ID from deposits
-    user_data = api.get_user(user.id)
-    if not user_data or not user_data.get('pppoker_id'):
+    # Get user's PPPoker ID from last deposit
+    pppoker_id = None
+    try:
+        deposits = api.get_all_deposits()
+        if isinstance(deposits, dict) and 'results' in deposits:
+            deposits = deposits['results']
+
+        # Filter approved deposits for this user
+        user_deposits = [d for d in deposits if d.get('user_details', {}).get('telegram_id') == user.id and d.get('status') == 'Approved']
+
+        if user_deposits:
+            # Get PPPoker ID from most recent deposit
+            pppoker_id = user_deposits[0].get('pppoker_id')
+    except Exception as e:
+        logger.error(f"Error fetching deposits for PPPoker ID: {e}")
+
+    if not pppoker_id:
         await update.message.reply_text(
             "❌ **No PPPoker ID found!**\n\n"
             "Please make a deposit first to register your PPPoker ID.\n"
@@ -1850,6 +1864,9 @@ async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode='Markdown'
         )
         return ConversationHandler.END
+
+    # Store PPPoker ID in context for later use
+    context.user_data['seat_pppoker_id'] = pppoker_id
 
     await update.message.reply_text(
         "🪑 **Seat Request**\n\n"
@@ -1874,9 +1891,8 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return SEAT_AMOUNT
 
-        # Get user's PPPoker ID
-        user_data = api.get_user(user.id)
-        pppoker_id = user_data.get('pppoker_id')
+        # Get PPPoker ID from context (already fetched from last deposit)
+        pppoker_id = context.user_data.get('seat_pppoker_id', '')
 
         # Create seat request
         seat_response = api.create_seat_request(
