@@ -156,6 +156,37 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
 
         logger.info(f"📊 Pending rewards for user {user_id}: {pending_count} spins, {total_pending_chips} chips")
 
+        # Get last deposit info and PPPoker ID from last deposit
+        last_deposit_pppoker = pppoker_id  # Default to profile PPPoker ID
+        last_deposit_info = ""
+        try:
+            # Get user's deposits (most recent first)
+            deposits = api.get_deposits()
+            if isinstance(deposits, dict) and 'results' in deposits:
+                deposits = deposits['results']
+
+            # Filter approved deposits for this user
+            user_deposits = [d for d in deposits if d.get('user_details', {}).get('telegram_id') == user_id and d.get('status') == 'Approved']
+
+            if user_deposits:
+                last_deposit = user_deposits[0]  # Most recent
+                last_amount = last_deposit.get('amount', 0)
+                last_date = last_deposit.get('created_at', 'Unknown')
+                last_deposit_pppoker = last_deposit.get('pppoker_id', pppoker_id)  # PPPoker ID from last deposit
+
+                # Format date nicely
+                try:
+                    from datetime import datetime
+                    if last_date and last_date != 'Unknown':
+                        dt = datetime.fromisoformat(last_date.replace('Z', '+00:00'))
+                        last_date = dt.strftime('%Y-%m-%d %H:%M')
+                except:
+                    pass
+
+                last_deposit_info = f"\n\n💳 <b>Last Deposit:</b>\n📅 Date: {last_date}\n💰 Amount: {last_amount} MVR"
+        except Exception as e:
+            logger.warning(f"Could not fetch last deposit info: {e}")
+
         message = (
             f"🎰 <b>SPIN WHEEL WIN!</b> 🎰\n\n"
             f"👤 User: {username} (ID: {user_id})\n"
@@ -164,7 +195,8 @@ async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppo
             f"📊 <b>Total Pending:</b>\n"
             f"💎 Total Chips: {total_pending_chips}\n"
             f"📦 Pending Rewards: {pending_count}\n"
-            f"🎮 PPPoker ID: {pppoker_id or 'Not set'}"
+            f"🎮 PPPoker ID: {last_deposit_pppoker or 'Not set'}"
+            f"{last_deposit_info}"
         )
 
         # Create instant approve button
@@ -336,11 +368,11 @@ def spin():
             return jsonify({'success': False, 'message': "No spins available!"}), 400
 
         available_spins = user_data.get('available_spins', 0)
-        username = user_data.get('username', 'Unknown')
 
-        # Get PPPoker ID quickly without blocking
-        # Don't sync during spin - it's too slow and not critical for the spin itself
-        pppoker_id = user_data.get('pppoker_id', '')
+        # Get username and PPPoker ID from user_details
+        user_details = user_data.get('user_details', {})
+        username = user_details.get('username', 'Unknown')
+        pppoker_id = user_details.get('pppoker_id', '')
 
         # Try to get from deposits only if empty (fast lookup, no updates)
         if not pppoker_id:
