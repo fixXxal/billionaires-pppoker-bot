@@ -1894,9 +1894,20 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
         # Get PPPoker ID from context (already fetched from last deposit)
         pppoker_id = context.user_data.get('seat_pppoker_id', '')
 
+        # Get database user ID
+        user_data = api.get_user_by_telegram_id(user.id)
+        if not user_data:
+            await update.message.reply_text(
+                "❌ User not found. Please use /start first.",
+                parse_mode='Markdown'
+            )
+            return ConversationHandler.END
+
+        db_user_id = user_data.get('id')
+
         # Create seat request
         seat_response = api.create_seat_request(
-            user_id=user.id,
+            user_id=db_user_id,
             amount=amount,
             slip_image_path='',  # Seat requests don't have slip initially
             pppoker_id=pppoker_id
