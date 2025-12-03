@@ -6,6 +6,7 @@ This provides backward compatibility for bot.py while using Django API
 from django_api import DjangoAPI
 from typing import Dict, List, Optional
 import logging
+import requests
 
 logger = logging.getLogger(__name__)
 
