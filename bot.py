@@ -1854,7 +1854,7 @@ async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
             f"💰 Credit Amount: {existing_credit['amount']} chips/MVR\n"
             f"📅 Created: {existing_credit['created_at']}\n\n"
             f"Please settle your existing credit before requesting a new seat.\n"
-            f"Upload your payment slip or contact Live Support.",
+            f"Contact Live Support.",
             parse_mode='Markdown'
         )
         return ConversationHandler.END
