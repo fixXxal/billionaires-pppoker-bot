@@ -350,6 +350,26 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error getting active cashback promotion: {e}")
             return None
 
+    def get_all_promotions(self) -> List[Dict]:
+        """Get all deposit bonus promotions"""
+        try:
+            all_promos = self.get_all_promo_codes()
+            # Filter for bonus type only
+            return [p for p in all_promos if p.get('promo_type') == 'bonus']
+        except Exception as e:
+            logger.error(f"Error getting all promotions: {e}")
+            return []
+
+    def get_all_cashback_promotions(self) -> List[Dict]:
+        """Get all cashback promotions"""
+        try:
+            all_promos = self.get_all_promo_codes()
+            # Filter for cashback type only
+            return [p for p in all_promos if p.get('promo_type') == 'cashback']
+        except Exception as e:
+            logger.error(f"Error getting all cashback promotions: {e}")
+            return []
+
     def get_bonuses_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
         """Get bonuses by date range - placeholder"""
         return []
