@@ -6290,17 +6290,10 @@ async def auto_reject_seat_request(context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=user_id,
                 text=f"⏰ <b>Seat Request Timeout</b>\n\n"
-                     f"━━━━━━━━━━━━━━━━━━\n\n"
-                     f"Your seat request has been automatically closed due to response timeout.\n\n"
-                     f"💰 <b>Amount:</b> {amount} chips/MVR\n"
-                     f"📋 <b>Request ID:</b> <code>{request_id}</code>\n\n"
-                     f"━━━━━━━━━━━━━━━━━━\n\n"
-                     f"💡 <b>What happened?</b>\n"
-                     f"Our team couldn't process your request within the 2-minute time window.\n\n"
-                     f"✨ <b>What to do next:</b>\n"
-                     f"• Submit a new seat request\n"
-                     f"• Or contact Live Support for immediate assistance\n\n"
-                     f"We're here to help! 💬",
+                     f"Your seat request has been automatically closed.\n\n"
+                     f"💰 Amount: {amount} chips/MVR\n"
+                     f"📋 Request ID: <code>{request_id}</code>\n\n"
+                     f"Sorry for the inconvenience. Please try again.",
                 parse_mode='HTML'
             )
         except Exception as e:
