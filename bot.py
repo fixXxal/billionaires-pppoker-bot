@@ -6211,7 +6211,8 @@ async def reject_seat_request(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.edit_message_text(
         f"{query.message.text}\n\n❌ **REJECTING**\n\n"
         f"Please type the reason for rejection:",
-        parse_mode='HTML'
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([])
     )
 
 
