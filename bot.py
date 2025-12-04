@@ -1290,13 +1290,11 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
 
     # Send confirmation to user
     currency = 'MVR' if method != 'USDT' else 'USD'
-    # Mask account number (show last 4 digits)
-    masked_account = f"***{account_number[-4:]}" if len(account_number) >= 4 else account_number
     await update.message.reply_text(
         f"✅ <b>Withdrawal sent!</b>\n\n"
         f"💸 {amount} {currency} to {method}\n"
         f"👤 Account Name: {account_name}\n"
-        f"🏦 Account Number: {masked_account}\n\n"
+        f"🏦 Account Number: {account_number}\n\n"
         f"Processing now.",
         parse_mode='HTML'
     )
