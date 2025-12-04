@@ -1259,7 +1259,23 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     method = context.user_data['withdrawal_method']
     amount = context.user_data['withdrawal_amount']
     pppoker_id = context.user_data['withdrawal_pppoker_id']
-    account_name = user_data.get('account_name') or user_data.get('username', 'User')
+
+    # Get account name from most recent deposit (excluding seat payments)
+    account_name = user_data.get('account_name')
+    if not account_name:
+        # Try to get from last deposit
+        try:
+            deposits = api.get_user_deposits(user.id)
+            # Get non-seat-payment deposits
+            regular_deposits = [d for d in deposits if d.get('account_name') != 'Seat Payment']
+            if regular_deposits:
+                account_name = regular_deposits[0].get('account_name')
+        except:
+            pass
+
+    # Final fallback to username
+    if not account_name:
+        account_name = user_data.get('username', 'User')
 
     # Create withdrawal request
     withdrawal_response = api.create_withdrawal_request(
