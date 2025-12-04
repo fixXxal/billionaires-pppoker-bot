@@ -697,10 +697,11 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
             status='Approved'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-        # Calculate total spin rewards
+        # Calculate total spin rewards (from approved spin history)
         total_spin_rewards = SpinHistory.objects.filter(
-            spin_user__user=user
-        ).aggregate(total=Sum('chips_won'))['total'] or Decimal('0')
+            user=user,
+            status='Approved'
+        ).aggregate(total=Sum('chips'))['total'] or Decimal('0')
 
         # Calculate total promotion bonuses
         total_bonuses = PromotionEligibility.objects.filter(
