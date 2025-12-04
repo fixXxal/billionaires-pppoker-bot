@@ -557,6 +557,24 @@ class DjangoAPI:
         """Get all promo codes"""
         return self._get('promo-codes/')
 
+    def deactivate_promotion(self, promotion_id: int) -> bool:
+        """Deactivate a promotion by setting is_active to False"""
+        try:
+            self._patch(f'promo-codes/{promotion_id}/', {'is_active': False})
+            return True
+        except Exception as e:
+            logger.error(f"Error deactivating promotion {promotion_id}: {e}")
+            return False
+
+    def deactivate_cashback_promotion(self, promotion_id: int) -> bool:
+        """Deactivate a cashback promotion by setting is_active to False"""
+        try:
+            self._patch(f'promo-codes/{promotion_id}/', {'is_active': False})
+            return True
+        except Exception as e:
+            logger.error(f"Error deactivating cashback promotion {promotion_id}: {e}")
+            return False
+
     def check_user_promotion_eligibility(self, telegram_id: int, promotion_id: int) -> bool:
         """Check if user is eligible for a promotion"""
         try:
