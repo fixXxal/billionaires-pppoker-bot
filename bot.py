@@ -4721,7 +4721,7 @@ async def counter_close_saved_poster(update: Update, context: ContextTypes.DEFAU
             logger.error(f"Failed to send closing announcement to {user_id}: {e}")
 
     # Update counter status
-    api.set_counter_status('CLOSED', admin_name, announcement_sent=True)
+    api.set_counter_status('CLOSED', query.from_user.id, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter CLOSED</b>\n\n"
@@ -4746,7 +4746,7 @@ async def counter_close_poster_received(update: Update, context: ContextTypes.DE
     file_id = photo.file_id
 
     # Save poster for future use
-    api.set_counter_status('CLOSED', update.effective_user.username or update.effective_user.first_name, announcement_sent=True)
+    api.set_counter_status('CLOSED', update.effective_user.id, announcement_sent=True)
     api.save_counter_poster('closing', file_id)
 
     # Broadcast to all users
@@ -4813,7 +4813,7 @@ async def counter_close_text_only(update: Update, context: ContextTypes.DEFAULT_
             logger.error(f"Failed to send closing announcement to {user_id}: {e}")
 
     # Update counter status
-    api.set_counter_status('CLOSED', admin_name, announcement_sent=True)
+    api.set_counter_status('CLOSED', query.from_user.id, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter CLOSED</b>\n\n"
@@ -4829,8 +4829,7 @@ async def counter_close_silent(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     await query.answer()
 
-    admin_name = query.from_user.username or query.from_user.first_name
-    api.set_counter_status('CLOSED', admin_name, announcement_sent=False)
+    api.set_counter_status('CLOSED', query.from_user.id, announcement_sent=False)
 
     await query.edit_message_text(
         "✅ <b>Counter CLOSED</b>\n\n"
@@ -4924,7 +4923,7 @@ async def counter_open_saved_poster(update: Update, context: ContextTypes.DEFAUL
             logger.error(f"Failed to send opening announcement to {user_id}: {e}")
 
     # Update counter status
-    api.set_counter_status('OPEN', admin_name, announcement_sent=True)
+    api.set_counter_status('OPEN', query.from_user.id, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter OPEN</b>\n\n"
@@ -4949,7 +4948,7 @@ async def counter_open_poster_received(update: Update, context: ContextTypes.DEF
     file_id = photo.file_id
 
     # Save poster for future use
-    api.set_counter_status('OPEN', update.effective_user.username or update.effective_user.first_name, announcement_sent=True)
+    api.set_counter_status('OPEN', update.effective_user.id, announcement_sent=True)
     api.save_counter_poster('opening', file_id)
 
     # Broadcast to all users
@@ -5016,7 +5015,7 @@ async def counter_open_text_only(update: Update, context: ContextTypes.DEFAULT_T
             logger.error(f"Failed to send opening announcement to {user_id}: {e}")
 
     # Update counter status
-    api.set_counter_status('OPEN', admin_name, announcement_sent=True)
+    api.set_counter_status('OPEN', query.from_user.id, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter OPEN</b>\n\n"
@@ -5033,7 +5032,7 @@ async def counter_open_silent(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
 
     admin_name = query.from_user.username or query.from_user.first_name
-    api.set_counter_status('OPEN', admin_name, announcement_sent=False)
+    api.set_counter_status('OPEN', query.from_user.id, announcement_sent=False)
 
     await query.edit_message_text(
         "✅ <b>Counter OPEN</b>\n\n"
