@@ -357,18 +357,42 @@ class DjangoAPI:
 
     # ==================== CASHBACK REQUEST METHODS ====================
 
-    def create_cashback_request(self, user_id: int, week_start: str, week_end: str,
-                               investment_amount: float, cashback_amount: float,
-                               cashback_percentage: float, pppoker_id: str) -> Dict:
-        """Create new cashback request"""
+    def create_cashback_request(self, user_id: int = None, username: str = None,
+                               pppoker_id: str = None, loss_amount: float = None,
+                               cashback_amount: float = None, cashback_percentage: float = None,
+                               promotion_id: int = None, week_start: str = None,
+                               week_end: str = None, investment_amount: float = None,
+                               telegram_id: int = None) -> Dict:
+        """Create new cashback request - supports multiple parameter formats"""
+        from datetime import datetime, timedelta
+
+        # Get user database ID from telegram_id if provided
+        if telegram_id and not user_id:
+            user_obj = self.get_or_create_user(telegram_id, username or str(telegram_id))
+            user_id = user_obj.get('id')
+        elif user_id and not telegram_id:
+            # Assume user_id is telegram_id in old format
+            user_obj = self.get_or_create_user(user_id, username or str(user_id))
+            user_id = user_obj.get('id')
+
+        # Auto-generate week_start/week_end if not provided (current week)
+        if not week_start or not week_end:
+            today = datetime.now().date()
+            week_start = (today - timedelta(days=today.weekday())).isoformat()
+            week_end = (today + timedelta(days=(6 - today.weekday()))).isoformat()
+
+        # Use loss_amount as investment_amount if provided
+        if loss_amount and not investment_amount:
+            investment_amount = loss_amount
+
         data = {
             'user': user_id,
             'week_start': week_start,
             'week_end': week_end,
-            'investment_amount': investment_amount,
-            'cashback_amount': cashback_amount,
-            'cashback_percentage': cashback_percentage,
-            'pppoker_id': pppoker_id,
+            'investment_amount': investment_amount or 0,
+            'cashback_amount': cashback_amount or 0,
+            'cashback_percentage': cashback_percentage or 0,
+            'pppoker_id': pppoker_id or 'N/A',
             'status': 'Pending'
         }
         return self._post('cashback-requests/', data)
