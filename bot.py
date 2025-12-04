@@ -1295,7 +1295,8 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     await update.message.reply_text(
         f"✅ <b>Withdrawal sent!</b>\n\n"
         f"💸 {amount} {currency} to {method}\n"
-        f"🏦 Account: {masked_account}\n\n"
+        f"👤 Account Name: {account_name}\n"
+        f"🏦 Account Number: {masked_account}\n\n"
         f"Processing now.",
         parse_mode='HTML'
     )
