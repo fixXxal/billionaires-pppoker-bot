@@ -6115,6 +6115,10 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
             logger.error(f"No telegram_id found in seat request: {seat_req}")
             user_telegram_id = seat_req.get('user_id')  # fallback
 
+        # Create upload button
+        keyboard = [[InlineKeyboardButton("📤 Upload Payment Slip", callback_data=f"upload_seat_slip_{request_id}")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
         # Notify user with payment details
         try:
             await context.bot.send_message(
@@ -6122,8 +6126,9 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
                 text=f"✅ <b>Seat approved!</b>\n\n"
                      f"🪑 {seat_req['amount']} chips ready\n\n"
                      f"{payment_info}\n\n"
-                     f"📸 Upload payment slip now.",
-                parse_mode='HTML'
+                     f"📸 Click the button below to upload your payment slip:",
+                parse_mode='HTML',
+                reply_markup=reply_markup
             )
 
             # Store data and add user to credit list
@@ -6276,6 +6281,32 @@ async def final_slip_reminder(context: ContextTypes.DEFAULT_TYPE):
     # Clean up job tracking
     if user_id in seat_reminder_jobs:
         del seat_reminder_jobs[user_id]
+
+
+async def upload_seat_slip_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle upload slip button click"""
+    query = update.callback_query
+    await query.answer()
+
+    # Check if user has active seat request
+    if query.from_user.id not in seat_request_data:
+        await query.edit_message_text(
+            "❌ No active seat request found.\n\n"
+            "Please request a seat first using /seat command.",
+            parse_mode='HTML'
+        )
+        return
+
+    # Prompt user to send photo
+    await query.edit_message_text(
+        f"{query.message.text}\n\n"
+        f"📸 <b>Please send your payment slip photo now.</b>\n\n"
+        f"Make sure the slip clearly shows:\n"
+        f"• Transaction amount\n"
+        f"• Account name\n"
+        f"• Date and time",
+        parse_mode='HTML'
+    )
 
 
 async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -6514,25 +6545,25 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(f"❌ This slip has already been {seat_req['status'].lower()}", show_alert=True)
         return
 
-    # Settle in database
-    success = api.settle_seat_request(
-        request_id,
-        "Slip Upload",  # Payment method
-        "OCR Verified",  # Transaction ID
-        query.from_user.id
-    )
+    # Extract user telegram ID
+    user_telegram_id = seat_req.get('user_details', {}).get('telegram_id')
+    if not user_telegram_id:
+        user_telegram_id = seat_req.get('user_id')  # fallback
+
+    # Settle in database (mark as completed)
+    success = api.settle_seat_request(request_id, "Completed")
 
     if success:
         # Clear user credit
-        api.clear_user_credit(seat_req['user_id'])
+        api.clear_user_credit(user_telegram_id)
 
         # Clean up tracking
-        if seat_req['user_id'] in seat_request_data:
-            del seat_request_data[seat_req['user_id']]
-        if seat_req['user_id'] in seat_reminder_jobs:
+        if user_telegram_id in seat_request_data:
+            del seat_request_data[user_telegram_id]
+        if user_telegram_id in seat_reminder_jobs:
             try:
-                seat_reminder_jobs[seat_req['user_id']].schedule_removal()
-                del seat_reminder_jobs[seat_req['user_id']]
+                seat_reminder_jobs[user_telegram_id].schedule_removal()
+                del seat_reminder_jobs[user_telegram_id]
             except:
                 pass
 
@@ -6602,6 +6633,12 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(f"❌ This slip has already been {seat_req['status'].lower()}", show_alert=True)
         return
 
+    # Extract user info
+    user_telegram_id = seat_req.get('user_details', {}).get('telegram_id')
+    username = seat_req.get('user_details', {}).get('username', 'User')
+    if not user_telegram_id:
+        user_telegram_id = seat_req.get('user_id')  # fallback
+
     # Update message caption for ALL admins - remove buttons and show who rejected
     if f"slip_{request_id}" in notification_messages:
         for admin_id, message_id in notification_messages[f"slip_{request_id}"]:
@@ -6611,7 +6648,7 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     message_id=message_id,
                     caption=f"📸 **Payment Slip Verification**\n\n"
                             f"**Request ID:** `{request_id}`\n"
-                            f"**User:** @{seat_req['username']} (ID: {seat_req['user_id']})\n"
+                            f"**User:** @{username} (ID: {user_telegram_id})\n"
                             f"**PPPoker ID:** {seat_req['pppoker_id']}\n"
                             f"**Amount:** {seat_req['amount']} chips/MVR\n\n"
                             f"❌ <b>REJECTED by {query.from_user.first_name}</b>\nUser notified to reupload.",
@@ -6625,7 +6662,7 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Notify user to reupload or contact support
     try:
         await context.bot.send_message(
-            chat_id=seat_req['user_id'],
+            chat_id=user_telegram_id,
             text=f"❌ **Payment Slip Rejected**\n\n"
                  f"**Request ID:** `{request_id}`\n\n"
                  f"Your payment slip could not be verified.\n\n"
@@ -7857,6 +7894,7 @@ def main():
     # Seat request handlers
     application.add_handler(CallbackQueryHandler(approve_seat_request, pattern="^approve_seat_"))
     application.add_handler(CallbackQueryHandler(reject_seat_request, pattern="^reject_seat_"))
+    application.add_handler(CallbackQueryHandler(upload_seat_slip_button, pattern="^upload_seat_slip_"))
     application.add_handler(CallbackQueryHandler(settle_seat_slip, pattern="^settle_seat_"))
     application.add_handler(CallbackQueryHandler(reject_seat_slip, pattern="^reject_slip_"))
     application.add_handler(CallbackQueryHandler(clear_user_credit_callback, pattern="^clear_credit_"))
