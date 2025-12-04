@@ -2003,6 +2003,15 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
             except Exception as e:
                 logger.error(f"Failed to send seat request to admin {admin_id}: {e}")
 
+        # Schedule auto-reject after 2 minutes if not processed
+        job = context.job_queue.run_once(
+            auto_reject_seat_request,
+            when=120,  # 2 minutes
+            data={'request_id': request_id, 'user_id': user.id, 'amount': amount, 'pppoker_id': pppoker_id},
+            name=f"auto_reject_seat_{request_id}"
+        )
+        logger.info(f"Scheduled auto-reject for seat request {request_id} in 2 minutes")
+
         return ConversationHandler.END
 
     except ValueError:
@@ -6233,6 +6242,72 @@ async def reject_seat_request(update: Update, context: ContextTypes.DEFAULT_TYPE
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup([])
     )
+
+
+async def auto_reject_seat_request(context: ContextTypes.DEFAULT_TYPE):
+    """Auto-reject seat request if not processed within 2 minutes"""
+    job_data = context.job.data
+    request_id = job_data['request_id']
+    user_id = job_data['user_id']
+    amount = job_data['amount']
+    pppoker_id = job_data['pppoker_id']
+
+    # Check if seat request still pending
+    seat_req = api.get_seat_request(request_id)
+    if not seat_req or seat_req.get('status') != 'Pending':
+        # Already processed, no need to auto-reject
+        logger.info(f"Seat request {request_id} already processed, skipping auto-reject")
+        return
+
+    # Auto-reject the seat request
+    try:
+        api.reject_seat_request(request_id, 0, "Auto-rejected: Response timeout (2 minutes)")
+        logger.info(f"Auto-rejected seat request {request_id} due to timeout")
+
+        # Remove buttons for ALL admins
+        if request_id in notification_messages:
+            for admin_id, message_id in notification_messages[request_id]:
+                try:
+                    await context.bot.edit_message_text(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        text=f"🪑 <b>SEAT REQUEST - AUTO-REJECTED</b>\n\n"
+                             f"<b>Request ID:</b> {request_id}\n"
+                             f"<b>User ID:</b> <code>{user_id}</code>\n"
+                             f"<b>PPPoker ID:</b> <code>{pppoker_id}</code>\n"
+                             f"<b>Amount:</b> <b>{amount} chips/MVR</b>\n\n"
+                             f"⏰ <b>Auto-rejected:</b> Response timeout (2 minutes)\n"
+                             f"No admin action was taken within the time limit.",
+                        parse_mode='HTML',
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to update message for admin {admin_id}: {e}")
+            del notification_messages[request_id]
+
+        # Notify user with a nice message
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"⏰ <b>Seat Request Timeout</b>\n\n"
+                     f"━━━━━━━━━━━━━━━━━━\n\n"
+                     f"Your seat request has been automatically closed due to response timeout.\n\n"
+                     f"💰 <b>Amount:</b> {amount} chips/MVR\n"
+                     f"📋 <b>Request ID:</b> <code>{request_id}</code>\n\n"
+                     f"━━━━━━━━━━━━━━━━━━\n\n"
+                     f"💡 <b>What happened?</b>\n"
+                     f"Our team couldn't process your request within the 2-minute time window.\n\n"
+                     f"✨ <b>What to do next:</b>\n"
+                     f"• Submit a new seat request\n"
+                     f"• Or contact Live Support for immediate assistance\n\n"
+                     f"We're here to help! 💬",
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify user {user_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"Failed to auto-reject seat request {request_id}: {e}")
 
 
 # Seat Slip Upload and Reminder Handlers
