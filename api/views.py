@@ -705,22 +705,23 @@ class CounterStatusViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def toggle(self, request):
         """Toggle counter open/close"""
-        admin_id = request.data.get('admin_id')
+        admin_id = request.data.get('admin_id', 0)
 
-        if not admin_id:
+        try:
+            counter = CounterStatus.load()
+            counter.is_open = not counter.is_open
+            counter.updated_by = admin_id
+            counter.synced_to_sheets = False
+            counter.save()
+
+            serializer = self.get_serializer(counter)
+            return Response(serializer.data)
+        except Exception as e:
+            import traceback
             return Response(
-                {'error': 'admin_id is required'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'error': str(e), 'traceback': traceback.format_exc()},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-        counter = CounterStatus.load()
-        counter.is_open = not counter.is_open
-        counter.updated_by = admin_id
-        counter.synced_to_sheets = False
-        counter.save()
-
-        serializer = self.get_serializer(counter)
-        return Response(serializer.data)
 
 
 class PromoCodeViewSet(viewsets.ModelViewSet):
