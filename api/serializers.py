@@ -7,8 +7,8 @@ from rest_framework import serializers
 from .models import (
     User, Deposit, Withdrawal, SpinUser, SpinAward, SpinUsage, SpinHistory,
     JoinRequest, SeatRequest, CashbackRequest, PaymentAccount,
-    Admin, CounterStatus, PromoCode, SupportMessage,
-    UserCredit, ExchangeRate, FiftyFiftyInvestment,
+    Admin, CounterStatus, PromoCode, PromotionEligibility, CashbackEligibility,
+    SupportMessage, UserCredit, ExchangeRate, FiftyFiftyInvestment,
     ClubBalance, InventoryTransaction
 )
 

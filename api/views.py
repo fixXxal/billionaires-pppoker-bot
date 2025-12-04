@@ -14,8 +14,8 @@ from django.http import JsonResponse
 from .models import (
     User, Deposit, Withdrawal, SpinUser, SpinAward, SpinUsage, SpinHistory,
     JoinRequest, SeatRequest, CashbackRequest, PaymentAccount,
-    Admin, CounterStatus, PromoCode, SupportMessage,
-    UserCredit, ExchangeRate, FiftyFiftyInvestment,
+    Admin, CounterStatus, PromoCode, PromotionEligibility, CashbackEligibility,
+    SupportMessage, UserCredit, ExchangeRate, FiftyFiftyInvestment,
     ClubBalance, InventoryTransaction
 )
 from .serializers import (
@@ -23,6 +23,7 @@ from .serializers import (
     SpinUserSerializer, SpinAwardSerializer, SpinUsageSerializer, SpinHistorySerializer,
     JoinRequestSerializer, SeatRequestSerializer, CashbackRequestSerializer,
     PaymentAccountSerializer, AdminSerializer, CounterStatusSerializer, PromoCodeSerializer,
+    PromotionEligibilitySerializer, CashbackEligibilitySerializer,
     SupportMessageSerializer, UserCreditSerializer, ExchangeRateSerializer,
     FiftyFiftyInvestmentSerializer, ClubBalanceSerializer,
     InventoryTransactionSerializer
