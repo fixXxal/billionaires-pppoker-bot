@@ -1495,25 +1495,25 @@ async def admin_view_promotions(update: Update, context: ContextTypes.DEFAULT_TY
     all_promos = api.get_all_promotions()
     all_cashback_promos = api.get_all_cashback_promotions()
 
-    message = "🎁 **Promotions Management**\n\n"
+    message = "🎁 <b>Promotions Management</b>\n\n"
 
     # Bonus Promotion Section
-    message += "**💰 Bonus Promotion (Deposits):**\n"
+    message += "<b>💰 Bonus Promotion (Deposits):</b>\n"
     if active_promo:
-        message += f"🆔 ID: `{active_promo.get('id')}`\n"
+        message += f"🆔 ID: {active_promo.get('id', 'N/A')}\n"
         message += f"📝 Code: {active_promo.get('code', 'N/A')}\n"
         message += f"💰 Bonus: {active_promo.get('percentage', 0)}%\n"
-        message += f"📅 Period: {active_promo.get('start_date')} to {active_promo.get('end_date')}\n\n"
+        message += f"📅 Period: {active_promo.get('start_date', 'N/A')} to {active_promo.get('end_date', 'N/A')}\n\n"
     else:
         message += "No active bonus promotion\n\n"
 
     # Cashback Promotion Section
-    message += "**💸 Cashback Promotion (Losses):**\n"
+    message += "<b>💸 Cashback Promotion (Losses):</b>\n"
     if active_cashback_promo:
-        message += f"🆔 ID: `{active_cashback_promo.get('id')}`\n"
+        message += f"🆔 ID: {active_cashback_promo.get('id', 'N/A')}\n"
         message += f"📝 Code: {active_cashback_promo.get('code', 'N/A')}\n"
         message += f"💸 Cashback: {active_cashback_promo.get('percentage', 0)}%\n"
-        message += f"📅 Period: {active_cashback_promo.get('start_date')} to {active_cashback_promo.get('end_date')}\n\n"
+        message += f"📅 Period: {active_cashback_promo.get('start_date', 'N/A')} to {active_cashback_promo.get('end_date', 'N/A')}\n\n"
     else:
         message += "No active cashback promotion\n\n"
 
@@ -1536,7 +1536,7 @@ async def admin_view_promotions(update: Update, context: ContextTypes.DEFAULT_TY
     keyboard.append([InlineKeyboardButton("« Back", callback_data="admin_back")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+    await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='HTML')
 
 
 async def admin_view_all_promotions(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1553,18 +1553,18 @@ async def admin_view_all_promotions(update: Update, context: ContextTypes.DEFAUL
         )
         return
 
-    message = "💰 **All Bonus Promotions**\n\n"
+    message = "💰 <b>All Bonus Promotions</b>\n\n"
     for promo in all_promos[-10:]:  # Show last 10
         is_active = promo.get('is_active', False)
         status_emoji = "🟢" if is_active else "⚪"
-        message += f"{status_emoji} **{promo.get('code', 'N/A')}** (ID: {promo.get('id')})\n"
+        message += f"{status_emoji} <b>{promo.get('code', 'N/A')}</b> (ID: {promo.get('id', 'N/A')})\n"
         message += f"   Bonus: {promo.get('percentage', 0)}%\n"
-        message += f"   Period: {promo.get('start_date')} to {promo.get('end_date')}\n"
+        message += f"   Period: {promo.get('start_date', 'N/A')} to {promo.get('end_date', 'N/A')}\n"
         message += f"   Status: {'Active' if is_active else 'Inactive'}\n\n"
 
     keyboard = [[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+    await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='HTML')
 
 
 async def admin_view_all_cashback_promotions(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1581,18 +1581,18 @@ async def admin_view_all_cashback_promotions(update: Update, context: ContextTyp
         )
         return
 
-    message = "💸 **All Cashback Promotions**\n\n"
+    message = "💸 <b>All Cashback Promotions</b>\n\n"
     for promo in all_cashback_promos[-10:]:  # Show last 10
         is_active = promo.get('is_active', False)
         status_emoji = "🟢" if is_active else "⚪"
-        message += f"{status_emoji} **{promo.get('code', 'N/A')}** (ID: {promo.get('id')})\n"
+        message += f"{status_emoji} <b>{promo.get('code', 'N/A')}</b> (ID: {promo.get('id', 'N/A')})\n"
         message += f"   Cashback: {promo.get('percentage', 0)}%\n"
-        message += f"   Period: {promo.get('start_date')} to {promo.get('end_date')}\n"
+        message += f"   Period: {promo.get('start_date', 'N/A')} to {promo.get('end_date', 'N/A')}\n"
         message += f"   Status: {'Active' if is_active else 'Inactive'}\n\n"
 
     keyboard = [[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+    await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='HTML')
 
 
 async def promo_deactivate(update: Update, context: ContextTypes.DEFAULT_TYPE):
