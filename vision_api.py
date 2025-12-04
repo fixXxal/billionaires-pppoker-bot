@@ -235,6 +235,8 @@ def parse_payment_details(text):
             # Check next 10 lines for a name-like string
             for offset in range(1, min(11, len(lines) - from_index)):
                 potential_name = lines[from_index + offset].strip()
+                potential_name_upper = potential_name.upper()
+
                 # Check if it looks like a name (has letters, spaces/dots, not pure digits, not too long)
                 if (len(potential_name) >= 3 and
                     re.search(r'[A-Za-z]', potential_name) and
@@ -242,14 +244,19 @@ def parse_payment_details(text):
                     len(potential_name) < 50 and
                     not re.match(r'^\d{10,}$', potential_name)):  # Not an account number
 
-                    # Skip common label words
-                    if potential_name.upper() not in skip_name_words:
-                        # Remove any trailing numbers (account numbers)
-                        potential_name = re.sub(r'\s*\d{10,}$', '', potential_name)
-                        if len(potential_name) >= 3:
-                            details['sender_name'] = potential_name.title()
-                            sender_line_index = from_index + offset  # Track where we found it
-                            break
+                    # Skip if it contains any skip words or looks like UI text
+                    if (not any(skip_word in potential_name_upper for skip_word in skip_name_words) and
+                        not re.search(r'(THANK|YOUR|REQUEST|SUBMITTED|PROCESSING|MESSAGE|REMARKS)', potential_name_upper)):
+
+                        # Only accept if it looks like a proper name (dots or short words, not long sentences)
+                        # Names are usually: AHMD.FIXAL, MOHAMED ALI, etc. (not "Thank you. Your request...")
+                        if '.' in potential_name or len(potential_name.split()) <= 3:
+                            # Remove any trailing numbers (account numbers)
+                            potential_name = re.sub(r'\s*\d{10,}$', '', potential_name)
+                            if len(potential_name) >= 3:
+                                details['sender_name'] = potential_name.title()
+                                sender_line_index = from_index + offset  # Track where we found it
+                                break
 
     # Pattern 2: "To" field (receiver) - Enhanced for BML format
     to_patterns = [
@@ -308,13 +315,19 @@ def parse_payment_details(text):
                     len(potential_name) < 50 and
                     not re.match(r'^\d{10,}$', potential_name)):  # Not an account number
 
-                    # Skip common label words but ALLOW same name as sender (for self-transfers)
-                    if potential_name.upper() not in skip_name_words:
-                        # Remove any trailing numbers (account numbers)
-                        clean_name = re.sub(r'\s*\d{10,}$', '', potential_name)
-                        if len(clean_name) >= 3:
-                            details['receiver_name'] = clean_name.title()
-                            break
+                    potential_name_upper = potential_name.upper()
+
+                    # Skip if it contains any skip words or looks like UI text
+                    if (not any(skip_word in potential_name_upper for skip_word in skip_name_words) and
+                        not re.search(r'(THANK|YOUR|REQUEST|SUBMITTED|PROCESSING|MESSAGE|REMARKS|BEEN)', potential_name_upper)):
+
+                        # Only accept if it looks like a proper name (dots or short words, not long sentences)
+                        if '.' in potential_name or len(potential_name.split()) <= 3:
+                            # Remove any trailing numbers (account numbers)
+                            clean_name = re.sub(r'\s*\d{10,}$', '', potential_name)
+                            if len(clean_name) >= 3:
+                                details['receiver_name'] = clean_name.title()
+                                break
 
     # --- Extract Receiver Account Number ---
     # Look for account numbers near "To" label
