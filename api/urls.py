@@ -24,6 +24,7 @@ router.register(r'payment-accounts', views.PaymentAccountViewSet, basename='paym
 router.register(r'admins', views.AdminViewSet, basename='admin')
 router.register(r'counter-status', views.CounterStatusViewSet, basename='counterstatus')
 router.register(r'promo-codes', views.PromoCodeViewSet, basename='promocode')
+router.register(r'promotion-eligibility', views.PromotionEligibilityViewSet, basename='promotioneligibility')
 router.register(r'support-messages', views.SupportMessageViewSet, basename='supportmessage')
 router.register(r'user-credits', views.UserCreditViewSet, basename='usercredit')
 router.register(r'exchange-rates', views.ExchangeRateViewSet, basename='exchangerate')

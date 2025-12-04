@@ -333,13 +333,40 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error getting active promotion: {e}")
             return None
 
-    def check_user_promotion_eligibility(self, telegram_id: int) -> Dict:
-        """Check if user is eligible for promotion"""
-        return {'eligible': True}
+    def check_user_promotion_eligibility(self, telegram_id: int, pppoker_id: str = None,
+                                        promotion_id: int = None) -> bool:
+        """Check if user is eligible for promotion (hasn't received bonus from this promo yet)"""
+        if not promotion_id:
+            return True  # If no promotion_id provided, assume eligible
+        # Call parent class method (DjangoAPI)
+        return super().check_user_promotion_eligibility(telegram_id, promotion_id)
 
-    def record_promotion_bonus(self, telegram_id: int, amount: float, promo_code: str) -> bool:
-        """Record promotion bonus - placeholder"""
-        return True
+    def record_promotion_bonus(self, user_id: int = None, telegram_id: int = None,
+                              pppoker_id: str = None, promotion_id: int = None,
+                              deposit_request_id: int = None, deposit_amount: float = None,
+                              bonus_amount: float = None, amount: float = None,
+                              promo_code: str = None) -> bool:
+        """Record promotion bonus - supports multiple parameter formats for backward compatibility"""
+        try:
+            # Handle different parameter formats
+            tid = telegram_id or user_id
+            dep_amount = deposit_amount or amount
+
+            if not tid or not promotion_id or not dep_amount or not bonus_amount:
+                logger.error(f"Missing required parameters for recording promotion bonus")
+                return False
+
+            # Call parent class method (DjangoAPI)
+            return super().record_promotion_bonus(
+                telegram_id=tid,
+                promotion_id=promotion_id,
+                deposit_id=deposit_request_id or 0,  # May be 0 if deposit not yet created
+                deposit_amount=dep_amount,
+                bonus_amount=bonus_amount
+            )
+        except Exception as e:
+            logger.error(f"Error recording promotion bonus: {e}")
+            return False
 
     def create_cashback_promotion(self, cashback_percentage: float = None, percentage: float = None,
                                  start_date: str = None, end_date: str = None,

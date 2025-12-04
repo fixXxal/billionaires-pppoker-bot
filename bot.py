@@ -775,25 +775,29 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
 
     if active_promotion and verified_amount > 0:
         # Check if user is eligible (first deposit during promotion period)
+        # Use 'id' and 'percentage' fields from PromoCode serializer
+        promo_id = active_promotion.get('id')
+        promo_percentage = active_promotion.get('percentage', 0)
+
         is_eligible = api.check_user_promotion_eligibility(
             user.id,
             pppoker_id,
-            active_promotion['promotion_id']
+            promo_id
         )
 
         if is_eligible:
             # Calculate bonus
-            promotion_bonus = verified_amount * (active_promotion['bonus_percentage'] / 100)
+            promotion_bonus = verified_amount * (float(promo_percentage) / 100)
             total_with_bonus = verified_amount + promotion_bonus
 
             promotion_info = f"\n\n🎁 <b>PROMOTION BONUS</b>\n" \
-                           f"Bonus: {active_promotion['bonus_percentage']}% = <b>{currency} {promotion_bonus:,.2f}</b>\n" \
+                           f"Bonus: {promo_percentage}% = <b>{currency} {promotion_bonus:,.2f}</b>\n" \
                            f"Total with bonus: <b>{currency} {total_with_bonus:,.2f}</b>\n" \
                            f"<i>User's first deposit during promotion period</i>"
 
             # Store promotion info in context for approval handler
             context.bot_data[f'promo_{request_id}'] = {
-                'promotion_id': active_promotion['promotion_id'],
+                'promotion_id': promo_id,
                 'bonus_amount': promotion_bonus,
                 'deposit_amount': verified_amount,
                 'pppoker_id': pppoker_id,

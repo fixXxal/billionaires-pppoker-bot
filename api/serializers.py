@@ -198,6 +198,20 @@ class PromoCodeSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
+class PromotionEligibilitySerializer(serializers.ModelSerializer):
+    """Serializer for PromotionEligibility model"""
+    user_telegram_id = serializers.IntegerField(source='user.telegram_id', read_only=True)
+    promotion_code = serializers.CharField(source='promotion.code', read_only=True)
+
+    class Meta:
+        model = PromotionEligibility
+        fields = [
+            'id', 'user', 'user_telegram_id', 'promotion', 'promotion_code',
+            'deposit', 'deposit_amount', 'bonus_amount', 'received_at', 'notes'
+        ]
+        read_only_fields = ['id', 'received_at']
+
+
 class SupportMessageSerializer(serializers.ModelSerializer):
     """Serializer for SupportMessage model"""
     user_details = UserSerializer(source='user', read_only=True)

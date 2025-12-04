@@ -502,6 +502,41 @@ class DjangoAPI:
         """Get all promo codes"""
         return self._get('promo-codes/')
 
+    def check_user_promotion_eligibility(self, telegram_id: int, promotion_id: int) -> bool:
+        """Check if user is eligible for a promotion"""
+        try:
+            result = self._get('promotion-eligibility/check_eligibility/', params={
+                'telegram_id': telegram_id,
+                'promotion_id': promotion_id
+            })
+            return result.get('eligible', False)
+        except Exception as e:
+            logger.error(f"Error checking promotion eligibility: {e}")
+            return False
+
+    def record_promotion_bonus(self, telegram_id: int, promotion_id: int,
+                              deposit_id: int, deposit_amount: float,
+                              bonus_amount: float) -> bool:
+        """Record that a user received a promotion bonus"""
+        try:
+            # Get user's database ID
+            user = self.get_or_create_user(telegram_id, str(telegram_id))
+            user_id = user.get('id')
+
+            data = {
+                'user': user_id,
+                'promotion': promotion_id,
+                'deposit': deposit_id,
+                'deposit_amount': deposit_amount,
+                'bonus_amount': bonus_amount,
+                'notes': f'Promotion bonus applied: {bonus_amount}'
+            }
+            self._post('promotion-eligibility/', data)
+            return True
+        except Exception as e:
+            logger.error(f"Error recording promotion bonus: {e}")
+            return False
+
     # ==================== SUPPORT MESSAGE METHODS ====================
 
     def create_support_message(self, user_id: int, message: str, is_from_user: bool = True,

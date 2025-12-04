@@ -748,6 +748,38 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+class PromotionEligibilityViewSet(viewsets.ModelViewSet):
+    """API endpoint for Promotion Eligibility"""
+    queryset = PromotionEligibility.objects.all()
+    serializer_class = PromotionEligibilitySerializer
+
+    @action(detail=False, methods=['get'])
+    def check_eligibility(self, request):
+        """Check if user is eligible for a promotion (hasn't received bonus from this promo yet)"""
+        telegram_id = request.query_params.get('telegram_id')
+        promotion_id = request.query_params.get('promotion_id')
+
+        if not telegram_id or not promotion_id:
+            return Response(
+                {'error': 'telegram_id and promotion_id required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Check if user already received bonus from this promotion
+            already_received = PromotionEligibility.objects.filter(
+                user__telegram_id=telegram_id,
+                promotion_id=promotion_id
+            ).exists()
+
+            return Response({'eligible': not already_received})
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class SupportMessageViewSet(viewsets.ModelViewSet):
     """API endpoint for Support Messages"""
     queryset = SupportMessage.objects.all()
