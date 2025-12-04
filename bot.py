@@ -1112,7 +1112,7 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data = api.get_user(user_id)
 
     # Check if user has balance to withdraw
-    if not user_data or user_data.get('balance', 0) <= 0:
+    if not user_data or float(user_data.get('balance', 0)) <= 0:
         await update.message.reply_text(
             "⚠️ You don't have any balance to withdraw.\n"
             "Please make a deposit first."
