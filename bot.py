@@ -1782,14 +1782,19 @@ async def notify_admins_cashback_request(context, user_id: int, username: str, r
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
+        # Initialize notification messages list for this request
+        notification_messages[request_id] = []
+
         # Send to super admin
         try:
-            await context.bot.send_message(
+            msg = await context.bot.send_message(
                 chat_id=ADMIN_USER_ID,
                 text=message,
                 parse_mode='HTML',
                 reply_markup=reply_markup
             )
+            # Store message ID
+            notification_messages[request_id].append((ADMIN_USER_ID, msg.message_id))
             logger.info(f"✅ Super admin notified about cashback request {request_id}")
         except Exception as e:
             logger.error(f"❌ Failed to notify super admin: {e}")
@@ -1806,12 +1811,14 @@ async def notify_admins_cashback_request(context, user_id: int, username: str, r
 
             for admin in admins:
                 try:
-                    await context.bot.send_message(
+                    msg = await context.bot.send_message(
                         chat_id=admin['telegram_id'],
                         text=message,
                         parse_mode='HTML',
                         reply_markup=reply_markup
                     )
+                    # Store message ID
+                    notification_messages[request_id].append((admin['telegram_id'], msg.message_id))
                     logger.info(f"✅ Admin {admin['telegram_id']} notified about cashback request {request_id}")
                 except Exception as e:
                     logger.error(f"❌ Failed to notify admin {admin['telegram_id']}: {e}")
@@ -7667,6 +7674,19 @@ async def cashback_approve_callback(update: Update, context: ContextTypes.DEFAUL
         except Exception as e:
             logger.error(f"Failed to notify user {target_user_id}: {e}")
 
+        # Remove buttons from ALL admin notifications
+        if request_id in notification_messages:
+            for admin_id, message_id in notification_messages[request_id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+            del notification_messages[request_id]
+
     except Exception as e:
         logger.error(f"Error in cashback_approve_callback: {e}")
         import traceback
@@ -7726,6 +7746,19 @@ async def cashback_reject_callback(update: Update, context: ContextTypes.DEFAULT
             )
         except Exception as e:
             logger.error(f"Failed to notify user {target_user_id}: {e}")
+
+        # Remove buttons from ALL admin notifications
+        if request_id in notification_messages:
+            for admin_id, message_id in notification_messages[request_id]:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=admin_id,
+                        message_id=message_id,
+                        reply_markup=InlineKeyboardMarkup([])
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to remove buttons for admin {admin_id}: {e}")
+            del notification_messages[request_id]
 
     except Exception as e:
         logger.error(f"Error in cashback_reject_callback: {e}")
