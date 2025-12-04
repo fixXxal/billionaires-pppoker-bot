@@ -6094,29 +6094,33 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
         # Get payment account details
         payment_accounts = api.get_all_payment_accounts()
 
-        # Build payment info message
-        payment_info = "💳 **Payment Account Details:**\n\n"
-
-        if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
-            payment_info += f"**BML:**\n`{payment_accounts['BML']['account_number']}`\n"
-            if payment_accounts['BML'].get('account_name'):
-                payment_info += f"Name: {payment_accounts['BML']['account_name']}\n"
-            payment_info += "\n"
-
-        if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
-            payment_info += f"**MIB:**\n`{payment_accounts['MIB']['account_number']}`\n"
-            if payment_accounts['MIB'].get('account_name'):
-                payment_info += f"Name: {payment_accounts['MIB']['account_name']}\n"
-            payment_info += "\n"
-
         # Extract user telegram ID from user_details
         user_telegram_id = seat_req.get('user_details', {}).get('telegram_id')
         if not user_telegram_id:
             logger.error(f"No telegram_id found in seat request: {seat_req}")
             user_telegram_id = seat_req.get('user_id')  # fallback
 
-        # Create upload button
-        keyboard = [[InlineKeyboardButton("📤 Upload Payment Slip", callback_data=f"upload_seat_slip_{request_id}")]]
+        # Build payment account buttons
+        keyboard = []
+        if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
+            bml_account = payment_accounts['BML']['account_number']
+            bml_name = payment_accounts['BML'].get('account_name', 'BML')
+            keyboard.append([InlineKeyboardButton(
+                f"💳 BML - {bml_name}",
+                callback_data=f"show_account_bml_{request_id}"
+            )])
+
+        if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
+            mib_account = payment_accounts['MIB']['account_number']
+            mib_name = payment_accounts['MIB'].get('account_name', 'MIB')
+            keyboard.append([InlineKeyboardButton(
+                f"💳 MIB - {mib_name}",
+                callback_data=f"show_account_mib_{request_id}"
+            )])
+
+        # Add upload slip button at the bottom
+        keyboard.append([InlineKeyboardButton("📤 Upload Payment Slip", callback_data=f"upload_seat_slip_{request_id}")])
+
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Notify user with payment details
@@ -6125,8 +6129,8 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
                 chat_id=user_telegram_id,
                 text=f"✅ <b>Seat approved!</b>\n\n"
                      f"🪑 {seat_req['amount']} chips ready\n\n"
-                     f"{payment_info}\n\n"
-                     f"📸 Click the button below to upload your payment slip:",
+                     f"💳 <b>Choose payment method below:</b>\n"
+                     f"Click on an account to see details, then upload your payment slip.",
                 parse_mode='HTML',
                 reply_markup=reply_markup
             )
@@ -6283,6 +6287,40 @@ async def final_slip_reminder(context: ContextTypes.DEFAULT_TYPE):
         del seat_reminder_jobs[user_id]
 
 
+async def show_seat_account_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show payment account details when user clicks BML/MIB button"""
+    query = update.callback_query
+    await query.answer()
+
+    # Extract account type and request_id from callback data
+    # Format: show_account_bml_123 or show_account_mib_123
+    parts = query.data.split('_')
+    account_type = parts[2].upper()  # BML or MIB
+    request_id = parts[3]
+
+    # Get payment accounts
+    payment_accounts = api.get_all_payment_accounts()
+
+    if account_type in payment_accounts:
+        account = payment_accounts[account_type]
+        account_number = account.get('account_number', 'N/A')
+        account_name = account.get('account_name', account_type)
+
+        # Show account details
+        await query.edit_message_text(
+            f"✅ <b>Seat approved!</b>\n\n"
+            f"💳 <b>{account_type} Account Details:</b>\n\n"
+            f"<b>Account Number:</b>\n<code>{account_number}</code>\n"
+            f"<i>(tap to copy)</i>\n\n"
+            f"<b>Account Name:</b>\n{account_name}\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"📸 Please send your payment slip photo showing the transfer to this account.",
+            parse_mode='HTML'
+        )
+    else:
+        await query.answer("❌ Account not found", show_alert=True)
+
+
 async def upload_seat_slip_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle upload slip button click"""
     query = update.callback_query
@@ -6300,6 +6338,7 @@ async def upload_seat_slip_button(update: Update, context: ContextTypes.DEFAULT_
     # Prompt user to send photo
     await query.edit_message_text(
         f"{query.message.text}\n\n"
+        f"━━━━━━━━━━━━━━━━━━\n\n"
         f"📸 <b>Please send your payment slip photo now.</b>\n\n"
         f"Make sure the slip clearly shows:\n"
         f"• Transaction amount\n"
@@ -7894,6 +7933,7 @@ def main():
     # Seat request handlers
     application.add_handler(CallbackQueryHandler(approve_seat_request, pattern="^approve_seat_"))
     application.add_handler(CallbackQueryHandler(reject_seat_request, pattern="^reject_seat_"))
+    application.add_handler(CallbackQueryHandler(show_seat_account_details, pattern="^show_account_(bml|mib)_"))
     application.add_handler(CallbackQueryHandler(upload_seat_slip_button, pattern="^upload_seat_slip_"))
     application.add_handler(CallbackQueryHandler(settle_seat_slip, pattern="^settle_seat_"))
     application.add_handler(CallbackQueryHandler(reject_seat_slip, pattern="^reject_slip_"))
