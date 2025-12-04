@@ -781,6 +781,66 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
             }
         })
 
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Approve a cashback request"""
+        from django.utils import timezone
+
+        cashback_request = self.get_object()
+
+        if cashback_request.status != 'Pending':
+            return Response(
+                {'error': f'Cashback request is already {cashback_request.status}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        approved_by = request.data.get('approved_by')
+        if not approved_by:
+            return Response(
+                {'error': 'approved_by field is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Update cashback request
+        cashback_request.status = 'Approved'
+        cashback_request.approved_at = timezone.now()
+        cashback_request.approved_by = approved_by
+        cashback_request.save()
+
+        # Update user balance
+        user = cashback_request.user
+        user.balance += cashback_request.cashback_amount
+        user.save()
+
+        serializer = self.get_serializer(cashback_request)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Reject a cashback request"""
+        from django.utils import timezone
+
+        cashback_request = self.get_object()
+
+        if cashback_request.status != 'Pending':
+            return Response(
+                {'error': f'Cashback request is already {cashback_request.status}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        rejection_reason = request.data.get('rejection_reason', 'No reason provided')
+        approved_by = request.data.get('approved_by')
+
+        # Update cashback request
+        cashback_request.status = 'Rejected'
+        cashback_request.approved_at = timezone.now()
+        cashback_request.approved_by = approved_by
+        cashback_request.rejection_reason = rejection_reason
+        cashback_request.save()
+
+        serializer = self.get_serializer(cashback_request)
+        return Response(serializer.data)
+
 
 class CashbackEligibilityViewSet(viewsets.ModelViewSet):
     """API endpoint for Cashback Eligibility"""

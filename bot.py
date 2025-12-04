@@ -1776,8 +1776,8 @@ async def notify_admins_cashback_request(context, user_id: int, username: str, r
 
         keyboard = [
             [
-                InlineKeyboardButton("✅ Approve", callback_data=f"cashback_approve_{user_id}"),
-                InlineKeyboardButton("❌ Reject", callback_data=f"cashback_reject_{user_id}")
+                InlineKeyboardButton("✅ Approve", callback_data=f"cashback_approve_{request_id}"),
+                InlineKeyboardButton("❌ Reject", callback_data=f"cashback_reject_{request_id}")
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -7618,69 +7618,35 @@ async def cashback_approve_callback(update: Update, context: ContextTypes.DEFAUL
     await query.answer()
 
     user = query.from_user
+    approver_id = user.id
     approver_name = user.username or user.first_name
 
     try:
-        # Extract user_id from callback data
-        target_user_id = int(query.data.replace("cashback_approve_", ""))
+        # Extract request_id from callback data
+        request_id = int(query.data.replace("cashback_approve_", ""))
 
-        # Get all pending cashback requests for this user
-        pending = api.get_user_pending_cashback(target_user_id)
+        # Approve the cashback request
+        result = api.approve_cashback_request(request_id, approver_id)
 
-        if not pending:
-            # Try to find who already approved
-            try:
-                all_requests = api.cashback_history_sheet.get_all_values()[1:]
-                user_requests = [r for r in all_requests if len(r) > 9 and str(r[1]) == str(target_user_id) and r[7] == 'Approved']
-
-                if user_requests:
-                    approved_by = user_requests[-1][9] if len(user_requests[-1]) > 9 else 'Unknown Admin'
-                    total_cashback = sum(float(r[6]) for r in user_requests if len(r) > 6 and r[6])
-                    username = user_requests[-1][2] if len(user_requests[-1]) > 2 else 'User'
-
-                    await query.edit_message_text(
-                        f"✅ <b>Already Approved!</b> ✅\n\n"
-                        f"👤 User: {username}\n"
-                        f"💰 Total Cashback: {total_cashback:.2f} MVR\n"
-                        f"📦 Approved Requests: {len(user_requests)}\n\n"
-                        f"✨ <b>Approved by:</b> {approved_by}",
-                        parse_mode='HTML'
-                    )
-                else:
-                    await query.edit_message_text(
-                        f"✅ All cashback requests already processed!\n\n"
-                        f"No pending requests found for this user.",
-                        parse_mode='Markdown'
-                    )
-            except Exception as e:
-                logger.error(f"Error checking cashback approval status: {e}")
-                await query.edit_message_text(
-                    f"✅ All cashback requests already processed!\n\n"
-                    f"No pending requests found for this user.",
-                    parse_mode='Markdown'
-                )
+        if not result:
+            await query.edit_message_text(
+                "❌ <b>Error</b>\n\nFailed to approve cashback request.",
+                parse_mode='HTML'
+            )
             return
 
-        approved_count = 0
-        total_cashback = 0
-        username = pending[0].get('username', 'Unknown')
-
-        # Approve each pending request
-        for request in pending:
-            row_number = request.get('row_number')
-            cashback_amount = float(request.get('cashback_amount', 0))
-
-            success = api.approve_cashback_request(row_number, approver_name)
-            if success:
-                approved_count += 1
-                total_cashback += cashback_amount
+        # Extract details from result
+        username = result['user_details']['username']
+        target_user_id = result['user_details']['telegram_id']
+        cashback_amount = float(result['cashback_amount'])
+        pppoker_id = result['pppoker_id']
 
         # Edit the notification message
         await query.edit_message_text(
             f"✅ <b>CASHBACK APPROVED!</b> ✅\n\n"
             f"👤 User: {username}\n"
-            f"💰 Total Cashback: {total_cashback:.2f} MVR\n"
-            f"📦 Approved Requests: {approved_count}\n\n"
+            f"💰 Cashback Amount: <b>{cashback_amount:.2f} MVR</b>\n"
+            f"🎮 PPPoker ID: <b>{pppoker_id}</b>\n\n"
             f"✨ User has been notified!\n"
             f"👤 Approved by: {approver_name}",
             parse_mode='HTML'
@@ -7692,9 +7658,8 @@ async def cashback_approve_callback(update: Update, context: ContextTypes.DEFAUL
                 chat_id=target_user_id,
                 text=(
                     f"✅ <b>CASHBACK APPROVED!</b> ✅\n\n"
-                    f"💰 Cashback Amount: <b>{total_cashback:.2f} MVR</b>\n"
-                    f"📦 Approved Requests: {approved_count}\n\n"
-                    f"💎 Your cashback will be credited to your PPPoker account shortly!\n\n"
+                    f"💰 Cashback Amount: <b>{cashback_amount:.2f} MVR</b>\n"
+                    f"💎 Your balance has been updated!\n\n"
                     f"Thank you for playing with us! 🎰"
                 ),
                 parse_mode='HTML'
@@ -7715,42 +7680,33 @@ async def cashback_reject_callback(update: Update, context: ContextTypes.DEFAULT
     await query.answer()
 
     user = query.from_user
+    rejector_id = user.id
     rejector_name = user.username or user.first_name
 
     try:
-        # Extract user_id from callback data
-        target_user_id = int(query.data.replace("cashback_reject_", ""))
+        # Extract request_id from callback data
+        request_id = int(query.data.replace("cashback_reject_", ""))
 
-        # Get all pending cashback requests for this user
-        pending = api.get_user_pending_cashback(target_user_id)
+        # Reject the cashback request
+        result = api.reject_cashback_request(request_id, rejector_id, "Rejected by admin")
 
-        if not pending:
+        if not result:
             await query.edit_message_text(
-                f"❌ No pending cashback requests found for this user.",
-                parse_mode='Markdown'
+                "❌ <b>Error</b>\n\nFailed to reject cashback request.",
+                parse_mode='HTML'
             )
             return
 
-        rejected_count = 0
-        total_cashback = 0
-        username = pending[0].get('username', 'Unknown')
-
-        # Reject each pending request
-        for request in pending:
-            row_number = request.get('row_number')
-            cashback_amount = request.get('cashback_amount', 0)
-
-            success = api.reject_cashback_request(row_number, rejector_name)
-            if success:
-                rejected_count += 1
-                total_cashback += cashback_amount
+        # Extract details from result
+        username = result['user_details']['username']
+        target_user_id = result['user_details']['telegram_id']
+        cashback_amount = float(result['cashback_amount'])
 
         # Edit the notification message
         await query.edit_message_text(
             f"❌ <b>CASHBACK REJECTED</b> ❌\n\n"
             f"👤 User: {username}\n"
-            f"💰 Rejected Amount: {total_cashback:.2f} MVR\n"
-            f"📦 Rejected Requests: {rejected_count}\n\n"
+            f"💰 Rejected Amount: <b>{cashback_amount:.2f} MVR</b>\n\n"
             f"👤 Rejected by: {rejector_name}",
             parse_mode='HTML'
         )
@@ -7761,7 +7717,7 @@ async def cashback_reject_callback(update: Update, context: ContextTypes.DEFAULT
                 chat_id=target_user_id,
                 text=(
                     f"❌ <b>CASHBACK REJECTED</b> ❌\n\n"
-                    f"💰 Rejected Amount: <b>{total_cashback:.2f} MVR</b>\n\n"
+                    f"💰 Rejected Amount: <b>{cashback_amount:.2f} MVR</b>\n\n"
                     f"Your cashback request has been rejected.\n"
                     f"Please contact support if you have any questions.\n\n"
                     f"💬 Use /support to reach us!"

@@ -410,6 +410,19 @@ class DjangoAPI:
         """Get all cashback requests"""
         return self._get('cashback-requests/')
 
+    def approve_cashback_request(self, request_id: int, approved_by: int) -> Dict:
+        """Approve a cashback request"""
+        data = {'approved_by': approved_by}
+        return self._post(f'cashback-requests/{request_id}/approve/', data)
+
+    def reject_cashback_request(self, request_id: int, approved_by: int, rejection_reason: str = '') -> Dict:
+        """Reject a cashback request"""
+        data = {
+            'approved_by': approved_by,
+            'rejection_reason': rejection_reason
+        }
+        return self._post(f'cashback-requests/{request_id}/reject/', data)
+
     def check_cashback_eligibility(self, telegram_id: int, promotion_id: int = None,
                                    min_deposit: float = 500) -> Dict:
         """Check if user is eligible for cashback based on loss and minimum deposit"""
