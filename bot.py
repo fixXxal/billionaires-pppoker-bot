@@ -1539,7 +1539,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if user has outstanding credit
     try:
         user_credit = api.get_user_credit(user.id)
-        if user_credit and user_credit['amount'] > 0:
+        if user_credit and float(user_credit.get('amount', 0)) > 0:
             await update.message.reply_text(
                 f"❌ <b>Cannot Request Cashback - Outstanding Credit</b>\n\n"
                 f"You have an unpaid credit:\n"
@@ -1575,8 +1575,8 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
-    cashback_percentage = cashback_promo.get('cashback_percentage')
-    promotion_id = cashback_promo.get('promotion_id')
+    cashback_percentage = cashback_promo.get('percentage')
+    promotion_id = cashback_promo.get('id')
 
     try:
         # Check if user already has a pending cashback request for this promotion
