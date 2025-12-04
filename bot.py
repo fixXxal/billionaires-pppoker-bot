@@ -1111,10 +1111,11 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_data = api.get_user(user_id)
 
-    if not user_data or not user_data.get('account_name'):
+    # Check if user has balance to withdraw
+    if not user_data or user_data.get('balance', 0) <= 0:
         await update.message.reply_text(
-            "⚠️ You need to make at least one deposit first to set up your account name.\n"
-            "Withdrawals can only be sent to the same account name used for deposits."
+            "⚠️ You don't have any balance to withdraw.\n"
+            "Please make a deposit first."
         )
         return ConversationHandler.END
 
@@ -1254,7 +1255,7 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     method = context.user_data['withdrawal_method']
     amount = context.user_data['withdrawal_amount']
     pppoker_id = context.user_data['withdrawal_pppoker_id']
-    account_name = user_data['account_name']
+    account_name = user_data.get('account_name') or user_data.get('username', 'User')
 
     # Create withdrawal request
     withdrawal_response = api.create_withdrawal_request(
