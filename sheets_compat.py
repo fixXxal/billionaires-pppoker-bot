@@ -268,9 +268,12 @@ class SheetsCompatAPI(DjangoAPI):
 
     # ==================== LEGACY CASHBACK METHODS ====================
 
-    def check_cashback_eligibility(self, telegram_id: int, week_start: str, week_end: str) -> Dict:
-        """Check cashback eligibility - placeholder"""
-        return {'eligible': False, 'investment_amount': 0}
+    def check_cashback_eligibility(self, telegram_id: int, promotion_id: int = None,
+                                   week_start: str = None, week_end: str = None,
+                                   min_deposit: float = 500) -> Dict:
+        """Check if user is eligible for cashback based on loss and minimum deposit"""
+        # Call parent class method (DjangoAPI)
+        return super().check_cashback_eligibility(telegram_id, promotion_id, min_deposit)
 
     def get_user_pending_cashback(self, telegram_id: int) -> List[Dict]:
         """Get user's pending cashback requests"""

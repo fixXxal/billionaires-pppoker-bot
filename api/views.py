@@ -652,6 +652,124 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(cashbacks, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'])
+    def check_eligibility(self, request):
+        """Check if user is eligible for cashback based on loss and minimum deposit"""
+        from django.db.models import Sum
+        from decimal import Decimal
+
+        telegram_id = request.query_params.get('telegram_id')
+        promotion_id = request.query_params.get('promotion_id')
+        min_deposit = Decimal(request.query_params.get('min_deposit', '500'))
+
+        if not telegram_id:
+            return Response(
+                {'error': 'telegram_id required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(telegram_id=telegram_id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Calculate total deposits
+        total_deposits = Deposit.objects.filter(
+            user=user,
+            status='Approved'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        # Calculate total withdrawals
+        total_withdrawals = Withdrawal.objects.filter(
+            user=user,
+            status='Approved'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        # Calculate total spin rewards
+        total_spin_rewards = SpinHistory.objects.filter(
+            spin_user__user=user
+        ).aggregate(total=Sum('chips_won'))['total'] or Decimal('0')
+
+        # Calculate total promotion bonuses
+        total_bonuses = PromotionEligibility.objects.filter(
+            user=user
+        ).aggregate(total=Sum('bonus_amount'))['total'] or Decimal('0')
+
+        # Calculate total cashback received
+        total_cashback = CashbackEligibility.objects.filter(
+            user=user
+        ).aggregate(total=Sum('cashback_amount'))['total'] or Decimal('0')
+
+        # Get last cashback claim for this promotion (if any)
+        last_claim = None
+        last_claim_deposits = Decimal('0')
+        if promotion_id:
+            last_claim = CashbackEligibility.objects.filter(
+                user=user,
+                promotion_id=promotion_id
+            ).order_by('-received_at').first()
+
+            if last_claim:
+                # Get total deposits at time of last claim
+                last_claim_deposits = Deposit.objects.filter(
+                    user=user,
+                    status='Approved',
+                    created_at__lte=last_claim.received_at
+                ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        # Calculate effective new deposits (deposits since last claim)
+        effective_new_deposits = total_deposits - last_claim_deposits
+
+        # Calculate baseline (withdrawals + spin rewards + bonuses + cashback)
+        baseline = total_withdrawals + total_spin_rewards + total_bonuses + total_cashback
+
+        # Check if deposits exceed withdrawals (user is at a loss)
+        deposits_exceed_withdrawals = total_deposits > baseline
+
+        # Calculate club profit (baseline - deposits) and user loss
+        club_profit = baseline - total_deposits
+        user_loss = total_deposits - baseline
+
+        # Check eligibility
+        eligible = (
+            deposits_exceed_withdrawals and  # User must be at a loss
+            effective_new_deposits >= min_deposit  # Must meet minimum new deposit requirement
+        )
+
+        # Check if already claimed from this promotion
+        already_claimed = False
+        if promotion_id:
+            already_claimed = CashbackEligibility.objects.filter(
+                user=user,
+                promotion_id=promotion_id
+            ).exists()
+
+        return Response({
+            'eligible': eligible and not already_claimed,
+            'current_deposits': float(total_deposits),
+            'current_withdrawals': float(total_withdrawals),
+            'total_spin_rewards': float(total_spin_rewards),
+            'total_bonuses': float(total_bonuses),
+            'total_cashback': float(total_cashback),
+            'club_profit': float(club_profit),
+            'user_loss': float(user_loss),
+            'effective_new_deposits': float(effective_new_deposits),
+            'last_claim_deposits': float(last_claim_deposits),
+            'baseline': float(baseline),
+            'min_required': float(min_deposit),
+            'deposits_exceed_withdrawals': deposits_exceed_withdrawals,
+            'already_claimed': already_claimed
+        })
+
+
+class CashbackEligibilityViewSet(viewsets.ModelViewSet):
+    """API endpoint for Cashback Eligibility"""
+    queryset = CashbackEligibility.objects.all()
+    serializer_class = CashbackEligibilitySerializer
+
 
 class PaymentAccountViewSet(viewsets.ModelViewSet):
     """API endpoint for Payment Accounts"""

@@ -20,6 +20,7 @@ router.register(r'spin-history', views.SpinHistoryViewSet, basename='spinhistory
 router.register(r'join-requests', views.JoinRequestViewSet, basename='joinrequest')
 router.register(r'seat-requests', views.SeatRequestViewSet, basename='seatrequest')
 router.register(r'cashback-requests', views.CashbackRequestViewSet, basename='cashbackrequest')
+router.register(r'cashback-eligibility', views.CashbackEligibilityViewSet, basename='cashbackeligibility')
 router.register(r'payment-accounts', views.PaymentAccountViewSet, basename='paymentaccount')
 router.register(r'admins', views.AdminViewSet, basename='admin')
 router.register(r'counter-status', views.CounterStatusViewSet, basename='counterstatus')

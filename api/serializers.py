@@ -153,6 +153,20 @@ class CashbackRequestSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'approved_at']
 
 
+class CashbackEligibilitySerializer(serializers.ModelSerializer):
+    """Serializer for CashbackEligibility model"""
+    user_telegram_id = serializers.IntegerField(source='user.telegram_id', read_only=True)
+    promotion_code = serializers.CharField(source='promotion.code', read_only=True)
+
+    class Meta:
+        model = CashbackEligibility
+        fields = [
+            'id', 'user', 'user_telegram_id', 'promotion', 'promotion_code',
+            'cashback_request', 'loss_amount', 'cashback_amount', 'received_at', 'notes'
+        ]
+        read_only_fields = ['id', 'received_at']
+
+
 class PaymentAccountSerializer(serializers.ModelSerializer):
     """Serializer for PaymentAccount model"""
 

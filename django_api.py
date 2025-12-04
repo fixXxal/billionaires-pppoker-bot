@@ -381,6 +381,61 @@ class DjangoAPI:
         """Get all cashback requests"""
         return self._get('cashback-requests/')
 
+    def check_cashback_eligibility(self, telegram_id: int, promotion_id: int = None,
+                                   min_deposit: float = 500) -> Dict:
+        """Check if user is eligible for cashback based on loss and minimum deposit"""
+        try:
+            params = {
+                'telegram_id': telegram_id,
+                'min_deposit': min_deposit
+            }
+            if promotion_id:
+                params['promotion_id'] = promotion_id
+
+            result = self._get('cashback-requests/check_eligibility/', params=params)
+            return result
+        except Exception as e:
+            logger.error(f"Error checking cashback eligibility: {e}")
+            return {
+                'eligible': False,
+                'current_deposits': 0,
+                'current_withdrawals': 0,
+                'total_spin_rewards': 0,
+                'total_bonuses': 0,
+                'total_cashback': 0,
+                'club_profit': 0,
+                'user_loss': 0,
+                'effective_new_deposits': 0,
+                'last_claim_deposits': 0,
+                'baseline': 0,
+                'min_required': min_deposit,
+                'deposits_exceed_withdrawals': False,
+                'already_claimed': False
+            }
+
+    def record_cashback_bonus(self, telegram_id: int, promotion_id: int,
+                             cashback_request_id: int, loss_amount: float,
+                             cashback_amount: float) -> bool:
+        """Record that a user received a cashback bonus"""
+        try:
+            # Get user's database ID
+            user = self.get_or_create_user(telegram_id, str(telegram_id))
+            user_id = user.get('id')
+
+            data = {
+                'user': user_id,
+                'promotion': promotion_id,
+                'cashback_request': cashback_request_id,
+                'loss_amount': loss_amount,
+                'cashback_amount': cashback_amount,
+                'notes': f'Cashback bonus applied: {cashback_amount}'
+            }
+            self._post('cashback-eligibility/', data)
+            return True
+        except Exception as e:
+            logger.error(f"Error recording cashback bonus: {e}")
+            return False
+
     # ==================== PAYMENT ACCOUNT METHODS ====================
 
     def get_active_payment_accounts(self) -> List[Dict]:
