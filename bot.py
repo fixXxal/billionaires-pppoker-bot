@@ -1097,7 +1097,7 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Check if user has outstanding credit
     user_credit = api.get_user_credit(user_id)
-    if user_credit and user_credit['amount'] > 0:
+    if user_credit and float(user_credit.get('amount', 0)) > 0:
         await update.message.reply_text(
             f"❌ <b>Cannot Withdraw - Outstanding Credit</b>\n\n"
             f"You have an unpaid credit:\n"
