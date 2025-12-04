@@ -6709,10 +6709,9 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await context.bot.send_message(
             chat_id=user_telegram_id,
-            text=f"❌ **Payment Slip Rejected**\n\n"
-                 f"**Request ID:** `{request_id}`\n\n"
-                 f"Your payment slip could not be verified.\n\n"
-                 f"Please upload a clearer image or contact Live Support.",
+            text=f"**Request ID:** `{request_id}`\n\n"
+                 f"We were unable to verify your payment slip.\n\n"
+                 f"Please contact Live Support for assistance.",
             parse_mode='Markdown'
         )
     except Exception as e:
