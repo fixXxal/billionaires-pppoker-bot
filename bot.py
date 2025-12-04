@@ -5421,9 +5421,10 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
             )
 
             if success:
-                bonus_message = f"\n\n🎁 **PROMOTION BONUS APPLIED!**\n" \
-                              f"Bonus: +{promo_data['bonus_amount']:.2f} {promo_data['currency']}\n" \
-                              f"Total credited: {promo_data['deposit_amount'] + promo_data['bonus_amount']:.2f} {promo_data['currency']}"
+                total_with_bonus = promo_data['deposit_amount'] + promo_data['bonus_amount']
+                bonus_message = f"\n\n🎁 <b>PROMOTION BONUS APPLIED!</b>\n" \
+                              f"💰 Bonus: <b>+{promo_data['bonus_amount']:.2f} {promo_data['currency']}</b>\n" \
+                              f"💎 Total credited: <b>{total_with_bonus:.2f} {promo_data['currency']}</b>"
                 logger.info(f"Promotion bonus recorded for user {promo_data['user_id']}: {promo_data['bonus_amount']} {promo_data['currency']}")
 
             # Clean up promotion data
