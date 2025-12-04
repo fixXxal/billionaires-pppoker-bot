@@ -1431,9 +1431,13 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
         )
         return JOIN_PPPOKER_ID
 
+    # Get or create user in database to get their database ID
+    user_data = api.get_or_create_user(user.id, user.username or user.first_name or str(user.id))
+    db_user_id = user_data.get('id')
+
     # Create join request
     join_response = api.create_join_request(
-        user_id=user.id,
+        user_id=db_user_id,
         pppoker_id=pppoker_id
     )
     request_id = join_response.get('id') if isinstance(join_response, dict) else join_response
