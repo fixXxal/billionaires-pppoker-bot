@@ -6697,8 +6697,7 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             f"**User:** @{username} (ID: {user_telegram_id})\n"
                             f"**PPPoker ID:** {seat_req['pppoker_id']}\n"
                             f"**Amount:** {seat_req['amount']} chips/MVR\n\n"
-                            f"❌ <b>REJECTED by {query.from_user.first_name}</b>\n"
-                            f"User directed to Live Support.",
+                            f"❌ <b>REJECTED by {query.from_user.first_name}</b>\nUser notified to reupload.",
                     parse_mode='HTML',
                     reply_markup=InlineKeyboardMarkup([])
                 )
