@@ -5895,9 +5895,9 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
 
     # For seat requests, the ID is "SEAT_XXXXX" so we need to rejoin the remaining parts
     if request_type == 'seat':
-        request_id = '_'.join(parts[2:])  # "SEAT_87D3AC20"
+        request_id = int(''.join(parts[2:]))  # Convert to int for seat requests
     else:
-        request_id = parts[2]
+        request_id = int(parts[2])  # Convert to int
 
     if request_type == 'deposit':
         deposit = api.get_deposit_request(request_id)
