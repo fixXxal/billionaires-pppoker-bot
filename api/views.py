@@ -758,6 +758,14 @@ class UserCreditViewSet(viewsets.ModelViewSet):
     queryset = UserCredit.objects.all()
     serializer_class = UserCreditSerializer
 
+    def get_queryset(self):
+        """Filter credits by user telegram_id if provided"""
+        queryset = UserCredit.objects.all()
+        user_telegram_id = self.request.query_params.get('user', None)
+        if user_telegram_id is not None:
+            queryset = queryset.filter(user__telegram_id=user_telegram_id)
+        return queryset
+
 
 class ExchangeRateViewSet(viewsets.ModelViewSet):
     """API endpoint for Exchange Rates"""

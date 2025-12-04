@@ -537,6 +537,41 @@ class DjangoAPI:
         """Get all user credits"""
         return self._get('user-credits/')
 
+    def get_user_credit(self, telegram_id: int) -> Optional[Dict]:
+        """Get a specific user's active credit by telegram_id"""
+        try:
+            response = self._get(f'user-credits/?user={telegram_id}')
+            # Handle paginated response
+            if isinstance(response, dict) and 'results' in response:
+                credits = response['results']
+            else:
+                credits = response
+
+            # Return the first active credit (if any)
+            if credits and len(credits) > 0:
+                return credits[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user credit for {telegram_id}: {e}")
+            return None
+
+    def increment_credit_reminder(self, telegram_id: int) -> bool:
+        """Increment the reminder count for a user's credit"""
+        try:
+            credit = self.get_user_credit(telegram_id)
+            if not credit:
+                return False
+
+            credit_id = credit.get('id')
+            current_count = credit.get('reminder_count', 0)
+
+            # Update the reminder count
+            self._patch(f'user-credits/{credit_id}/', {'reminder_count': current_count + 1})
+            return True
+        except Exception as e:
+            logger.error(f"Error incrementing reminder for {telegram_id}: {e}")
+            return False
+
     # ==================== EXCHANGE RATE METHODS ====================
 
     def get_active_exchange_rates(self) -> List[Dict]:

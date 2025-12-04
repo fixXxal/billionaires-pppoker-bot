@@ -537,9 +537,9 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error adding user credit: {e}")
             return False
 
-    def get_user_credit(self, telegram_id: int) -> float:
-        """Get user's total credit - placeholder"""
-        return 0.0
+    def get_user_credit(self, telegram_id: int):
+        """Get user's active credit by telegram_id"""
+        return self.django_api.get_user_credit(telegram_id)
 
     def clear_user_credit(self, telegram_id: int) -> bool:
         """Clear user credit - placeholder"""
@@ -554,8 +554,8 @@ class SheetsCompatAPI(DjangoAPI):
             return []
 
     def increment_credit_reminder(self, telegram_id: int) -> bool:
-        """Increment credit reminder - placeholder"""
-        return True
+        """Increment credit reminder count"""
+        return self.django_api.increment_credit_reminder(telegram_id)
 
     def get_daily_credit_summary(self, date: str) -> Dict:
         """Get daily credit summary - placeholder"""
