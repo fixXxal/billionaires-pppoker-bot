@@ -191,12 +191,14 @@ def parse_payment_details(text):
     # Skip words that are not names (labels, bank names, etc.)
     skip_name_words = ['BANK', 'BML', 'MIB', 'CREATED DATE', 'STATUS DATE', 'PURPOSE',
                        'REFERENCE', 'AMOUNT', 'STATUS', 'MESSAGE', 'FROM', 'TO',
-                       'MALDIVES ISLAMIC BANK', 'BANK OF MALDIVES', 'TRANSACTION DATE']
+                       'MALDIVES ISLAMIC BANK', 'BANK OF MALDIVES', 'TRANSACTION DATE',
+                       'THANK YOU', 'YOUR REQUEST', 'HAS BEEN', 'SUBMITTED', 'PROCESSING',
+                       'REMARKS', 'SUCCESS', 'TRANSACTION']
 
-    # Pattern 1: "From" field
+    # Pattern 1: "From" field - Enhanced for BML format
     from_patterns = [
-        r'FROM[\s:]+([A-Z][A-Z\s\.]+?)(?:\n|\s{2,}|\d|$)',  # From Ahmed Fixal
-        r'FROM\s*\n\s*([A-Z][A-Z\s\.]+?)(?:\n|\s{2,})',  # From\n  AHMD.FIXAL
+        r'FROM[\s:]+([A-Z][A-Z0-9\s\.]+?)(?:\n|$)',  # From AHMD.FIXAL (BML format - name on same line)
+        r'FROM\s*\n\s*([A-Z][A-Z0-9\s\.]+?)(?:\n|\s{2,})',  # From\n  AHMD.FIXAL (MIB format - name on next line)
     ]
 
     for pattern in from_patterns:
@@ -208,8 +210,11 @@ def parse_payment_details(text):
             # Remove trailing account numbers if any
             name = re.sub(r'\s*\d{10,}$', '', name)
 
-            # Skip if it's a label word, not a name
-            if len(name) >= 3 and name.upper() not in skip_name_words:
+            # Validate it looks like a name (letters/dots/numbers, not pure text labels)
+            # BML names often have dots like AHMD.FIXAL
+            if (len(name) >= 3 and
+                re.search(r'[A-Z]', name) and
+                not any(skip_word in name.upper() for skip_word in skip_name_words)):
                 # Preserve format (keep dots, capitalize properly)
                 details['sender_name'] = name.title().replace('.', '.')
                 break
@@ -246,10 +251,10 @@ def parse_payment_details(text):
                             sender_line_index = from_index + offset  # Track where we found it
                             break
 
-    # Pattern 2: "To" field (receiver)
+    # Pattern 2: "To" field (receiver) - Enhanced for BML format
     to_patterns = [
-        r'TO[\s:]+([A-Z][A-Z\s\.]+?)(?:\n|\s{2,}|\d|$)',  # To MOHD.SUHAIL
-        r'TO\s*\n\s*([A-Z][A-Z\s\.]+?)(?:\n|\s{2,})',  # To\n  AHMD.FIXAL
+        r'TO[\s:]+([A-Z][A-Z0-9\s\.]+?)(?:\s*\d{10,}|\n|$)',  # To AHMD.FIXAL 90103101325241000 (BML - name+account on same line)
+        r'TO\s*\n\s*([A-Z][A-Z0-9\s\.]+?)(?:\n|\s{2,})',  # To\n  AHMD.FIXAL (MIB format)
     ]
 
     for pattern in to_patterns:
@@ -258,15 +263,17 @@ def parse_payment_details(text):
             name = match.group(1).strip()
             # Clean up the name
             name = re.sub(r'\s+', ' ', name)
-            # Remove trailing account numbers if any
-            name = re.sub(r'\s*\d{10,}$', '', name)
+            # Remove trailing account numbers if any (BML has them on same line)
+            name = re.sub(r'\s*\d{10,}$', '', name).strip()
 
             # Skip if it matches the sender name (avoid picking up sender as receiver)
             if details['sender_name'] and name.upper() == details['sender_name'].upper():
                 continue
 
-            # Skip if it's a label word, not a name
-            if len(name) >= 3 and name.upper() not in skip_name_words:
+            # Validate it looks like a name (not a label)
+            if (len(name) >= 3 and
+                re.search(r'[A-Z]', name) and
+                not any(skip_word in name.upper() for skip_word in skip_name_words)):
                 # Preserve format (keep dots, capitalize properly)
                 details['receiver_name'] = name.title().replace('.', '.')
                 break
