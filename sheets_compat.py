@@ -525,14 +525,38 @@ class SheetsCompatAPI(DjangoAPI):
 
     # ==================== LEGACY USER CREDIT METHODS ====================
 
-    def add_user_credit(self, telegram_id: int, amount: float, credit_type: str,
-                       description: str, created_by: int) -> bool:
-        """Add user credit"""
+    def add_user_credit(self, telegram_id: int, username_or_amount, pppoker_id_or_credit_type,
+                       amount_or_description, request_id_or_created_by) -> bool:
+        """Add user credit - supports both old and new signatures for backward compatibility"""
         try:
-            user = self.get_or_create_user(telegram_id, str(telegram_id))
-            user_id = user.get('id')
-            self.create_user_credit(user_id, amount, credit_type, description, created_by)
-            return True
+            # Check if it's the old signature (telegram_id, username, pppoker_id, amount, request_id)
+            # or new signature (telegram_id, amount, credit_type, description, created_by)
+            if isinstance(username_or_amount, str):
+                # Old signature from seat request: (telegram_id, username, pppoker_id, amount, request_id)
+                username = username_or_amount
+                pppoker_id = pppoker_id_or_credit_type
+                amount = amount_or_description
+                request_id = request_id_or_created_by
+
+                user = self.get_or_create_user(telegram_id, username)
+                user_id = user.get('id')
+                credit_type = 'Seat Payment'
+                description = f"Seat request {request_id} for PPPoker ID {pppoker_id}"
+                created_by = 0  # System created
+
+                self.create_user_credit(user_id, amount, credit_type, description, created_by)
+                return True
+            else:
+                # New signature: (telegram_id, amount, credit_type, description, created_by)
+                amount = username_or_amount
+                credit_type = pppoker_id_or_credit_type
+                description = amount_or_description
+                created_by = request_id_or_created_by
+
+                user = self.get_or_create_user(telegram_id, str(telegram_id))
+                user_id = user.get('id')
+                self.create_user_credit(user_id, amount, credit_type, description, created_by)
+                return True
         except Exception as e:
             logger.error(f"Error adding user credit: {e}")
             return False
