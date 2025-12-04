@@ -6177,11 +6177,11 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
 
             # Add user to credit list
             api.add_user_credit(
-                user_telegram_id,
-                seat_req.get('user_details', {}).get('username', 'User'),
-                seat_req['pppoker_id'],
-                seat_req['amount'],
-                request_id
+                telegram_id=user_telegram_id,
+                amount=seat_req['amount'],
+                credit_type='Seat Payment',
+                description=f"Seat request {request_id} for PPPoker ID {seat_req['pppoker_id']}",
+                created_by=query.from_user.id
             )
 
             # Schedule first reminder (1 minute)
