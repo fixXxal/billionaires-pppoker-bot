@@ -670,14 +670,22 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            user = User.objects.get(telegram_id=telegram_id)
+            user = User.objects.get(telegram_id=int(telegram_id))
         except User.DoesNotExist:
             return Response(
-                {'error': 'User not found'},
+                {'error': f'User not found with telegram_id: {telegram_id}'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        except ValueError:
+            return Response(
+                {'error': f'Invalid telegram_id format: {telegram_id}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Calculate total deposits
+        # Calculate total deposits (including all statuses for debugging)
+        all_deposits_count = Deposit.objects.filter(user=user).count()
+        approved_deposits_count = Deposit.objects.filter(user=user, status='Approved').count()
+
         total_deposits = Deposit.objects.filter(
             user=user,
             status='Approved'
@@ -762,7 +770,14 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
             'baseline': float(baseline),
             'min_required': float(min_deposit),
             'deposits_exceed_withdrawals': deposits_exceed_withdrawals,
-            'already_claimed': already_claimed
+            'already_claimed': already_claimed,
+            # Debug info
+            'debug_info': {
+                'user_id': user.id,
+                'user_telegram_id': user.telegram_id,
+                'all_deposits_count': all_deposits_count,
+                'approved_deposits_count': approved_deposits_count
+            }
         })
 
 
