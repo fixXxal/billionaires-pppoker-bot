@@ -6589,8 +6589,9 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(f"❌ This slip has already been {seat_req['status'].lower()}", show_alert=True)
         return
 
-    # Extract user telegram ID
+    # Extract user telegram ID and username
     user_telegram_id = seat_req.get('user_details', {}).get('telegram_id')
+    username = seat_req.get('user_details', {}).get('username', 'User')
     if not user_telegram_id:
         user_telegram_id = seat_req.get('user_id')  # fallback
 
@@ -6621,7 +6622,7 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         message_id=message_id,
                         caption=f"📸 **Payment Slip Verification**\n\n"
                                 f"**Request ID:** `{request_id}`\n"
-                                f"**User:** @{seat_req['username']} (ID: {seat_req['user_id']})\n"
+                                f"**User:** @{username} (ID: {user_telegram_id})\n"
                                 f"**PPPoker ID:** {seat_req['pppoker_id']}\n"
                                 f"**Amount:** {seat_req['amount']} chips/MVR\n\n"
                                 f"✅ <b>SETTLED by {query.from_user.first_name}</b>",
@@ -6635,7 +6636,7 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Notify user
         try:
             await context.bot.send_message(
-                chat_id=seat_req['user_id'],
+                chat_id=user_telegram_id,
                 text=f"✅ **Payment Verified!**\n\n"
                      f"**Request ID:** `{request_id}`\n"
                      f"**Amount:** {seat_req['amount']} chips/MVR\n\n"
