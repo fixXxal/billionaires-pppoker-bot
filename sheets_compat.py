@@ -432,7 +432,7 @@ class SheetsCompatAPI(DjangoAPI):
 
     # ==================== LEGACY COUNTER STATUS METHODS ====================
 
-    def set_counter_status(self, status: str, admin_id: int = None) -> bool:
+    def set_counter_status(self, status: str, admin_id: int = None, announcement_sent: bool = True) -> bool:
         """Set counter status"""
         try:
             current = self.get_counter_status()
