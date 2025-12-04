@@ -448,6 +448,7 @@ class UserCredit(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.BigIntegerField()  # Admin who created it
     synced_to_sheets = models.BooleanField(default=False)
+    reminder_count = models.IntegerField(default=0)  # Track how many reminders sent
 
     class Meta:
         db_table = 'user_credits'

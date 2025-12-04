@@ -6317,7 +6317,7 @@ async def first_slip_reminder(context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Check reminder count
-    if credit['reminder_count'] >= 2:
+    if credit.get('reminder_count', 0) >= 2:
         # Already sent final reminder, don't send again
         return
 
