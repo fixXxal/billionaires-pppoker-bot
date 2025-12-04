@@ -303,10 +303,22 @@ class SheetsCompatAPI(DjangoAPI):
 
     # ==================== LEGACY PROMOTION METHODS ====================
 
-    def create_promotion(self, code: str, percentage: float, start_date: str, end_date: str) -> bool:
-        """Create deposit bonus promotion"""
+    def create_promotion(self, bonus_percentage: float = None, percentage: float = None,
+                        start_date: str = None, end_date: str = None,
+                        code: str = None, admin_id: int = None) -> bool:
+        """Create deposit bonus promotion - supports multiple parameter formats for backward compatibility"""
         try:
-            self.create_promo_code(code, percentage, start_date, end_date, promo_type='bonus')
+            # Handle different parameter formats
+            promo_percentage = bonus_percentage or percentage
+            if not promo_percentage:
+                raise ValueError("Either bonus_percentage or percentage must be provided")
+
+            # Auto-generate code if not provided (like BONUS_2025)
+            if not code:
+                from datetime import datetime
+                code = f"BONUS_{datetime.now().year}"
+
+            self.create_promo_code(code, promo_percentage, start_date, end_date, promo_type='bonus')
             return True
         except Exception as e:
             logger.error(f"Error creating promotion: {e}")
@@ -329,13 +341,22 @@ class SheetsCompatAPI(DjangoAPI):
         """Record promotion bonus - placeholder"""
         return True
 
-    def create_cashback_promotion(self, percentage: float, start_date: str, end_date: str) -> bool:
-        """Create cashback promotion"""
+    def create_cashback_promotion(self, cashback_percentage: float = None, percentage: float = None,
+                                 start_date: str = None, end_date: str = None,
+                                 code: str = None, admin_id: int = None) -> bool:
+        """Create cashback promotion - supports multiple parameter formats for backward compatibility"""
         try:
-            # Generate a code like "CASHBACK_2024"
-            from datetime import datetime
-            code = f"CASHBACK_{datetime.now().year}"
-            self.create_promo_code(code, percentage, start_date, end_date, promo_type='cashback')
+            # Handle different parameter formats
+            promo_percentage = cashback_percentage or percentage
+            if not promo_percentage:
+                raise ValueError("Either cashback_percentage or percentage must be provided")
+
+            # Auto-generate code if not provided (like CASHBACK_2025)
+            if not code:
+                from datetime import datetime
+                code = f"CASHBACK_{datetime.now().year}"
+
+            self.create_promo_code(code, promo_percentage, start_date, end_date, promo_type='cashback')
             return True
         except Exception as e:
             logger.error(f"Error creating cashback promotion: {e}")
@@ -354,8 +375,13 @@ class SheetsCompatAPI(DjangoAPI):
         """Get all deposit bonus promotions"""
         try:
             all_promos = self.get_all_promo_codes()
+            # Handle paginated response or direct list
+            if isinstance(all_promos, dict) and 'results' in all_promos:
+                all_promos = all_promos['results']
+            elif not isinstance(all_promos, list):
+                return []
             # Filter for bonus type only
-            return [p for p in all_promos if p.get('promo_type') == 'bonus']
+            return [p for p in all_promos if isinstance(p, dict) and p.get('promo_type') == 'bonus']
         except Exception as e:
             logger.error(f"Error getting all promotions: {e}")
             return []
@@ -364,8 +390,13 @@ class SheetsCompatAPI(DjangoAPI):
         """Get all cashback promotions"""
         try:
             all_promos = self.get_all_promo_codes()
+            # Handle paginated response or direct list
+            if isinstance(all_promos, dict) and 'results' in all_promos:
+                all_promos = all_promos['results']
+            elif not isinstance(all_promos, list):
+                return []
             # Filter for cashback type only
-            return [p for p in all_promos if p.get('promo_type') == 'cashback']
+            return [p for p in all_promos if isinstance(p, dict) and p.get('promo_type') == 'cashback']
         except Exception as e:
             logger.error(f"Error getting all cashback promotions: {e}")
             return []
