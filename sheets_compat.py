@@ -563,7 +563,22 @@ class SheetsCompatAPI(DjangoAPI):
 
     def get_user_credit(self, telegram_id: int):
         """Get user's active credit by telegram_id"""
-        return self.django_api.get_user_credit(telegram_id)
+        # SheetsCompatAPI extends DjangoAPI, so we can call parent method directly
+        try:
+            response = self._get(f'user-credits/?user={telegram_id}')
+            # Handle paginated response
+            if isinstance(response, dict) and 'results' in response:
+                credits = response['results']
+            else:
+                credits = response
+
+            # Return the first active credit (if any)
+            if credits and len(credits) > 0:
+                return credits[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user credit for {telegram_id}: {e}")
+            return None
 
     def clear_user_credit(self, telegram_id: int) -> bool:
         """Clear user credit - placeholder"""
@@ -579,7 +594,20 @@ class SheetsCompatAPI(DjangoAPI):
 
     def increment_credit_reminder(self, telegram_id: int) -> bool:
         """Increment credit reminder count"""
-        return self.django_api.increment_credit_reminder(telegram_id)
+        try:
+            credit = self.get_user_credit(telegram_id)
+            if not credit:
+                return False
+
+            credit_id = credit.get('id')
+            current_count = credit.get('reminder_count', 0)
+
+            # Update the reminder count
+            self._patch(f'user-credits/{credit_id}/', {'reminder_count': current_count + 1})
+            return True
+        except Exception as e:
+            logger.error(f"Error incrementing reminder for {telegram_id}: {e}")
+            return False
 
     def get_daily_credit_summary(self, date: str) -> Dict:
         """Get daily credit summary - placeholder"""
