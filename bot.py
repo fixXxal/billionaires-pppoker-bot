@@ -6160,10 +6160,10 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
             job = context.job_queue.run_once(
                 first_slip_reminder,
                 when=60,  # 1 minute
-                data=seat_req['user_id'],
-                name=f"seat_reminder1_{seat_req['user_id']}"
+                data=user_telegram_id,
+                name=f"seat_reminder1_{user_telegram_id}"
             )
-            seat_reminder_jobs[seat_req['user_id']] = job
+            seat_reminder_jobs[user_telegram_id] = job
 
         except Exception as e:
             logger.error(f"Failed to notify user: {e}")
