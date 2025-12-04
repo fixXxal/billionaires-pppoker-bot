@@ -572,6 +572,56 @@ class SeatRequestViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(seat_request)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['post'])
+    def settle(self, request, pk=None):
+        """Settle a seat request - create deposit and mark as completed"""
+        seat_request = self.get_object()
+        admin_id = request.data.get('admin_id')
+        payment_method = request.data.get('payment_method', 'Seat Payment')
+
+        if not admin_id:
+            return Response(
+                {'error': 'admin_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if already settled
+        if seat_request.status == 'Completed':
+            return Response(
+                {'error': 'Seat request already settled'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Create a Deposit record for this seat payment
+        deposit = Deposit.objects.create(
+            user=seat_request.user,
+            amount=seat_request.amount,
+            method=payment_method,
+            account_name='Seat Payment',
+            proof_image_path=seat_request.slip_image_path,
+            pppoker_id=seat_request.pppoker_id,
+            status='Approved',
+            approved_at=timezone.now(),
+            approved_by=admin_id,
+            synced_to_sheets=False
+        )
+
+        # Update user balance
+        seat_request.user.balance += seat_request.amount
+        seat_request.user.synced_to_sheets = False
+        seat_request.user.save()
+
+        # Mark seat request as completed
+        seat_request.status = 'Completed'
+        seat_request.synced_to_sheets = False
+        seat_request.save()
+
+        serializer = self.get_serializer(seat_request)
+        return Response({
+            'seat_request': serializer.data,
+            'deposit_id': deposit.id
+        })
+
 
 class CashbackRequestViewSet(viewsets.ModelViewSet):
     """API endpoint for Cashback Requests"""

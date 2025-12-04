@@ -6594,8 +6594,8 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user_telegram_id:
         user_telegram_id = seat_req.get('user_id')  # fallback
 
-    # Settle in database (mark as completed)
-    success = api.settle_seat_request(request_id, "Completed")
+    # Settle in database (mark as completed and create deposit)
+    success = api.settle_seat_request(request_id, query.from_user.id)
 
     if success:
         # Clear user credit

@@ -241,6 +241,7 @@ class SeatRequest(models.Model):
         ('Pending', 'Pending'),
         ('Approved', 'Approved'),
         ('Rejected', 'Rejected'),
+        ('Completed', 'Completed'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seat_requests')

@@ -218,9 +218,16 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error getting seat request: {e}")
             return None
 
-    def settle_seat_request(self, request_id: int, status: str) -> bool:
-        """Settle seat request - placeholder"""
-        return True
+    def settle_seat_request(self, request_id: int, admin_id: int, payment_method: str = 'Seat Payment') -> bool:
+        """Settle seat request - creates deposit and marks as completed"""
+        try:
+            if isinstance(request_id, str):
+                request_id = int(request_id)
+            super().settle_seat_request(request_id, admin_id, payment_method)
+            return True
+        except Exception as e:
+            logger.error(f"Error settling seat request: {e}")
+            return False
 
     def approve_seat_request(self, request_id: int, admin_id: int) -> bool:
         """Approve seat request"""

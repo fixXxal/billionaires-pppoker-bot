@@ -337,6 +337,11 @@ class DjangoAPI:
         data = {'admin_id': admin_id, 'reason': reason}
         return self._post(f'seat-requests/{seat_request_id}/reject/', data)
 
+    def settle_seat_request(self, seat_request_id: int, admin_id: int, payment_method: str = 'Seat Payment') -> Dict:
+        """Settle a seat request - creates deposit and marks as completed"""
+        data = {'admin_id': admin_id, 'payment_method': payment_method}
+        return self._post(f'seat-requests/{seat_request_id}/settle/', data)
+
     # ==================== CASHBACK REQUEST METHODS ====================
 
     def create_cashback_request(self, user_id: int, week_start: str, week_end: str,
