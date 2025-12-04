@@ -1147,10 +1147,14 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Show account name if available (from regular deposits)
+    account_name_text = ""
+    if user_data.get('account_name'):
+        account_name_text = f"**Registered Account Name:** {user_data['account_name']}\n\n⚠️ Withdrawals will only be sent to accounts with this name.\n\n"
+
     await update.message.reply_text(
         f"💸 **Withdrawal from Billionaires Club**\n\n"
-        f"**Registered Account Name:** {user_data['account_name']}\n\n"
-        f"⚠️ Withdrawals will only be sent to accounts with this name.\n\n"
+        f"{account_name_text}"
         f"Please select your payment method:",
         reply_markup=reply_markup,
         parse_mode='Markdown'
