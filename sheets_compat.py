@@ -187,10 +187,21 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(traceback.format_exc())
             return None
 
-    def update_join_request_status(self, request_id: int, status: str) -> bool:
-        """Update join request status - placeholder"""
-        # Implement when Django API supports it
-        return True
+    def update_join_request_status(self, request_id: int, status: str, admin_id: int = 0) -> bool:
+        """Update join request status"""
+        try:
+            data = {'status': status}
+            if admin_id:
+                if status == 'Approved':
+                    data['approved_by'] = admin_id
+                elif status == 'Rejected':
+                    data['rejected_by'] = admin_id
+
+            self._patch(f'join-requests/{request_id}/', data)
+            return True
+        except Exception as e:
+            logger.error(f"Error updating join request {request_id}: {e}")
+            return False
 
     # ==================== LEGACY SEAT REQUEST METHODS ====================
 
