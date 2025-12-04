@@ -6571,8 +6571,8 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    # Extract request_id: "settle_seat_SEAT_87D3AC20" -> "SEAT_87D3AC20"
-    request_id = query.data.replace('settle_seat_', '')
+    # Extract request_id from callback data and convert to int
+    request_id = int(query.data.replace('settle_seat_', ''))
     await query.answer()
 
     # Get seat request
@@ -6659,8 +6659,8 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    # Extract request_id: "reject_slip_SEAT_87D3AC20" -> "SEAT_87D3AC20"
-    request_id = query.data.replace('reject_slip_', '')
+    # Extract request_id from callback data and convert to int
+    request_id = int(query.data.replace('reject_slip_', ''))
     await query.answer()
 
     # Get seat request
