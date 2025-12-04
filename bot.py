@@ -1713,7 +1713,7 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
     promotion_id = context.user_data.get('cashback_promotion_id')
 
     # Create cashback request
-    request_id = api.create_cashback_request(
+    request_data = api.create_cashback_request(
         user_id=user.id,
         username=user.username or user.first_name,
         pppoker_id=pppoker_id,
@@ -1722,7 +1722,8 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
         promotion_id=promotion_id
     )
 
-    if request_id:
+    if request_data:
+        request_id = request_data.get('id')
         # Notify user
         await update.message.reply_text(
             f"✅ <b>Cashback request sent!</b>\n\n"
@@ -1755,7 +1756,7 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
     return ConversationHandler.END
 
 
-async def notify_admins_cashback_request(context, user_id: int, username: str, request_id: str,
+async def notify_admins_cashback_request(context, user_id: int, username: str, request_id: int,
                                         loss_amount: float, cashback_percentage: float,
                                         cashback_amount: float, pppoker_id: str):
     """Notify all admins about new cashback request"""
