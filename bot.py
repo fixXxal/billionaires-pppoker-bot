@@ -1540,10 +1540,11 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         user_credit = api.get_user_credit(user.id)
         if user_credit and float(user_credit.get('amount', 0)) > 0:
+            credit_amount = float(user_credit['amount'])
             await update.message.reply_text(
                 f"❌ <b>Cannot Request Cashback - Outstanding Credit</b>\n\n"
                 f"You have an unpaid credit:\n"
-                f"💳 <b>Amount Owed:</b> {user_credit['amount']:,.2f} MVR\n"
+                f"💳 <b>Amount Owed:</b> {credit_amount:,.2f} MVR\n"
                 f"📅 <b>Since:</b> {user_credit['created_at']}\n\n"
                 f"Please pay your credit before requesting cashback.\n"
                 f"Contact admin for payment details.",
@@ -7667,7 +7668,7 @@ async def cashback_approve_callback(update: Update, context: ContextTypes.DEFAUL
         # Approve each pending request
         for request in pending:
             row_number = request.get('row_number')
-            cashback_amount = request.get('cashback_amount', 0)
+            cashback_amount = float(request.get('cashback_amount', 0))
 
             success = api.approve_cashback_request(row_number, approver_name)
             if success:
