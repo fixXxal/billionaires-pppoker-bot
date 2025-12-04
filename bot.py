@@ -6017,9 +6017,14 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
         if seat_req:
             api.reject_seat_request(request_id, admin_id, reason)
 
+            # Extract user telegram ID from user_details
+            user_telegram_id = seat_req.get('user_details', {}).get('telegram_id')
+            if not user_telegram_id:
+                user_telegram_id = seat_req.get('user_id')  # fallback
+
             try:
                 await context.bot.send_message(
-                    chat_id=seat_req['user_id'],
+                    chat_id=user_telegram_id,
                     text=f"❌ <b>Seat request rejected</b>\n\n"
                          f"Reason: {reason}",
                     parse_mode='HTML'
@@ -6042,8 +6047,8 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    # Extract request_id: "approve_seat_SEAT_87D3AC20" -> "SEAT_87D3AC20"
-    request_id = query.data.replace('approve_seat_', '')
+    # Extract request_id from callback data and convert to int
+    request_id = int(query.data.replace('approve_seat_', ''))
     await query.answer()
 
     # Get seat request details
@@ -6057,6 +6062,14 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
     if not seat_req:
         await query.edit_message_text(
             f"{query.message.text}\n\n❌ _Seat request not found._\nRequest ID: {request_id}",
+            parse_mode='HTML'
+        )
+        return
+
+    # Check if already processed
+    if seat_req.get('status') != 'Pending':
+        await query.edit_message_text(
+            f"{query.message.text}\n\n⚠️ _This request was already {seat_req['status'].lower()}._",
             parse_mode='HTML'
         )
         return
@@ -6096,10 +6109,16 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
                 payment_info += f"Name: {payment_accounts['MIB']['account_name']}\n"
             payment_info += "\n"
 
+        # Extract user telegram ID from user_details
+        user_telegram_id = seat_req.get('user_details', {}).get('telegram_id')
+        if not user_telegram_id:
+            logger.error(f"No telegram_id found in seat request: {seat_req}")
+            user_telegram_id = seat_req.get('user_id')  # fallback
+
         # Notify user with payment details
         try:
             await context.bot.send_message(
-                chat_id=seat_req['user_id'],
+                chat_id=user_telegram_id,
                 text=f"✅ <b>Seat approved!</b>\n\n"
                      f"🪑 {seat_req['amount']} chips ready\n\n"
                      f"{payment_info}\n\n"
@@ -6108,7 +6127,7 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
             )
 
             # Store data and add user to credit list
-            seat_request_data[seat_req['user_id']] = {
+            seat_request_data[user_telegram_id] = {
                 'request_id': request_id,
                 'amount': seat_req['amount'],
                 'pppoker_id': seat_req['pppoker_id']
@@ -6116,8 +6135,8 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
 
             # Add user to credit list
             api.add_user_credit(
-                seat_req['user_id'],
-                seat_req['username'],
+                user_telegram_id,
+                seat_req.get('user_details', {}).get('username', 'User'),
                 seat_req['pppoker_id'],
                 seat_req['amount'],
                 request_id
@@ -6155,8 +6174,8 @@ async def reject_seat_request(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("❌ Not authorized", show_alert=True)
         return
 
-    # Extract request_id: "reject_seat_SEAT_87D3AC20" -> "SEAT_87D3AC20"
-    request_id = query.data.replace('reject_seat_', '')
+    # Extract request_id from callback data and convert to int
+    request_id = int(query.data.replace('reject_seat_', ''))
     await query.answer()
 
     # Store request_id for rejection reason
