@@ -6692,12 +6692,13 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.edit_message_caption(
                     chat_id=admin_id,
                     message_id=message_id,
-                    caption=f"📸 **Payment Slip Verification**\n\n"
-                            f"**Request ID:** `{request_id}`\n"
-                            f"**User:** @{username} (ID: {user_telegram_id})\n"
-                            f"**PPPoker ID:** {seat_req['pppoker_id']}\n"
-                            f"**Amount:** {seat_req['amount']} chips/MVR\n\n"
-                            f"❌ <b>REJECTED by {query.from_user.first_name}</b>\nUser notified to reupload.",
+                    caption=f"📸 Payment Slip Verification\n\n"
+                            f"Request ID: {request_id}\n"
+                            f"User: @{username} (ID: {user_telegram_id})\n"
+                            f"PPPoker ID: {seat_req['pppoker_id']}\n"
+                            f"Amount: {seat_req['amount']} chips / MVR\n\n"
+                            f"❌ <b>REJECTED by {query.from_user.first_name}</b>\n"
+                            f"This payment slip could not be verified. The user has been notified.",
                     parse_mode='HTML',
                     reply_markup=InlineKeyboardMarkup([])
                 )
