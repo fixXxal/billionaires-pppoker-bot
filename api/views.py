@@ -592,12 +592,16 @@ class SeatRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Get account name from seat request (extracted from slip) or fallback
+        account_name = seat_request.sender_account_name or 'Seat Payment'
+        method = seat_request.payment_method or payment_method
+
         # Create a Deposit record for this seat payment
         deposit = Deposit.objects.create(
             user=seat_request.user,
             amount=seat_request.amount,
-            method=payment_method,
-            account_name='Seat Payment',
+            method=method,
+            account_name=account_name,
             proof_image_path=seat_request.slip_image_path,
             pppoker_id=seat_request.pppoker_id,
             status='Approved',
@@ -605,6 +609,11 @@ class SeatRequestViewSet(viewsets.ModelViewSet):
             approved_by=admin_id,
             synced_to_sheets=False
         )
+
+        # Update user's account_name if this is their first deposit with a real name
+        if account_name and account_name != 'Seat Payment' and not seat_request.user.account_name:
+            seat_request.user.account_name = account_name
+            seat_request.user.save()
 
         # Update user balance
         seat_request.user.balance += seat_request.amount

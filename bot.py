@@ -1119,20 +1119,6 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
-    # Check if user has made at least one regular deposit (not seat payment)
-    try:
-        deposits = api.get_user_deposits(user_id)
-        regular_deposits = [d for d in deposits if d.get('account_name') and d.get('account_name') != 'Seat Payment']
-        if not regular_deposits:
-            await update.message.reply_text(
-                "⚠️ You need to make at least one regular deposit first.\n\n"
-                "We need your bank account name from a deposit slip before you can withdraw.\n\n"
-                "Seat deposits alone are not sufficient for withdrawal."
-            )
-            return ConversationHandler.END
-    except Exception as e:
-        logger.error(f"Error checking user deposits: {e}")
-
     # Get all configured payment accounts
     payment_accounts = api.get_all_payment_accounts()
 
@@ -1274,16 +1260,16 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     amount = context.user_data['withdrawal_amount']
     pppoker_id = context.user_data['withdrawal_pppoker_id']
 
-    # Get account name from most recent regular deposit (always use latest deposit, not User profile)
+    # Get account name from most recent deposit (including seat deposits now)
     try:
         deposits = api.get_user_deposits(user.id)
-        # Get non-seat-payment deposits, sorted by most recent
-        regular_deposits = [d for d in deposits if d.get('account_name') and d.get('account_name') != 'Seat Payment']
-        if regular_deposits:
+        # Get deposits with valid account names (seat deposits now have extracted sender names)
+        valid_deposits = [d for d in deposits if d.get('account_name') and d.get('account_name') not in ['Seat Payment', '']]
+        if valid_deposits:
             # Use the most recent deposit's account name
-            account_name = regular_deposits[0].get('account_name')
+            account_name = valid_deposits[0].get('account_name')
         else:
-            # Fallback to User profile account_name if no regular deposits found
+            # Fallback to User profile account_name
             account_name = user_data.get('account_name') or user_data.get('username', 'User')
     except Exception as e:
         logger.error(f"Error getting account name from deposits: {e}")
@@ -6512,6 +6498,17 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
 
         # Combine warnings
         validation_warnings = name_validation_warning + account_validation_warning
+
+    # Save extracted sender name and payment method to seat request
+    if extracted_details:
+        sender_name = extracted_details.get('sender_name', '')
+        payment_method = extracted_details.get('bank', '')
+        if sender_name:
+            try:
+                api.update_seat_request_slip_details(request_id, sender_name, payment_method)
+                logger.info(f"Updated seat request {request_id} with sender name: {sender_name}")
+            except Exception as e:
+                logger.error(f"Failed to update seat request slip details: {e}")
 
     # Send slip details to admin for verification
     username_display = f"@{user.username}" if user.username else "No username"

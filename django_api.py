@@ -342,6 +342,11 @@ class DjangoAPI:
         data = {'admin_id': admin_id, 'payment_method': payment_method}
         return self._post(f'seat-requests/{seat_request_id}/settle/', data)
 
+    def update_seat_request_slip_details(self, seat_request_id: int, sender_account_name: str, payment_method: str = '') -> Dict:
+        """Update seat request with slip details (sender name, payment method)"""
+        data = {'sender_account_name': sender_account_name, 'payment_method': payment_method}
+        return self._patch(f'seat-requests/{seat_request_id}/', data)
+
     # ==================== CASHBACK REQUEST METHODS ====================
 
     def create_cashback_request(self, user_id: int, week_start: str, week_end: str,
