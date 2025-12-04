@@ -153,6 +153,14 @@ class DjangoAPI:
         """Get all deposits"""
         return self._get('deposits/')
 
+    def get_user_deposits(self, telegram_id: int) -> List[Dict]:
+        """Get all deposits for a specific user"""
+        response = self._get(f'deposits/?user={telegram_id}')
+        # Handle paginated response
+        if isinstance(response, dict) and 'results' in response:
+            return response['results']
+        return response
+
     # ==================== WITHDRAWAL METHODS ====================
 
     def create_withdrawal(self, user_id: int, amount: float, method: str,

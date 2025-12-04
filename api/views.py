@@ -98,6 +98,14 @@ class DepositViewSet(viewsets.ModelViewSet):
     queryset = Deposit.objects.all()
     serializer_class = DepositSerializer
 
+    def get_queryset(self):
+        """Filter deposits by user telegram_id if provided"""
+        queryset = super().get_queryset()
+        telegram_id = self.request.query_params.get('user')
+        if telegram_id:
+            queryset = queryset.filter(user__telegram_id=telegram_id)
+        return queryset
+
     @action(detail=False, methods=['get'])
     def pending(self, request):
         """Get all pending deposits"""
