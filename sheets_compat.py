@@ -581,8 +581,19 @@ class SheetsCompatAPI(DjangoAPI):
             return None
 
     def clear_user_credit(self, telegram_id: int) -> bool:
-        """Clear user credit - placeholder"""
-        return True
+        """Delete user's active credit from database"""
+        try:
+            credit = self.get_user_credit(telegram_id)
+            if not credit:
+                return True  # No credit to clear
+
+            credit_id = credit.get('id')
+            # Delete the credit record
+            self._delete(f'user-credits/{credit_id}/')
+            return True
+        except Exception as e:
+            logger.error(f"Error clearing user credit for {telegram_id}: {e}")
+            return False
 
     def get_all_active_credits(self) -> List[Dict]:
         """Get all active credits"""
