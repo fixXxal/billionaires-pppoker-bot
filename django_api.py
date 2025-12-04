@@ -363,8 +363,13 @@ class DjangoAPI:
                                promotion_id: int = None, week_start: str = None,
                                week_end: str = None, investment_amount: float = None,
                                telegram_id: int = None) -> Dict:
-        """Create new cashback request - supports multiple parameter formats"""
-        from datetime import datetime, timedelta
+        """
+        Create new cashback request
+
+        Cashback is based on cumulative loss (500+ MVR), not weekly periods.
+        week_start/week_end are legacy fields - we use today's date as placeholder.
+        """
+        from datetime import datetime
 
         # Get user database ID from telegram_id if provided
         if telegram_id and not user_id:
@@ -375,11 +380,11 @@ class DjangoAPI:
             user_obj = self.get_or_create_user(user_id, username or str(user_id))
             user_id = user_obj.get('id')
 
-        # Auto-generate week_start/week_end if not provided (current week)
+        # Use today's date for legacy week fields (not actually weekly-based)
         if not week_start or not week_end:
-            today = datetime.now().date()
-            week_start = (today - timedelta(days=today.weekday())).isoformat()
-            week_end = (today + timedelta(days=(6 - today.weekday()))).isoformat()
+            today = datetime.now().date().isoformat()
+            week_start = today
+            week_end = today
 
         # Use loss_amount as investment_amount if provided
         if loss_amount and not investment_amount:
