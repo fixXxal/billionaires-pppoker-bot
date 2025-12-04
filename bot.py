@@ -6103,23 +6103,28 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
         # Build payment account buttons
         keyboard = []
         if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
-            bml_account = payment_accounts['BML']['account_number']
-            bml_name = payment_accounts['BML'].get('account_name', 'BML')
             keyboard.append([InlineKeyboardButton(
-                f"💳 BML - {bml_name}",
+                "💳 BML",
                 callback_data=f"show_account_bml_{request_id}"
             )])
 
         if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
-            mib_account = payment_accounts['MIB']['account_number']
-            mib_name = payment_accounts['MIB'].get('account_name', 'MIB')
             keyboard.append([InlineKeyboardButton(
-                f"💳 MIB - {mib_name}",
+                "💳 MIB",
                 callback_data=f"show_account_mib_{request_id}"
             )])
 
-        # Add upload slip button at the bottom
-        keyboard.append([InlineKeyboardButton("📤 Upload Payment Slip", callback_data=f"upload_seat_slip_{request_id}")])
+        if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
+            keyboard.append([InlineKeyboardButton(
+                "💳 USD",
+                callback_data=f"show_account_usd_{request_id}"
+            )])
+
+        if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
+            keyboard.append([InlineKeyboardButton(
+                "💳 USDT",
+                callback_data=f"show_account_usdt_{request_id}"
+            )])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -6293,10 +6298,10 @@ async def show_seat_account_details(update: Update, context: ContextTypes.DEFAUL
     await query.answer()
 
     # Extract account type and request_id from callback data
-    # Format: show_account_bml_123 or show_account_mib_123
+    # Format: show_account_bml_123 or show_account_mib_123 or show_account_usd_123 or show_account_usdt_123
     parts = query.data.split('_')
-    account_type = parts[2].upper()  # BML or MIB
-    request_id = parts[3]
+    account_type = parts[2].upper()  # BML, MIB, USD, or USDT
+    request_id = '_'.join(parts[3:])  # Handle if request_id contains underscores
 
     # Get payment accounts
     payment_accounts = api.get_all_payment_accounts()
@@ -7933,7 +7938,7 @@ def main():
     # Seat request handlers
     application.add_handler(CallbackQueryHandler(approve_seat_request, pattern="^approve_seat_"))
     application.add_handler(CallbackQueryHandler(reject_seat_request, pattern="^reject_seat_"))
-    application.add_handler(CallbackQueryHandler(show_seat_account_details, pattern="^show_account_(bml|mib)_"))
+    application.add_handler(CallbackQueryHandler(show_seat_account_details, pattern="^show_account_(bml|mib|usd|usdt)_"))
     application.add_handler(CallbackQueryHandler(upload_seat_slip_button, pattern="^upload_seat_slip_"))
     application.add_handler(CallbackQueryHandler(settle_seat_slip, pattern="^settle_seat_"))
     application.add_handler(CallbackQueryHandler(reject_seat_slip, pattern="^reject_slip_"))
