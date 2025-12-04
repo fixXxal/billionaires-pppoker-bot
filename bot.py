@@ -1575,7 +1575,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
-    cashback_percentage = cashback_promo.get('percentage')
+    cashback_percentage = float(cashback_promo.get('percentage', 0))
     promotion_id = cashback_promo.get('id')
 
     try:
@@ -1667,7 +1667,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     # User is eligible - calculate cashback on effective new deposits
-    effective_new_deposits = eligibility['effective_new_deposits']
+    effective_new_deposits = float(eligibility['effective_new_deposits'])
     cashback_amount = (effective_new_deposits * cashback_percentage) / 100
 
     message = f"✅ <b>Cashback Eligible!</b>\n\n"
