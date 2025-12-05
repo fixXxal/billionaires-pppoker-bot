@@ -161,6 +161,7 @@
             width: 100%;
             max-width: min(400px, calc(100vw - 30px));
             margin: 0 auto 20px;
+            margin-bottom: 250px;
             perspective: 1000px;
             transform: translate3d(0, 0, 0);
             filter: drop-shadow(0 10px 40px rgba(0,0,0,0.4));
@@ -265,84 +266,42 @@
             to { transform: rotate(360deg); }
         }
 
-        /* 3D Stage Platform - Beautiful pyramid design */
+        /* 2D Unified Podium - Single flat structure */
 
-        /* Platform tiers */
-        .platform-tier-1,
-        .platform-tier-2,
-        .platform-tier-3,
-        .platform-tier-4 {
+        /* Single unified podium container - NO BORDER */
+        .platform-tier-1 {
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            border-radius: 50%;
-            pointer-events: none;
-        }
-
-        /* Tier 3 - BOTTOM LAYER (Largest) - Foundation */
-        .platform-tier-3 {
-            bottom: -130px;
-            width: 155%;
-            height: 80px;
-            background: linear-gradient(to bottom,
-                rgba(45, 140, 125, 1) 0%,
-                rgba(40, 130, 115, 1) 50%,
-                rgba(35, 120, 105, 1) 100%);
-            border: 6px solid rgba(30, 110, 95, 1);
-            border-radius: 50%;
-            box-shadow:
-                /* Big soft shadow underneath */
-                0 25px 60px rgba(0, 0, 0, 0.7),
-                0 35px 80px rgba(0, 0, 0, 0.5),
-                /* Edge definition */
-                inset 0 -3px 0 rgba(0, 0, 0, 0.3),
-                inset 0 3px 0 rgba(100, 200, 180, 0.3);
-            z-index: -3;
-        }
-
-        /* Tier 2 - Middle layer */
-        .platform-tier-2 {
-            bottom: -85px;
+            bottom: -200px;
             width: 140%;
-            height: 70px;
-            background: linear-gradient(to bottom,
-                rgba(60, 165, 145, 1) 0%,
-                rgba(55, 155, 135, 1) 50%,
-                rgba(50, 145, 125, 1) 100%);
-            border: 6px solid rgba(45, 135, 115, 1);
-            border-radius: 50%;
-            box-shadow:
-                /* Big soft shadow underneath */
-                0 20px 50px rgba(0, 0, 0, 0.65),
-                0 30px 70px rgba(0, 0, 0, 0.45),
-                /* Edge definition */
-                inset 0 -3px 0 rgba(0, 0, 0, 0.3),
-                inset 0 3px 0 rgba(120, 220, 200, 0.35);
-            z-index: -2;
-        }
-
-        /* Tier 1 - TOP LAYER (Smallest, closest to wheel) */
-        .platform-tier-1 {
-            bottom: -45px;
-            width: 125%;
-            height: 60px;
-            background: linear-gradient(to bottom,
-                rgba(80, 195, 175, 1) 0%,
-                rgba(75, 185, 165, 1) 50%,
-                rgba(70, 175, 155, 1) 100%);
-            border: 6px solid rgba(65, 165, 145, 1);
-            border-radius: 50%;
-            box-shadow:
-                /* Big soft shadow underneath */
-                0 18px 45px rgba(0, 0, 0, 0.6),
-                0 25px 60px rgba(0, 0, 0, 0.4),
-                /* Edge definition */
-                inset 0 -3px 0 rgba(0, 0, 0, 0.3),
-                inset 0 3px 0 rgba(150, 240, 220, 0.4);
+            height: 140px;
+            pointer-events: none;
             z-index: -1;
+            border-radius: 50%;
+            background:
+                /* Top tier - smallest */
+                radial-gradient(ellipse 55% 20px at 50% 0px,
+                    rgba(70, 180, 160, 1) 0%,
+                    rgba(70, 180, 160, 1) 100%),
+
+                /* Middle tier - medium size */
+                radial-gradient(ellipse 65% 25px at 50% 45px,
+                    rgba(55, 155, 135, 1) 0%,
+                    rgba(55, 155, 135, 1) 100%),
+
+                /* Bottom tier - largest */
+                radial-gradient(ellipse 75% 30px at 50% 95px,
+                    rgba(40, 130, 115, 1) 0%,
+                    rgba(40, 130, 115, 1) 100%);
+            box-shadow:
+                /* Ground shadow */
+                0 35px 70px rgba(0, 0, 0, 0.7);
         }
 
-        /* Hide tier 4 - not needed anymore */
+        /* Hide unused tiers */
+        .platform-tier-2,
+        .platform-tier-3,
         .platform-tier-4 {
             display: none;
         }
