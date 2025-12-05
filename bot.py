@@ -3520,7 +3520,7 @@ async def clear_user_credit_callback(update: Update, context: ContextTypes.DEFAU
             method='Credit Payment',
             account_name='Credit Settlement',
             pppoker_id=pppoker_id,
-            proof_image_path=None
+            proof_image_path=''  # Empty string instead of None
         )
 
         # Auto-approve the deposit (just for tracking, no balance added)
