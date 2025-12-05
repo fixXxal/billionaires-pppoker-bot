@@ -5788,14 +5788,17 @@ async def quick_approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE)
     api.update_join_request_status(request_id, 'Approved', query.from_user.id)
 
     # Notify user
+    user_details = join_req.get('user_details', {})
+    user_id = user_details.get('telegram_id') or join_req.get('user_id') or join_req.get('user')
     try:
         await context.bot.send_message(
-            chat_id=join_req['user_id'],
+            chat_id=user_id,
             text=f"✅ <b>Welcome to βILLIONAIRES!</b>\n\n🎮 You're approved - start playing!",
             parse_mode='HTML'
         )
-    except:
-        pass
+        logger.info(f"✅ User {user_id} notified about join request {request_id} approval")
+    except Exception as e:
+        logger.error(f"❌ Failed to notify user {user_id} about join approval: {e}")
 
     # Remove buttons for ALL admins
     if request_id in notification_messages:
