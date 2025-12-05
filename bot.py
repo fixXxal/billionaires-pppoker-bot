@@ -5800,7 +5800,21 @@ async def quick_approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except Exception as e:
         logger.error(f"❌ Failed to notify user {user_id} about join approval: {e}")
 
-    # Remove buttons for ALL admins
+    # Edit the approving admin's message to show confirmation
+    try:
+        pppoker_id = join_req.get('pppoker_id', 'N/A')
+        await query.edit_message_text(
+            f"✅ <b>JOIN REQUEST APPROVED</b>\n\n"
+            f"👤 User: {user_id}\n"
+            f"🎮 PPPoker ID: {pppoker_id}\n"
+            f"🎫 Request ID: {request_id}\n\n"
+            f"✨ User has been notified!",
+            parse_mode='HTML'
+        )
+    except Exception as e:
+        logger.error(f"Failed to edit approval message: {e}")
+
+    # Remove buttons for ALL other admins
     if request_id in notification_messages:
         for admin_id, message_id in notification_messages[request_id]:
             try:
