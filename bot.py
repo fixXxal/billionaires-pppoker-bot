@@ -8538,29 +8538,38 @@ def main():
 
             logger.info(f"📊 Check spin notifications: Found {len(pending_spins)} total pending spins")
 
-            # Group by user
+            # Group by user first, then check if user's batch is ready
             from collections import defaultdict
-            user_spins = defaultdict(list)
+            user_all_spins = defaultdict(list)
 
+            # Group all unnotified spins by user
             for spin in pending_spins:
                 # Skip if already notified
                 if spin.get('notified_at'):
                     logger.info(f"⏭️ Skipping spin {spin.get('id')} - already notified at {spin.get('notified_at')}")
                     continue
 
-                # Check if spin is older than 30 seconds
-                created_at = datetime.fromisoformat(spin['created_at'].replace('Z', '+00:00'))
+                user_id = spin.get('user_details', {}).get('telegram_id')
+                if user_id:
+                    user_all_spins[user_id].append(spin)
+                else:
+                    logger.warning(f"⚠️ Spin {spin.get('id')} has no user telegram_id")
+
+            # Now check each user's batch - send if most recent spin is 30+ seconds old
+            user_spins = {}
+            for user_id, spins in user_all_spins.items():
+                # Find the most recent spin for this user
+                most_recent_spin = max(spins, key=lambda s: s['created_at'])
+                created_at = datetime.fromisoformat(most_recent_spin['created_at'].replace('Z', '+00:00'))
                 age_seconds = (datetime.now(created_at.tzinfo) - created_at).total_seconds()
 
-                logger.info(f"📅 Spin {spin.get('id')} age: {age_seconds:.1f} seconds (need 30+)")
+                logger.info(f"📅 User {user_id}: {len(spins)} unnotified spins, most recent is {age_seconds:.1f}s old (need 30+)")
 
-                if age_seconds >= 30:  # 30 seconds idle
-                    user_id = spin.get('user_details', {}).get('telegram_id')
-                    if user_id:
-                        logger.info(f"✅ Adding spin {spin.get('id')} for user {user_id} to notification queue")
-                        user_spins[user_id].append(spin)
-                    else:
-                        logger.warning(f"⚠️ Spin {spin.get('id')} has no user telegram_id")
+                if age_seconds >= 30:
+                    logger.info(f"✅ Queueing {len(spins)} spins for user {user_id} notification")
+                    user_spins[user_id] = spins
+                else:
+                    logger.info(f"⏳ User {user_id} batch not ready yet, waiting for 30s idle")
 
             # Send notifications for each user
             if user_spins:
