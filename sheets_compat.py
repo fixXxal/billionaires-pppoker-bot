@@ -288,13 +288,13 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error getting pending cashback: {e}")
             return []
 
-    def approve_cashback_request(self, cashback_id: int, admin_id: int) -> bool:
-        """Approve cashback request - placeholder"""
-        return True
+    def approve_cashback_request(self, request_id: int, approved_by: int) -> Dict:
+        """Approve a cashback request - delegates to DjangoAPI"""
+        return super().approve_cashback_request(request_id, approved_by)
 
-    def reject_cashback_request(self, cashback_id: int, admin_id: int) -> bool:
-        """Reject cashback request - placeholder"""
-        return True
+    def reject_cashback_request(self, request_id: int, approved_by: int, rejection_reason: str = '') -> Dict:
+        """Reject a cashback request - delegates to DjangoAPI"""
+        return super().reject_cashback_request(request_id, approved_by, rejection_reason)
 
     def get_cashback_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
         """Get cashback requests by date range"""
