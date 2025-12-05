@@ -536,9 +536,15 @@ class DjangoAPI:
     def clear_payment_account(self, method: str) -> bool:
         """Deactivate a payment account by method"""
         try:
-            accounts = self.get_all_payment_accounts()
-            if not isinstance(accounts, list):
-                logger.error(f"Expected list of accounts, got {type(accounts)}")
+            response = self.get_all_payment_accounts()
+
+            # Handle paginated response
+            if isinstance(response, dict) and 'results' in response:
+                accounts = response['results']
+            elif isinstance(response, list):
+                accounts = response
+            else:
+                logger.error(f"Unexpected response format: {type(response)}")
                 return False
 
             # Find the account with matching method
