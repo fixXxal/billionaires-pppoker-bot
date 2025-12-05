@@ -559,19 +559,19 @@ Please contact support if you have any questions.
         api.update_join_request_status(request_id, 'Rejected', admin_id)
 
         # Notify user
-        user_id = join_req['user_id']
-        user_message = f"""
-❌ **Your Club Join Request Has Been Declined**
-
-**Request ID:** `{request_id}`
-**Reason:** {reason or 'No reason provided'}
-
-Please contact support if you have any questions.
-"""
+        user_details = join_req.get('user_details', {})
+        user_id = user_details.get('telegram_id') or join_req.get('user_id') or join_req.get('user')
+        user_message = (
+            f"❌ <b>Your Club Join Request Has Been Declined</b>\n\n"
+            f"<b>Request ID:</b> <code>{request_id}</code>\n"
+            f"<b>Reason:</b> {reason or 'No reason provided'}\n\n"
+            f"Please contact support if you have any questions."
+        )
 
         try:
             await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')
         except Exception as e:
+            logger.error(f"Failed to notify user {user_id} about join rejection: {e}")
             await update.message.reply_text(f"⚠️ Could not notify user: {e}")
 
         # Edit original notification message to remove buttons for ALL admins
@@ -1314,19 +1314,17 @@ async def join_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Notify user
     user_details = join_req.get('user_details', {})
     user_id = user_details.get('telegram_id') or join_req.get('user')
-    user_message = f"""
-✅ **Welcome to Billionaires Club!**
-
-**Request ID:** `{request_id}`
-**PPPoker ID:** {join_req['pppoker_id']}
-
-You've been approved to join the club. See you at the tables! 🎰
-"""
+    user_message = (
+        f"✅ <b>Welcome to Billionaires Club!</b>\n\n"
+        f"<b>Request ID:</b> <code>{request_id}</code>\n"
+        f"<b>PPPoker ID:</b> {join_req['pppoker_id']}\n\n"
+        f"You've been approved to join the club. See you at the tables! 🎰"
+    )
 
     try:
         await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')
     except Exception as e:
-        pass
+        logger.error(f"Failed to notify user {user_id} about join approval: {e}")
 
     # Edit original notification message to remove buttons for ALL admins
     if request_id in notification_messages:
