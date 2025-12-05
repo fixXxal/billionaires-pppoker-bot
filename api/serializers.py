@@ -106,7 +106,7 @@ class SpinHistorySerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'user_details', 'prize', 'chips',
             'pppoker_id', 'status', 'created_at', 'approved_at',
-            'approved_by'
+            'approved_by', 'notified_at'
         ]
         read_only_fields = ['id', 'created_at', 'approved_at']
 

@@ -8633,12 +8633,15 @@ def main():
 
             # Send to regular admins
             admins = api.get_all_admins()
-            for admin in admins:
-                if admin.get('telegram_id') != ADMIN_USER_ID:
-                    try:
-                        await app.bot.send_message(chat_id=admin['telegram_id'], text=admin_message, parse_mode='HTML')
-                    except Exception as e:
-                        logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
+            if isinstance(admins, list):
+                for admin in admins:
+                    if admin.get('telegram_id') != ADMIN_USER_ID:
+                        try:
+                            await app.bot.send_message(chat_id=admin['telegram_id'], text=admin_message, parse_mode='HTML')
+                        except Exception as e:
+                            logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
+            else:
+                logger.error(f"Failed to get admins list: {admins}")
 
             # Mark spins as notified
             from datetime import datetime
