@@ -533,6 +533,37 @@ class DjangoAPI:
         """Get all payment accounts"""
         return self._get('payment-accounts/')
 
+    def clear_payment_account(self, method: str) -> bool:
+        """Deactivate a payment account by method"""
+        try:
+            accounts = self.get_all_payment_accounts()
+            if not isinstance(accounts, list):
+                logger.error(f"Expected list of accounts, got {type(accounts)}")
+                return False
+
+            # Find the account with matching method
+            existing = next((acc for acc in accounts if isinstance(acc, dict) and acc.get('method') == method), None)
+
+            if not existing:
+                logger.warning(f"Payment account {method} not found")
+                return False
+
+            account_id = existing.get('id')
+            # Update account to set is_active to False
+            data = {
+                'method': method,
+                'account_name': existing.get('account_name'),
+                'account_number': existing.get('account_number'),
+                'is_active': False
+            }
+
+            result = self._put(f'payment-accounts/{account_id}/', data)
+            logger.info(f"Deactivated payment account {method} (ID: {account_id})")
+            return True
+        except Exception as e:
+            logger.error(f"Error clearing payment account {method}: {e}", exc_info=True)
+            return False
+
     # ==================== ADMIN METHODS ====================
 
     def is_admin(self, telegram_id: int) -> bool:

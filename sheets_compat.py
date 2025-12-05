@@ -508,8 +508,8 @@ class SheetsCompatAPI(DjangoAPI):
             raise  # Re-raise so bot shows error to admin
 
     def clear_payment_account(self, method: str) -> bool:
-        """Clear payment account - placeholder"""
-        return True
+        """Deactivate a payment account - delegates to DjangoAPI"""
+        return super().clear_payment_account(method)
 
     # ==================== LEGACY COUNTER STATUS METHODS ====================
 
