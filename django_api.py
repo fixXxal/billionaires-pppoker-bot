@@ -287,6 +287,10 @@ class DjangoAPI:
         data = {'admin_id': admin_id}
         return self._post(f'spin-history/{spin_id}/approve/', data)
 
+    def update_spin_history(self, spin_id: int, **kwargs) -> Dict:
+        """Update a spin history record (e.g., notified_at)"""
+        return self._patch(f'spin-history/{spin_id}/', kwargs)
+
     def get_all_spin_history(self) -> List[Dict]:
         """Get all spin history"""
         return self._get('spin-history/')

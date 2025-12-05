@@ -8579,12 +8579,16 @@ def main():
             from datetime import datetime
             for spin in spins:
                 try:
-                    requests.patch(
-                        f"{DJANGO_API_URL}/spin-history/{spin['id']}/",
-                        json={'notified_at': datetime.now().isoformat()}
+                    # Use the django_api method to properly mark as notified
+                    result = api.update_spin_history(
+                        spin_id=spin['id'],
+                        notified_at=datetime.now().isoformat()
                     )
+                    logger.info(f"✅ Successfully marked spin {spin['id']} as notified")
                 except Exception as e:
-                    logger.error(f"Failed to mark spin {spin['id']} as notified: {e}")
+                    logger.error(f"❌ Failed to mark spin {spin['id']} as notified: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
 
         except Exception as e:
             logger.error(f"Error sending spin notification: {e}")
