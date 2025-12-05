@@ -632,6 +632,15 @@ class SheetsCompatAPI(DjangoAPI):
 
                 user = self.get_or_create_user(telegram_id, username)
                 user_id = user.get('id')
+
+                # Update user's PPPoker ID if provided
+                if pppoker_id and pppoker_id != 'N/A':
+                    try:
+                        self._patch(f'users/{user_id}/', {'pppoker_id': pppoker_id})
+                        logger.info(f"Updated user {telegram_id} PPPoker ID to {pppoker_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to update user PPPoker ID: {e}")
+
                 credit_type = 'Seat Payment'
                 description = f"Seat request {request_id} for PPPoker ID {pppoker_id}"
                 created_by = 0  # System created
