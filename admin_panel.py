@@ -570,8 +570,9 @@ Please contact support if you have any questions.
 
         try:
             await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')
+            logger.info(f"✅ User {user_id} notified about join request {request_id} rejection")
         except Exception as e:
-            logger.error(f"Failed to notify user {user_id} about join rejection: {e}")
+            logger.error(f"❌ Failed to notify user {user_id} about join rejection: {e}")
             await update.message.reply_text(f"⚠️ Could not notify user: {e}")
 
         # Edit original notification message to remove buttons for ALL admins
@@ -1323,8 +1324,9 @@ async def join_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         await context.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')
+        logger.info(f"✅ User {user_id} notified about join request {request_id} approval")
     except Exception as e:
-        logger.error(f"Failed to notify user {user_id} about join approval: {e}")
+        logger.error(f"❌ Failed to notify user {user_id} about join approval: {e}")
 
     # Edit original notification message to remove buttons for ALL admins
     if request_id in notification_messages:
