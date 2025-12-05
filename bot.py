@@ -8654,20 +8654,29 @@ def main():
 
             # Send to regular admins with button
             admins = api.get_all_admins()
+            logger.info(f"📋 Retrieved admins list: {admins}")
+
             if isinstance(admins, list):
+                logger.info(f"📊 Total admins found: {len(admins)}")
                 for admin in admins:
-                    if admin.get('telegram_id') != ADMIN_USER_ID:
+                    admin_telegram_id = admin.get('telegram_id')
+                    logger.info(f"🔍 Processing admin: {admin_telegram_id} (Super admin: {ADMIN_USER_ID})")
+
+                    if admin_telegram_id != ADMIN_USER_ID:
                         try:
                             await app.bot.send_message(
-                                chat_id=admin['telegram_id'],
+                                chat_id=admin_telegram_id,
                                 text=admin_message,
                                 parse_mode='HTML',
                                 reply_markup=reply_markup
                             )
+                            logger.info(f"✅ Sent notification to admin {admin_telegram_id}")
                         except Exception as e:
-                            logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
+                            logger.error(f"❌ Failed to notify admin {admin_telegram_id}: {e}")
+                    else:
+                        logger.info(f"⏭️ Skipping super admin {admin_telegram_id} (already notified)")
             else:
-                logger.error(f"Failed to get admins list: {admins}")
+                logger.error(f"❌ Failed to get admins list (not a list): {admins}")
 
             # Mark spins as notified
             from datetime import datetime
