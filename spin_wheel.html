@@ -26,20 +26,29 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #0d4d4d 0%, #1a5a5a 50%, #0d4d4d 100%);
             min-height: 100vh;
+            min-height: -webkit-fill-available;
             width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 15px;
+            padding: 10px;
+            padding-bottom: env(safe-area-inset-bottom, 10px);
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
-            overscroll-behavior-x: contain;
+            overscroll-behavior: contain;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             position: relative;
+        }
+
+        /* iOS specific fixes */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                min-height: -webkit-fill-available;
+            }
         }
 
         /* Floating gift boxes background */
@@ -141,7 +150,7 @@
             text-align: center;
             color: white;
             margin-bottom: 15px;
-            font-size: 1.8em;
+            font-size: clamp(1.5em, 5vw, 1.8em);
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
@@ -159,7 +168,7 @@
         .wheel-container {
             position: relative;
             width: 100%;
-            max-width: min(400px, calc(100vw - 30px));
+            max-width: min(400px, 90vw, calc(100vw - 20px));
             margin: 0 auto 20px;
             perspective: 1000px;
             transform: translate3d(0, 0, 0);
@@ -167,21 +176,62 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            aspect-ratio: 1;
+        }
+
+        /* Mobile responsiveness */
+        @media screen and (max-width: 480px) {
+            .wheel-container {
+                max-width: min(350px, 90vw);
+            }
+        }
+
+        @media screen and (max-width: 360px) {
+            .wheel-container {
+                max-width: min(300px, 85vw);
+            }
+        }
+
+        /* Landscape mobile */
+        @media screen and (max-height: 600px) and (orientation: landscape) {
+            .wheel-container {
+                max-width: min(280px, 40vh);
+            }
+
+            h1 {
+                font-size: 1.3em;
+                margin-bottom: 8px;
+            }
+
+            #spinsInfo {
+                padding: 8px;
+                font-size: 0.9em;
+                margin-bottom: 10px;
+            }
         }
 
         .pointer {
             position: absolute;
-            top: -25px;
+            top: -20px;
             left: 50%;
             transform: translateX(-50%) translateZ(0);
             width: 0;
             height: 0;
-            border-left: 22px solid transparent;
-            border-right: 22px solid transparent;
-            border-top: 50px solid #FFD700;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 40px solid #FFD700;
             filter: drop-shadow(0 4px 12px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 20px rgba(255, 215, 0, 0.6));
             z-index: 10;
             animation: pointerPulse 2s infinite;
+        }
+
+        @media screen and (min-width: 481px) {
+            .pointer {
+                top: -25px;
+                border-left: 22px solid transparent;
+                border-right: 22px solid transparent;
+                border-top: 50px solid #FFD700;
+            }
         }
 
         @keyframes pointerPulse {
@@ -292,31 +342,72 @@
             display: flex;
             flex-direction: row;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 8px;
             margin-bottom: 20px;
             justify-content: center;
+            width: 100%;
+            padding: 0 5px;
         }
 
         .spin-btn {
-            padding: 10px 16px;
-            font-size: 0.9em;
+            padding: 12px 18px;
+            font-size: clamp(0.85em, 3.5vw, 0.95em);
             font-weight: bold;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
             transition: transform 0.2s;
             box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-            flex: 0 0 auto;
-            min-width: 60px;
+            flex: 0 1 auto;
+            min-width: 80px;
+            min-height: 44px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .spin-btn:active {
-            transform: scale(0.98);
+            transform: scale(0.95);
         }
 
         .spin-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        /* Mobile specific button adjustments */
+        @media screen and (max-width: 480px) {
+            .spin-buttons {
+                gap: 6px;
+            }
+
+            .spin-btn {
+                padding: 10px 14px;
+                min-width: 70px;
+                flex: 1 1 calc(50% - 6px);
+                max-width: calc(50% - 3px);
+            }
+        }
+
+        @media screen and (max-width: 360px) {
+            .spin-btn {
+                padding: 8px 12px;
+                min-width: 65px;
+                font-size: 0.8em;
+            }
+        }
+
+        /* Landscape mobile */
+        @media screen and (max-height: 600px) and (orientation: landscape) {
+            .spin-buttons {
+                gap: 5px;
+                margin-bottom: 10px;
+            }
+
+            .spin-btn {
+                padding: 8px 12px;
+                font-size: 0.8em;
+                min-height: 36px;
+            }
         }
 
         .spin-1x { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
