@@ -3453,7 +3453,17 @@ async def user_credit_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             pppoker_display = f"<code>{pppoker_id}</code>" if pppoker_id and pppoker_id != 'N/A' else pppoker_id or 'N/A'
             message += f"<b>PPPoker ID:</b> {pppoker_display}\n"
             message += f"<b>Credit Amount:</b> <b>{credit['amount']} chips/MVR</b>\n"
-            message += f"<b>Request ID:</b> {credit.get('seat_request_id', 'N/A')}\n"
+
+            # Extract request ID from description (format: "Seat request {id} for PPPoker ID {pppoker}")
+            request_id = 'N/A'
+            description = credit.get('description', '')
+            if 'Seat request' in description:
+                try:
+                    request_id = description.split('Seat request ')[1].split(' ')[0]
+                except:
+                    request_id = 'N/A'
+
+            message += f"<b>Request ID:</b> {request_id}\n"
             message += f"<b>Created:</b> {credit['created_at']}\n"
             message += f"<b>Reminders Sent:</b> {credit.get('reminder_count', 0)}\n\n"
 
@@ -3524,14 +3534,18 @@ async def clear_user_credit_callback(update: Update, context: ContextTypes.DEFAU
         except Exception as e:
             logger.error(f"Failed to notify user: {e}")
 
+        # Extract username safely
+        user_details = credit.get('user_details', {})
+        username = user_details.get('username', 'N/A')
+
         await query.edit_message_text(
-            f"✅ **Credit Cleared Successfully**\n\n"
-            f"**User ID:** `{user_id}`\n"
-            f"**Username:** {credit.get('username', 'N/A')}\n"
-            f"**Amount:** {credit['amount']} chips/MVR\n\n"
+            f"✅ <b>Credit Cleared Successfully</b>\n\n"
+            f"<b>User ID:</b> <code>{user_id}</code>\n"
+            f"<b>Username:</b> @{username if username != 'N/A' else 'N/A'}\n"
+            f"<b>Amount:</b> {credit['amount']} chips/MVR\n\n"
             f"User has been notified.\n\n"
-            f"_Use /user_credit to view remaining credits._",
-            parse_mode='Markdown'
+            f"<i>Use /user_credit to view remaining credits.</i>",
+            parse_mode='HTML'
         )
     else:
         await query.edit_message_text(
