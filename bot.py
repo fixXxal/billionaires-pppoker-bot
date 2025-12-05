@@ -7270,6 +7270,7 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
             # Send to all other admins
             admins_response = spin_bot.api.get_all_admins()
+            logger.info(f"📋 Got admin list response type: {type(admins_response)}")
 
             # Handle paginated response from Django API
             if isinstance(admins_response, dict) and 'results' in admins_response:
@@ -7277,19 +7278,31 @@ async def approve_spin_callback(update: Update, context: ContextTypes.DEFAULT_TY
             else:
                 admins = admins_response
 
+            logger.info(f"📋 Found {len(admins)} admins to notify about approval")
+            logger.info(f"📋 Approver ID: {user.id}, will skip this admin")
+
             for admin in admins:
                 # Don't notify the admin who approved it
+                logger.info(f"📋 Checking admin: {admin.get('telegram_id')} (name: {admin.get('name', 'N/A')})")
                 if admin['telegram_id'] != user.id:
                     try:
+                        logger.info(f"✅ Sending approval notification to admin {admin['telegram_id']}")
                         await context.bot.send_message(
                             chat_id=admin['telegram_id'],
                             text=admin_notification,
                             parse_mode='HTML'
                         )
+                        logger.info(f"✅ Successfully sent approval notification to admin {admin['telegram_id']}")
                     except Exception as e:
-                        logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
+                        logger.error(f"❌ Failed to notify admin {admin['telegram_id']}: {e}")
+                        import traceback
+                        logger.error(traceback.format_exc())
+                else:
+                    logger.info(f"⏭️ Skipping admin {admin['telegram_id']} (is the approver)")
         except Exception as e:
-            logger.error(f"Error notifying other admins: {e}")
+            logger.error(f"❌ Error notifying other admins: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     # Edit the original message to show it was processed
     try:
@@ -7608,6 +7621,7 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         # Send to all regular admins (except the one who approved)
         try:
             regular_admins_response = api.get_all_admins()
+            logger.info(f"📋 Got admin list response type: {type(regular_admins_response)}")
 
             # Handle paginated response from Django API
             if isinstance(regular_admins_response, dict) and 'results' in regular_admins_response:
@@ -7615,18 +7629,30 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
             else:
                 regular_admins = regular_admins_response
 
+            logger.info(f"📋 Found {len(regular_admins)} regular admins to notify about approval")
+            logger.info(f"📋 Approver ID: {user.id}, will skip this admin")
+
             for admin in regular_admins:
+                logger.info(f"📋 Checking admin: {admin.get('telegram_id')} (name: {admin.get('name', 'N/A')})")
                 if admin['telegram_id'] != user.id:
                     try:
+                        logger.info(f"✅ Sending approval notification to admin {admin['telegram_id']}")
                         await context.bot.send_message(
                             chat_id=admin['telegram_id'],
                             text=admin_notification,
                             parse_mode='HTML'
                         )
+                        logger.info(f"✅ Successfully sent approval notification to admin {admin['telegram_id']}")
                     except Exception as e:
-                        logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
+                        logger.error(f"❌ Failed to notify admin {admin['telegram_id']}: {e}")
+                        import traceback
+                        logger.error(traceback.format_exc())
+                else:
+                    logger.info(f"⏭️ Skipping admin {admin['telegram_id']} (is the approver)")
         except Exception as e:
-            logger.error(f"Failed to get admin list: {e}")
+            logger.error(f"❌ Failed to get admin list: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
         # Notify the user
         try:
