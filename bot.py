@@ -8522,12 +8522,21 @@ def main():
             import requests
 
             # Get all pending spins that haven't been notified yet
-            response = requests.get(f'{DJANGO_API_URL}/spin-history/?status=Pending')
+            response = requests.get(
+                f'{DJANGO_API_URL}/spin-history/?status=Pending',
+                headers={
+                    'Authorization': f'Bearer {api.token}' if hasattr(api, 'token') and api.token else '',
+                    'Content-Type': 'application/json'
+                }
+            )
             if response.status_code != 200:
+                logger.error(f"Failed to get pending spins: HTTP {response.status_code} - {response.text}")
                 return
 
             data = response.json()
             pending_spins = data.get('results', []) if isinstance(data, dict) else data
+
+            logger.info(f"📊 Check spin notifications: Found {len(pending_spins)} total pending spins")
 
             # Group by user
             from collections import defaultdict
@@ -8536,23 +8545,35 @@ def main():
             for spin in pending_spins:
                 # Skip if already notified
                 if spin.get('notified_at'):
+                    logger.info(f"⏭️ Skipping spin {spin.get('id')} - already notified at {spin.get('notified_at')}")
                     continue
 
                 # Check if spin is older than 30 seconds
                 created_at = datetime.fromisoformat(spin['created_at'].replace('Z', '+00:00'))
                 age_seconds = (datetime.now(created_at.tzinfo) - created_at).total_seconds()
 
+                logger.info(f"📅 Spin {spin.get('id')} age: {age_seconds:.1f} seconds (need 30+)")
+
                 if age_seconds >= 30:  # 30 seconds idle
                     user_id = spin.get('user_details', {}).get('telegram_id')
                     if user_id:
+                        logger.info(f"✅ Adding spin {spin.get('id')} for user {user_id} to notification queue")
                         user_spins[user_id].append(spin)
+                    else:
+                        logger.warning(f"⚠️ Spin {spin.get('id')} has no user telegram_id")
 
             # Send notifications for each user
-            for user_id, spins in user_spins.items():
-                await send_spin_notification(application, user_id, spins)
+            if user_spins:
+                logger.info(f"📨 Sending notifications to {len(user_spins)} users")
+                for user_id, spins in user_spins.items():
+                    await send_spin_notification(application, user_id, spins)
+            else:
+                logger.info(f"✅ No spins ready for notification (all either too new or already notified)")
 
         except Exception as e:
-            logger.error(f"Error checking spin notifications: {e}")
+            logger.error(f"❌ Error checking spin notifications: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     async def send_spin_notification(app, user_id, spins):
         """Send notification to user and admins about new spin rewards"""
