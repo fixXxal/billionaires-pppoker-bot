@@ -812,6 +812,18 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
         user.balance += cashback_request.cashback_amount
         user.save()
 
+        # Create CashbackEligibility record to track this cashback was received
+        # This prevents user from claiming again for the same promotion
+        if cashback_request.promotion:
+            CashbackEligibility.objects.create(
+                user=user,
+                promotion=cashback_request.promotion,
+                cashback_request=cashback_request,
+                loss_amount=cashback_request.investment_amount,
+                cashback_amount=cashback_request.cashback_amount,
+                notes=f'Cashback approved by admin {approved_by}'
+            )
+
         serializer = self.get_serializer(cashback_request)
         return Response(serializer.data)
 

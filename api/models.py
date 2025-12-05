@@ -279,6 +279,7 @@ class CashbackRequest(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cashback_requests')
+    promotion = models.ForeignKey('PromoCode', on_delete=models.SET_NULL, null=True, blank=True, related_name='cashback_requests')
     week_start = models.DateField()
     week_end = models.DateField()
     investment_amount = models.DecimalField(max_digits=15, decimal_places=2)

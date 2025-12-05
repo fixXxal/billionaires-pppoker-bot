@@ -145,7 +145,7 @@ class CashbackRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = CashbackRequest
         fields = [
-            'id', 'user', 'user_details', 'week_start', 'week_end',
+            'id', 'user', 'user_details', 'promotion', 'week_start', 'week_end',
             'investment_amount', 'cashback_amount', 'cashback_percentage',
             'pppoker_id', 'status', 'created_at', 'approved_at',
             'approved_by', 'rejection_reason'

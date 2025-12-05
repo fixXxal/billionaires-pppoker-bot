@@ -392,6 +392,7 @@ class DjangoAPI:
 
         data = {
             'user': user_id,
+            'promotion': promotion_id,
             'week_start': week_start,
             'week_end': week_end,
             'investment_amount': investment_amount or 0,
