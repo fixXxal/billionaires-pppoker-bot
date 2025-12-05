@@ -1131,7 +1131,8 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
             username = user_details.get('username', credit.get('username', 'Unknown'))
             username_display = f"@{username}" if username and username != 'Unknown' else "No username"
 
-            pppoker_id = credit.get('pppoker_id', 'N/A')
+            # Get PPPoker ID from user_details
+            pppoker_id = user_details.get('pppoker_id') or credit.get('pppoker_id', 'N/A')
             user_id = credit.get('user') or credit.get('user_id', 'N/A')
             created_at = credit.get('created_at', 'N/A')
 
