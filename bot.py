@@ -8560,10 +8560,19 @@ def main():
             for user_id, spins in user_all_spins.items():
                 # Find the most recent spin for this user
                 most_recent_spin = max(spins, key=lambda s: s['created_at'])
-                created_at = datetime.fromisoformat(most_recent_spin['created_at'].replace('Z', '+00:00'))
-                age_seconds = (datetime.now(created_at.tzinfo) - created_at).total_seconds()
+                created_at_str = most_recent_spin['created_at'].replace('Z', '+00:00')
+                created_at = datetime.fromisoformat(created_at_str)
+
+                # Use UTC for both timestamps to avoid timezone issues
+                from datetime import timezone
+                now_utc = datetime.now(timezone.utc)
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+
+                age_seconds = (now_utc - created_at).total_seconds()
 
                 logger.info(f"📅 User {user_id}: {len(spins)} unnotified spins, most recent is {age_seconds:.1f}s old (need 30+)")
+                logger.info(f"   Created: {created_at}, Now: {now_utc}")
 
                 if age_seconds >= 30:
                     logger.info(f"✅ Queueing {len(spins)} spins for user {user_id} notification")
