@@ -63,7 +63,7 @@ class UserViewSet(viewsets.ModelViewSet):
             )
 
         if request.method == 'POST':
-            # Get or create user
+            # Get or create user, and always update username if provided
             user, created = User.objects.get_or_create(
                 telegram_id=telegram_id,
                 defaults={
@@ -71,6 +71,12 @@ class UserViewSet(viewsets.ModelViewSet):
                     'pppoker_id': request.data.get('pppoker_id', ''),
                 }
             )
+
+            # Always update username if provided (in case user changed their Telegram username)
+            if not created and request.data.get('username'):
+                user.username = request.data.get('username')
+                user.save(update_fields=['username'])
+
             serializer = self.get_serializer(user)
             return Response({
                 'user': serializer.data,
