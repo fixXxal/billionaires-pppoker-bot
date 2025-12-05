@@ -1719,6 +1719,7 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
         username=user.username or user.first_name,
         pppoker_id=pppoker_id,
         loss_amount=loss_amount,
+        cashback_amount=cashback_amount,
         cashback_percentage=cashback_percentage,
         promotion_id=promotion_id
     )
