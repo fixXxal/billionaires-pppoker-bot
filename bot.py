@@ -8598,8 +8598,16 @@ def main():
         try:
             total_chips = sum(s.get('chips', 0) for s in spins)
             spin_count = len(spins)
-            username = spins[0].get('user_details', {}).get('username', 'User')
-            pppoker_id = spins[0].get('user_details', {}).get('pppoker_id', 'N/A')
+
+            # Get current user info from API (not from spin record which might be outdated)
+            user_info = api.get_user_by_telegram_id(user_id)
+            if isinstance(user_info, dict):
+                username = user_info.get('username', 'User')
+                pppoker_id = user_info.get('pppoker_id', 'N/A')
+            else:
+                # Fallback to spin record if API call fails
+                username = spins[0].get('user_details', {}).get('username', 'User')
+                pppoker_id = spins[0].get('user_details', {}).get('pppoker_id', 'N/A')
 
             # Notify user
             user_message = (
