@@ -3457,9 +3457,11 @@ async def user_credit_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             # Add button for this user
             button_text = f"✅ Clear Credit - {user_display} ({credit['amount']} MVR)"
+            # Use telegram_id for callback
+            user_telegram_id = user_details.get('telegram_id') or credit.get('user_id')
             keyboard.append([InlineKeyboardButton(
                 button_text,
-                callback_data=f"clear_credit_{credit['user_id']}"
+                callback_data=f"clear_credit_{user_telegram_id}"
             )])
 
         message += "━━━━━━━━━━━━━━━━━━\n\n"

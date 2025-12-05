@@ -723,7 +723,15 @@ class DjangoAPI:
 
     def get_all_user_credits(self) -> List[Dict]:
         """Get all user credits"""
-        return self._get('user-credits/')
+        response = self._get('user-credits/')
+        # Handle paginated response
+        if isinstance(response, dict) and 'results' in response:
+            return response['results']
+        elif isinstance(response, list):
+            return response
+        else:
+            logger.error(f"Unexpected response format from user-credits: {type(response)}")
+            return []
 
     def get_user_credit(self, telegram_id: int) -> Optional[Dict]:
         """Get a specific user's active credit by telegram_id"""
