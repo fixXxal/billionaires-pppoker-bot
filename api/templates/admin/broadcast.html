@@ -1,0 +1,212 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Broadcast Message{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .broadcast-form {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    .form-group textarea {
+        width: 100%;
+        min-height: 150px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+    .form-group input[type="url"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .btn-broadcast {
+        background-color: #417690;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+    .btn-broadcast:hover {
+        background-color: #2e5b6f;
+    }
+    .btn-broadcast:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+    .alert {
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .alert-error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    .help-text {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+    }
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+    }
+    .loading.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>📢 Broadcast Message to All Users</h1>
+
+<div class="broadcast-form">
+    <div id="alert-container"></div>
+
+    <form id="broadcast-form">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="message">Message *</label>
+            <textarea id="message" name="message" required placeholder="Enter your broadcast message here...
+
+You can use Markdown formatting:
+• **bold text**
+• *italic text*
+• `code`
+• [link text](https://example.com)"></textarea>
+            <div class="help-text">
+                Supports Markdown formatting. This field is required.
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="photo_url">Photo URL (Optional)</label>
+            <input type="url" id="photo_url" name="photo_url" placeholder="https://example.com/image.jpg">
+            <div class="help-text">
+                Optional: Enter a direct URL to an image. The image will be sent with your message as a caption.
+            </div>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn-broadcast" id="submit-btn">
+                Send Broadcast
+            </button>
+        </div>
+    </form>
+
+    <div class="loading" id="loading">
+        <p>Sending broadcast to all users...</p>
+        <p>This may take a few minutes. Please wait.</p>
+    </div>
+</div>
+
+<script>
+document.getElementById('broadcast-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const submitBtn = document.getElementById('submit-btn');
+    const loading = document.getElementById('loading');
+    const alertContainer = document.getElementById('alert-container');
+
+    // Get form data
+    const message = document.getElementById('message').value;
+    const photoUrl = document.getElementById('photo_url').value;
+
+    if (!message) {
+        showAlert('Please enter a message', 'error');
+        return;
+    }
+
+    // Confirm before sending
+    const totalUsers = await getTotalUsers();
+    if (!confirm(`Are you sure you want to send this broadcast to ${totalUsers} users?`)) {
+        return;
+    }
+
+    // Show loading
+    submitBtn.disabled = true;
+    loading.classList.add('active');
+    alertContainer.innerHTML = '';
+
+    try {
+        const response = await fetch('/api/broadcast/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                message: message,
+                photo_url: photoUrl || null
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showAlert(
+                `✅ Broadcast sent successfully!<br>` +
+                `📊 Total users: ${data.total_users}<br>` +
+                `✅ Successful: ${data.success_count}<br>` +
+                `❌ Failed: ${data.failed_count}`,
+                'success'
+            );
+            // Clear form
+            document.getElementById('broadcast-form').reset();
+        } else {
+            showAlert(`Error: ${data.error || 'Failed to send broadcast'}`, 'error');
+        }
+    } catch (error) {
+        showAlert(`Network error: ${error.message}`, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        loading.classList.remove('active');
+    }
+});
+
+async function getTotalUsers() {
+    try {
+        const response = await fetch('/api/users/');
+        const data = await response.json();
+        return data.length || 0;
+    } catch {
+        return '???';
+    }
+}
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type}">
+            ${message}
+        </div>
+    `;
+}
+</script>
+{% endblock %}
