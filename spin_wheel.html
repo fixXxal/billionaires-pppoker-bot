@@ -27,7 +27,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: linear-gradient(135deg, #0a4d3c 0%, #1a365d 100%);
+            background: linear-gradient(135deg, #0d4d4d 0%, #1a5a5a 50%, #0d4d4d 100%);
             min-height: 100vh;
             width: 100%;
             display: flex;
@@ -39,12 +39,102 @@
             overscroll-behavior-x: contain;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            position: relative;
+        }
+
+        /* Floating gift boxes background */
+        .gift-box {
+            position: fixed;
+            z-index: 1;
+            pointer-events: none;
+            animation: floatGift 10s ease-in-out infinite;
+            font-size: 60px;
+            opacity: 0.6;
+            filter:
+                drop-shadow(0 4px 12px rgba(100, 200, 180, 0.6))
+                hue-rotate(120deg)
+                saturate(0.8)
+                brightness(1.1);
+        }
+
+        .gift-box::before {
+            content: '🎁';
+            display: block;
+        }
+
+        .gift-box:nth-child(1) {
+            top: 15%;
+            left: 8%;
+            animation-delay: 0s;
+            animation-duration: 12s;
+        }
+
+        .gift-box:nth-child(2) {
+            top: 8%;
+            right: 12%;
+            animation-delay: 3s;
+            animation-duration: 14s;
+            transform: scale(1.2);
+        }
+
+        .gift-box:nth-child(3) {
+            bottom: 20%;
+            left: 10%;
+            animation-delay: 6s;
+            animation-duration: 11s;
+            transform: scale(0.8);
+        }
+
+        .gift-box:nth-child(4) {
+            bottom: 30%;
+            right: 8%;
+            animation-delay: 2s;
+            animation-duration: 13s;
+        }
+
+        .gift-box:nth-child(5) {
+            top: 45%;
+            left: 5%;
+            animation-delay: 8s;
+            animation-duration: 15s;
+            transform: scale(0.9);
+            opacity: 0.6;
+        }
+
+        .gift-box:nth-child(6) {
+            top: 50%;
+            right: 5%;
+            animation-delay: 5s;
+            animation-duration: 12s;
+            transform: scale(0.7);
+            opacity: 0.5;
+        }
+
+        @keyframes floatGift {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 0.5;
+            }
+            25% {
+                transform: translateY(-25px) rotate(3deg);
+                opacity: 0.7;
+            }
+            50% {
+                transform: translateY(-50px) rotate(-3deg);
+                opacity: 0.6;
+            }
+            75% {
+                transform: translateY(-25px) rotate(2deg);
+                opacity: 0.65;
+            }
         }
 
         .container {
             max-width: 100%;
             width: 100%;
             overflow: hidden;
+            position: relative;
+            z-index: 10;
         }
 
         h1 {
@@ -81,22 +171,28 @@
 
         .pointer {
             position: absolute;
-            top: -12px;
+            top: -25px;
             left: 50%;
             transform: translateX(-50%) translateZ(0);
             width: 0;
             height: 0;
-            border-left: 18px solid transparent;
-            border-right: 18px solid transparent;
-            border-top: 36px solid #FF3B3B;
-            filter: drop-shadow(0 4px 8px rgba(255, 59, 59, 0.6));
+            border-left: 22px solid transparent;
+            border-right: 22px solid transparent;
+            border-top: 50px solid #FFD700;
+            filter: drop-shadow(0 4px 12px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 20px rgba(255, 215, 0, 0.6));
             z-index: 10;
             animation: pointerPulse 2s infinite;
         }
 
         @keyframes pointerPulse {
-            0%, 100% { transform: translateX(-50%) translateZ(0) scale(1); }
-            50% { transform: translateX(-50%) translateZ(0) scale(1.1); }
+            0%, 100% {
+                transform: translateX(-50%) translateZ(0) scale(1);
+                filter: drop-shadow(0 4px 12px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 20px rgba(255, 215, 0, 0.6));
+            }
+            50% {
+                transform: translateX(-50%) translateZ(0) scale(1.08);
+                filter: drop-shadow(0 6px 18px rgba(255, 215, 0, 1)) drop-shadow(0 0 30px rgba(255, 215, 0, 0.9));
+            }
         }
 
         #wheelWrapper {
@@ -109,6 +205,165 @@
             -webkit-backface-visibility: hidden;
             position: relative;
             display: block;
+            border-radius: 50%;
+            box-shadow:
+                0 0 0 8px #FFD700,
+                0 0 0 12px #FFA500,
+                0 0 30px 12px rgba(255, 215, 0, 0.6),
+                0 0 50px 15px rgba(255, 215, 0, 0.4),
+                inset 0 0 30px rgba(255, 215, 0, 0.3);
+            animation: rimGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes rimGlow {
+            0%, 100% {
+                box-shadow:
+                    0 0 0 8px #FFD700,
+                    0 0 0 12px #FFA500,
+                    0 0 30px 12px rgba(255, 215, 0, 0.6),
+                    0 0 50px 15px rgba(255, 215, 0, 0.4),
+                    inset 0 0 30px rgba(255, 215, 0, 0.3);
+            }
+            50% {
+                box-shadow:
+                    0 0 0 8px #FFD700,
+                    0 0 0 12px #FFA500,
+                    0 0 40px 15px rgba(255, 215, 0, 0.8),
+                    0 0 60px 20px rgba(255, 215, 0, 0.6),
+                    inset 0 0 40px rgba(255, 215, 0, 0.5);
+            }
+        }
+
+        /* Glowing lights around rim - 12 lights total at 30° intervals */
+        .wheel-container::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background:
+                /* 12 lights at 0°, 30°, 60°, 90°, 120°, 150°, 180°, 210°, 240°, 270°, 300°, 330° */
+                radial-gradient(circle at 50% 0%, white 1.5%, transparent 2%),        /* 0° */
+                radial-gradient(circle at 75% 6.7%, white 1.5%, transparent 2%),      /* 30° */
+                radial-gradient(circle at 93.3% 25%, white 1.5%, transparent 2%),     /* 60° */
+                radial-gradient(circle at 100% 50%, white 1.5%, transparent 2%),      /* 90° */
+                radial-gradient(circle at 93.3% 75%, white 1.5%, transparent 2%),     /* 120° */
+                radial-gradient(circle at 75% 93.3%, white 1.5%, transparent 2%),     /* 150° */
+                radial-gradient(circle at 50% 100%, white 1.5%, transparent 2%),      /* 180° */
+                radial-gradient(circle at 25% 93.3%, white 1.5%, transparent 2%),     /* 210° */
+                radial-gradient(circle at 6.7% 75%, white 1.5%, transparent 2%),      /* 240° */
+                radial-gradient(circle at 0% 50%, white 1.5%, transparent 2%),        /* 270° */
+                radial-gradient(circle at 6.7% 25%, white 1.5%, transparent 2%),      /* 300° */
+                radial-gradient(circle at 25% 6.7%, white 1.5%, transparent 2%);      /* 330° */
+            animation: lightsRotate 4s linear infinite;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        @keyframes lightsRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* 3D Stage Platform - Beautiful pyramid design */
+
+        /* Platform tiers */
+        .platform-tier-1,
+        .platform-tier-2,
+        .platform-tier-3,
+        .platform-tier-4 {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        /* Tier 3 - BOTTOM LAYER (Largest) - Foundation */
+        .platform-tier-3 {
+            bottom: -130px;
+            width: 155%;
+            height: 80px;
+            background: linear-gradient(to bottom,
+                rgba(45, 140, 125, 1) 0%,
+                rgba(40, 130, 115, 1) 50%,
+                rgba(35, 120, 105, 1) 100%);
+            border: 6px solid rgba(30, 110, 95, 1);
+            border-radius: 50%;
+            box-shadow:
+                /* Big soft shadow underneath */
+                0 25px 60px rgba(0, 0, 0, 0.7),
+                0 35px 80px rgba(0, 0, 0, 0.5),
+                /* Edge definition */
+                inset 0 -3px 0 rgba(0, 0, 0, 0.3),
+                inset 0 3px 0 rgba(100, 200, 180, 0.3);
+            z-index: -3;
+        }
+
+        /* Tier 2 - Middle layer */
+        .platform-tier-2 {
+            bottom: -85px;
+            width: 140%;
+            height: 70px;
+            background: linear-gradient(to bottom,
+                rgba(60, 165, 145, 1) 0%,
+                rgba(55, 155, 135, 1) 50%,
+                rgba(50, 145, 125, 1) 100%);
+            border: 6px solid rgba(45, 135, 115, 1);
+            border-radius: 50%;
+            box-shadow:
+                /* Big soft shadow underneath */
+                0 20px 50px rgba(0, 0, 0, 0.65),
+                0 30px 70px rgba(0, 0, 0, 0.45),
+                /* Edge definition */
+                inset 0 -3px 0 rgba(0, 0, 0, 0.3),
+                inset 0 3px 0 rgba(120, 220, 200, 0.35);
+            z-index: -2;
+        }
+
+        /* Tier 1 - TOP LAYER (Smallest, closest to wheel) */
+        .platform-tier-1 {
+            bottom: -45px;
+            width: 125%;
+            height: 60px;
+            background: linear-gradient(to bottom,
+                rgba(80, 195, 175, 1) 0%,
+                rgba(75, 185, 165, 1) 50%,
+                rgba(70, 175, 155, 1) 100%);
+            border: 6px solid rgba(65, 165, 145, 1);
+            border-radius: 50%;
+            box-shadow:
+                /* Big soft shadow underneath */
+                0 18px 45px rgba(0, 0, 0, 0.6),
+                0 25px 60px rgba(0, 0, 0, 0.4),
+                /* Edge definition */
+                inset 0 -3px 0 rgba(0, 0, 0, 0.3),
+                inset 0 3px 0 rgba(150, 240, 220, 0.4);
+            z-index: -1;
+        }
+
+        /* Hide tier 4 - not needed anymore */
+        .platform-tier-4 {
+            display: none;
+        }
+
+        /* Base shadow underneath everything */
+        .wheel-container::after {
+            content: '';
+            position: absolute;
+            bottom: -120px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 145%;
+            height: 25px;
+            background:
+                radial-gradient(ellipse at center,
+                    rgba(0, 0, 0, 0.5) 0%,
+                    rgba(0, 0, 0, 0.25) 50%,
+                    transparent 100%);
+            border-radius: 50%;
+            z-index: -5;
+            filter: blur(15px);
         }
 
         canvas {
@@ -345,6 +600,14 @@
     </style>
 </head>
 <body>
+    <!-- Floating gift boxes -->
+    <div class="gift-box"></div>
+    <div class="gift-box"></div>
+    <div class="gift-box"></div>
+    <div class="gift-box"></div>
+    <div class="gift-box"></div>
+    <div class="gift-box"></div>
+
     <div class="container">
         <h1>🎰 Spin Wheel 🎰</h1>
 
@@ -360,6 +623,11 @@
             <div id="wheelWrapper">
                 <canvas id="wheelCanvas"></canvas>
             </div>
+            <!-- 3D Platform tiers with decorative patterns -->
+            <div class="platform-tier-1"></div>
+            <div class="platform-tier-2"></div>
+            <div class="platform-tier-3"></div>
+            <div class="platform-tier-4"></div>
         </div>
 
         <div class="spin-buttons">
@@ -397,33 +665,34 @@
         let currentResults = null;
 
         // ========== PRIZE CONFIGURATION ==========
-        // PRIZE CONFIGURATION - 16 segments (4 are display-only, never winnable)
-        // ALL SEGMENTS NOW USE DIFFERENT SHADES OF GREEN
+        // PRIZE CONFIGURATION - 16 segments alternating between teal and white/cream
         const prizes = [
-            { name: "500", display: "500 Chips", color: "#2D5016", textColor: "#fff" },           // Dark Forest Green
-            { name: "Try Again!", display: "Try Again!", color: "#3D7C47", textColor: "#fff" },   // Medium Forest Green
-            { name: "50", display: "50 Chips", color: "#52A555", textColor: "#fff" },             // Medium Green
-            { name: "iPhone", display: "iPhone 17", color: "#6BCF7E", textColor: "#000", isImage: true, imgSrc: "spinnsimgss/iphone17promax.jpeg" }, // Light Green
-            { name: "20", display: "20 Chips", color: "#8FD99D", textColor: "#000" },             // Pale Green
-            { name: "Try Again!", display: "Try Again!", color: "#1B4D20", textColor: "#fff" },   // Very Dark Green
-            { name: "100", display: "100 Chips", color: "#2E7D32", textColor: "#fff" },           // Dark Green
-            { name: "MacBook", display: "MacBook Pro", color: "#43A047", textColor: "#fff", isImage: true, imgSrc: "spinnsimgss/macbookpro.jpeg" }, // Green
-            { name: "10", display: "10 Chips", color: "#66BB6A", textColor: "#fff" },             // Light Medium Green
-            { name: "Try Again!", display: "Try Again!", color: "#81C784", textColor: "#000" },   // Lighter Green
-            { name: "250", display: "250 Chips", color: "#A5D6A7", textColor: "#000" },           // Very Light Green
-            { name: "AirPods", display: "AirPods Pro", color: "#C8E6C9", textColor: "#000", isImage: true, imgSrc: "spinnsimgss/airpods.jpeg" }, // Pale Mint Green
-            { name: "20", display: "20 Chips", color: "#1E5128", textColor: "#fff" },             // Deep Forest Green
-            { name: "Try Again!", display: "Try Again!", color: "#4E9F3D", textColor: "#fff" },   // Grass Green
-            { name: "50", display: "50 Chips", color: "#8BC34A", textColor: "#000" },             // Lime Green
-            { name: "Watch", display: "Apple Watch", color: "#AED581", textColor: "#000", isImage: true, imgSrc: "spinnsimgss/applewatchultra.jpeg" } // Light Lime Green
+            { name: "500", display: "500 Chips", color: "#0d6d6d", textColor: "#fff" },           // Dark Teal
+            { name: "Try Again!", display: "Try Again!", color: "#f5f5dc", textColor: "#000" },   // Cream/Beige
+            { name: "50", display: "50 Chips", color: "#0d6d6d", textColor: "#fff" },             // Dark Teal
+            { name: "iPhone", display: "iPhone 17", color: "#f5f5dc", textColor: "#000", isImage: true, imgSrc: "spinnsimgss/iphone17promax.jpeg" }, // Cream/Beige
+            { name: "20", display: "20 Chips", color: "#0d6d6d", textColor: "#fff" },             // Dark Teal
+            { name: "Try Again!", display: "Try Again!", color: "#f5f5dc", textColor: "#000" },   // Cream/Beige
+            { name: "100", display: "100 Chips", color: "#0d6d6d", textColor: "#fff" },           // Dark Teal
+            { name: "MacBook", display: "MacBook Pro", color: "#f5f5dc", textColor: "#000", isImage: true, imgSrc: "spinnsimgss/macbookpro.jpeg" }, // Cream/Beige
+            { name: "10", display: "10 Chips", color: "#0d6d6d", textColor: "#fff" },             // Dark Teal
+            { name: "Try Again!", display: "Try Again!", color: "#f5f5dc", textColor: "#000" },   // Cream/Beige
+            { name: "250", display: "250 Chips", color: "#0d6d6d", textColor: "#fff" },           // Dark Teal
+            { name: "AirPods", display: "AirPods Pro", color: "#f5f5dc", textColor: "#000", isImage: true, imgSrc: "spinnsimgss/airpods.jpeg" }, // Cream/Beige
+            { name: "20", display: "20 Chips", color: "#0d6d6d", textColor: "#fff" },             // Dark Teal
+            { name: "Try Again!", display: "Try Again!", color: "#f5f5dc", textColor: "#000" },   // Cream/Beige
+            { name: "50", display: "50 Chips", color: "#0d6d6d", textColor: "#fff" },             // Dark Teal
+            { name: "Watch", display: "Apple Watch", color: "#f5f5dc", textColor: "#000", isImage: true, imgSrc: "spinnsimgss/applewatchultra.jpeg" } // Cream/Beige
         ];
 
         // ========== IMAGE PRELOADING ==========
         const images = {};
         let imagesLoaded = false;
+        let logoImage = null;
 
         async function preloadImages() {
-            const promises = prizes
+            // Load prize images
+            const prizePromises = prizes
                 .filter(p => p.isImage)
                 .map(p => new Promise((resolve) => {
                     const img = new Image();
@@ -433,7 +702,18 @@
                     images[p.name] = img;
                 }));
 
-            await Promise.all(promises);
+            // Load center logo
+            const logoPromise = new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    logoImage = img;
+                    resolve();
+                };
+                img.onerror = () => resolve();
+                img.src = 'spinnsimgss/bilogosffe.PNG';
+            });
+
+            await Promise.all([...prizePromises, logoPromise]);
             imagesLoaded = true;
             console.log('✅ All images loaded');
         }
@@ -459,13 +739,13 @@
             const radius = size / 2 - 15;
             const sliceAngle = (2 * Math.PI) / prizes.length;
 
-            // Outer decorative ring - BLACK
+            // Outer decorative ring - GOLDEN
             ctx.beginPath();
             ctx.arc(centerX, centerY, size / 2 - 5, 0, 2 * Math.PI);
             const outerGradient = ctx.createRadialGradient(centerX, centerY, size / 2 - 15, centerX, centerY, size / 2 - 5);
-            outerGradient.addColorStop(0, '#2a2a2a');
-            outerGradient.addColorStop(0.5, '#1a1a1a');
-            outerGradient.addColorStop(1, '#000000');
+            outerGradient.addColorStop(0, '#FFA500');
+            outerGradient.addColorStop(0.5, '#FFD700');
+            outerGradient.addColorStop(1, '#FFA500');
             ctx.fillStyle = outerGradient;
             ctx.fill();
 
@@ -522,40 +802,51 @@
                 ctx.restore();
             });
 
-            // Center circle with gradient - BLACK
-            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 45);
-            gradient.addColorStop(0, '#2a2a2a');
-            gradient.addColorStop(0.5, '#1a1a1a');
-            gradient.addColorStop(1, '#000000');
+            // Center circle with gradient - TEAL (larger for logo)
+            const centerRadius = 55;
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, centerRadius);
+            gradient.addColorStop(0, '#1a8080');
+            gradient.addColorStop(0.5, '#0d6d6d');
+            gradient.addColorStop(1, '#0a5555');
 
             ctx.beginPath();
-            ctx.arc(centerX, centerY, 45, 0, 2 * Math.PI);
+            ctx.arc(centerX, centerY, centerRadius, 0, 2 * Math.PI);
             ctx.fillStyle = gradient;
             ctx.fill();
 
-            // Outer ring
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 3;
+            // Outer ring - Golden
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 4;
             ctx.stroke();
 
             // Inner shadow ring
             ctx.beginPath();
-            ctx.arc(centerX, centerY, 42, 0, 2 * Math.PI);
+            ctx.arc(centerX, centerY, centerRadius - 3, 0, 2 * Math.PI);
             ctx.strokeStyle = 'rgba(0,0,0,0.3)';
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // "SPIN" text
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 20px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            ctx.shadowBlur = 4;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
-            ctx.fillText('SPIN', centerX, centerY);
-            ctx.shadowBlur = 0;
+            // Draw logo in center
+            if (logoImage) {
+                const logoSize = 95; // Increased size for better clarity and fit
+                const logoOffsetY = -5; // Move logo up slightly
+                ctx.save();
+
+                // Enable image smoothing for better quality
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+
+                // Draw logo image - crisp and clear, moved up slightly
+                ctx.drawImage(
+                    logoImage,
+                    centerX - logoSize / 2,
+                    centerY - logoSize / 2 + logoOffsetY,
+                    logoSize,
+                    logoSize
+                );
+
+                ctx.restore();
+            }
         }
 
         // ========== STATE ==========
