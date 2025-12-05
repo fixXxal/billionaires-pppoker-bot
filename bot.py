@@ -3436,18 +3436,24 @@ async def user_credit_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         keyboard = []
 
         for credit in credits:
-            user_display = f"User {credit['user_id']}"
-            if credit.get('username'):
-                user_display = f"@{credit['username']}"
+            # Extract user details
+            user_details = credit.get('user_details', {})
+            username = user_details.get('username', credit.get('username'))
+            user_id = credit.get('user') or credit.get('user_id')
+            pppoker_id = user_details.get('pppoker_id', 'N/A')
+
+            user_display = f"User {user_id}"
+            if username:
+                user_display = f"@{username}"
 
             message += "━━━━━━━━━━━━━━━━━━\n"
             message += f"<b>User:</b> {user_display}\n"
-            message += f"<b>User ID:</b> <code>{credit['user_id']}</code>\n"
-            message += f"<b>PPPoker ID:</b> <code>{credit['pppoker_id']}</code>\n"
+            message += f"<b>User ID:</b> <code>{user_id}</code>\n"
+            message += f"<b>PPPoker ID:</b> <code>{pppoker_id}</code>\n"
             message += f"<b>Credit Amount:</b> <b>{credit['amount']} chips/MVR</b>\n"
-            message += f"<b>Request ID:</b> {credit['seat_request_id']}\n"
+            message += f"<b>Request ID:</b> {credit.get('seat_request_id', 'N/A')}\n"
             message += f"<b>Created:</b> {credit['created_at']}\n"
-            message += f"<b>Reminders Sent:</b> {credit['reminder_count']}\n\n"
+            message += f"<b>Reminders Sent:</b> {credit.get('reminder_count', 0)}\n\n"
 
             # Add button for this user
             button_text = f"✅ Clear Credit - {user_display} ({credit['amount']} MVR)"
