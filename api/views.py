@@ -119,6 +119,7 @@ class DepositViewSet(viewsets.ModelViewSet):
         """Approve a deposit"""
         deposit = self.get_object()
         admin_id = request.data.get('admin_id')
+        add_balance = request.data.get('add_balance', True)  # Default to True for backward compatibility
 
         if not admin_id:
             return Response(
@@ -132,10 +133,11 @@ class DepositViewSet(viewsets.ModelViewSet):
         deposit.synced_to_sheets = False  # Mark for sync
         deposit.save()
 
-        # Update user balance
-        deposit.user.balance += deposit.amount
-        deposit.user.synced_to_sheets = False
-        deposit.user.save()
+        # Update user balance (skip if add_balance is False, e.g., for credit payment tracking)
+        if add_balance:
+            deposit.user.balance += deposit.amount
+            deposit.user.synced_to_sheets = False
+            deposit.user.save()
 
         serializer = self.get_serializer(deposit)
         return Response(serializer.data)

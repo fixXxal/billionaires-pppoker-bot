@@ -3508,6 +3508,29 @@ async def clear_user_credit_callback(update: Update, context: ContextTypes.DEFAU
         )
         return
 
+    # Create deposit record for accounting/tracking purposes
+    # (Balance was already given when seat was approved, this is just for reports)
+    try:
+        user_details = credit.get('user_details', {})
+        pppoker_id = user_details.get('pppoker_id', 'N/A')
+
+        deposit_data = api.create_deposit(
+            user_id=credit.get('user'),
+            amount=float(credit['amount']),
+            method='Credit Payment',
+            account_name='Credit Settlement',
+            pppoker_id=pppoker_id,
+            proof_image_path=None
+        )
+
+        # Auto-approve the deposit (just for tracking, no balance added)
+        if deposit_data:
+            deposit_id = deposit_data.get('id')
+            api.approve_deposit(deposit_id, query.from_user.id, add_balance=False)
+            logger.info(f"Created deposit record {deposit_id} for credit payment tracking")
+    except Exception as e:
+        logger.error(f"Failed to create deposit record for credit payment: {e}")
+
     # Clear the credit
     success = api.clear_user_credit(user_id)
 

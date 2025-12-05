@@ -139,9 +139,9 @@ class DjangoAPI:
         """Get all pending deposits"""
         return self._get('deposits/pending/')
 
-    def approve_deposit(self, deposit_id: int, admin_id: int) -> Dict:
+    def approve_deposit(self, deposit_id: int, admin_id: int, add_balance: bool = True) -> Dict:
         """Approve a deposit"""
-        data = {'admin_id': admin_id}
+        data = {'admin_id': admin_id, 'add_balance': add_balance}
         return self._post(f'deposits/{deposit_id}/approve/', data)
 
     def reject_deposit(self, deposit_id: int, admin_id: int, reason: str = '') -> Dict:
