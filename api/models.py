@@ -41,7 +41,7 @@ class Deposit(models.Model):
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     method = models.CharField(max_length=100)
     account_name = models.CharField(max_length=255)
-    proof_image_path = models.CharField(max_length=500)
+    proof_image_path = models.CharField(max_length=500, blank=True, default='')
     pppoker_id = models.CharField(max_length=50)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
     created_at = models.DateTimeField(auto_now_add=True)
