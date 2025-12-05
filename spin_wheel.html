@@ -161,7 +161,6 @@
             width: 100%;
             max-width: min(400px, calc(100vw - 30px));
             margin: 0 auto 20px;
-            margin-bottom: 250px;
             perspective: 1000px;
             transform: translate3d(0, 0, 0);
             filter: drop-shadow(0 10px 40px rgba(0,0,0,0.4));
@@ -266,64 +265,6 @@
             to { transform: rotate(360deg); }
         }
 
-        /* 2D Unified Podium - Single flat structure */
-
-        /* Single unified podium container - NO BORDER */
-        .platform-tier-1 {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: -200px;
-            width: 140%;
-            height: 140px;
-            pointer-events: none;
-            z-index: -1;
-            border-radius: 50%;
-            background:
-                /* Top tier - smallest */
-                radial-gradient(ellipse 55% 20px at 50% 0px,
-                    rgba(70, 180, 160, 1) 0%,
-                    rgba(70, 180, 160, 1) 100%),
-
-                /* Middle tier - medium size */
-                radial-gradient(ellipse 65% 25px at 50% 45px,
-                    rgba(55, 155, 135, 1) 0%,
-                    rgba(55, 155, 135, 1) 100%),
-
-                /* Bottom tier - largest */
-                radial-gradient(ellipse 75% 30px at 50% 95px,
-                    rgba(40, 130, 115, 1) 0%,
-                    rgba(40, 130, 115, 1) 100%);
-            box-shadow:
-                /* Ground shadow */
-                0 35px 70px rgba(0, 0, 0, 0.7);
-        }
-
-        /* Hide unused tiers */
-        .platform-tier-2,
-        .platform-tier-3,
-        .platform-tier-4 {
-            display: none;
-        }
-
-        /* Base shadow underneath everything */
-        .wheel-container::after {
-            content: '';
-            position: absolute;
-            bottom: -120px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 145%;
-            height: 25px;
-            background:
-                radial-gradient(ellipse at center,
-                    rgba(0, 0, 0, 0.5) 0%,
-                    rgba(0, 0, 0, 0.25) 50%,
-                    transparent 100%);
-            border-radius: 50%;
-            z-index: -5;
-            filter: blur(15px);
-        }
 
         canvas {
             width: 100%;
@@ -582,11 +523,6 @@
             <div id="wheelWrapper">
                 <canvas id="wheelCanvas"></canvas>
             </div>
-            <!-- 3D Platform tiers with decorative patterns -->
-            <div class="platform-tier-1"></div>
-            <div class="platform-tier-2"></div>
-            <div class="platform-tier-3"></div>
-            <div class="platform-tier-4"></div>
         </div>
 
         <div class="spin-buttons">
