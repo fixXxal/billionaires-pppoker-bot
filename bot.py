@@ -3449,7 +3449,9 @@ async def user_credit_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             message += "━━━━━━━━━━━━━━━━━━\n"
             message += f"<b>User:</b> {user_display}\n"
             message += f"<b>User ID:</b> <code>{user_id}</code>\n"
-            message += f"<b>PPPoker ID:</b> <code>{pppoker_id}</code>\n"
+            # Only wrap in <code> if pppoker_id has a value
+            pppoker_display = f"<code>{pppoker_id}</code>" if pppoker_id and pppoker_id != 'N/A' else pppoker_id or 'N/A'
+            message += f"<b>PPPoker ID:</b> {pppoker_display}\n"
             message += f"<b>Credit Amount:</b> <b>{credit['amount']} chips/MVR</b>\n"
             message += f"<b>Request ID:</b> {credit.get('seat_request_id', 'N/A')}\n"
             message += f"<b>Created:</b> {credit['created_at']}\n"
