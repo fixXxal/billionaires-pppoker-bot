@@ -8488,11 +8488,121 @@ def main():
         name='Check Expired 50/50 Investments'
     )
 
+    # Schedule spin notification check every 10 seconds
+    async def check_spin_notifications():
+        """Check for new spin rewards that need notification (after 30 sec idle)"""
+        try:
+            from datetime import datetime, timedelta
+            import requests
+
+            # Get all pending spins that haven't been notified yet
+            response = requests.get(f'{DJANGO_API_URL}/spin-history/?status=Pending')
+            if response.status_code != 200:
+                return
+
+            data = response.json()
+            pending_spins = data.get('results', []) if isinstance(data, dict) else data
+
+            # Group by user
+            from collections import defaultdict
+            user_spins = defaultdict(list)
+
+            for spin in pending_spins:
+                # Skip if already notified
+                if spin.get('notified_at'):
+                    continue
+
+                # Check if spin is older than 30 seconds
+                created_at = datetime.fromisoformat(spin['created_at'].replace('Z', '+00:00'))
+                age_seconds = (datetime.now(created_at.tzinfo) - created_at).total_seconds()
+
+                if age_seconds >= 30:  # 30 seconds idle
+                    user_id = spin.get('user_details', {}).get('telegram_id')
+                    if user_id:
+                        user_spins[user_id].append(spin)
+
+            # Send notifications for each user
+            for user_id, spins in user_spins.items():
+                await send_spin_notification(application, user_id, spins)
+
+        except Exception as e:
+            logger.error(f"Error checking spin notifications: {e}")
+
+    async def send_spin_notification(app, user_id, spins):
+        """Send notification to user and admins about new spin rewards"""
+        try:
+            total_chips = sum(s.get('chips', 0) for s in spins)
+            spin_count = len(spins)
+            username = spins[0].get('user_details', {}).get('username', 'User')
+            pppoker_id = spins[0].get('user_details', {}).get('pppoker_id', 'N/A')
+
+            # Notify user
+            user_message = (
+                f"🎰 <b>SPIN REWARDS!</b> 🎰\n\n"
+                f"🎁 You won <b>{total_chips} chips</b> from {spin_count} spin{'s' if spin_count > 1 else ''}!\n\n"
+                f"⏳ Your rewards are pending admin approval.\n"
+                f"You'll be notified once approved!"
+            )
+
+            try:
+                await app.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')
+                logger.info(f"✅ Notified user {user_id} about {spin_count} spin rewards ({total_chips} chips)")
+            except Exception as e:
+                logger.error(f"Failed to notify user {user_id}: {e}")
+
+            # Notify admins
+            admin_message = (
+                f"🎰 <b>NEW SPIN REWARDS</b> 🎰\n\n"
+                f"👤 User: @{username}\n"
+                f"🆔 Telegram ID: <code>{user_id}</code>\n"
+                f"🎮 PPPoker ID: <code>{pppoker_id}</code>\n\n"
+                f"🎁 <b>{spin_count} spin{'s' if spin_count > 1 else ''}: {total_chips} chips</b>\n\n"
+                f"Use /pendingspins to review and approve."
+            )
+
+            # Send to super admin
+            try:
+                await app.bot.send_message(chat_id=ADMIN_USER_ID, text=admin_message, parse_mode='HTML')
+            except Exception as e:
+                logger.error(f"Failed to notify super admin: {e}")
+
+            # Send to regular admins
+            admins = api.get_all_admins()
+            for admin in admins:
+                if admin.get('telegram_id') != ADMIN_USER_ID:
+                    try:
+                        await app.bot.send_message(chat_id=admin['telegram_id'], text=admin_message, parse_mode='HTML')
+                    except Exception as e:
+                        logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
+
+            # Mark spins as notified
+            from datetime import datetime
+            for spin in spins:
+                try:
+                    requests.patch(
+                        f"{DJANGO_API_URL}/spin-history/{spin['id']}/",
+                        json={'notified_at': datetime.now().isoformat()}
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to mark spin {spin['id']} as notified: {e}")
+
+        except Exception as e:
+            logger.error(f"Error sending spin notification: {e}")
+
+    scheduler.add_job(
+        check_spin_notifications,
+        trigger='interval',
+        seconds=10,  # Check every 10 seconds
+        id='check_spin_notifications',
+        name='Check Spin Notifications'
+    )
+
     # Start scheduler after application initializes
     async def post_init(application):
         scheduler.start()
         logger.info("Scheduler started - Daily reports will be sent at midnight (00:00) Maldives time")
         logger.info("50/50 investment expiry check will run every hour")
+        logger.info("Spin notifications check runs every 10 seconds (30 sec idle detection)")
 
     application.post_init = post_init
 

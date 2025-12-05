@@ -190,6 +190,7 @@ class SpinHistory(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     approved_by = models.BigIntegerField(null=True, blank=True)
+    notified_at = models.DateTimeField(null=True, blank=True)  # Track when notification was sent
     synced_to_sheets = models.BooleanField(default=False)
 
     class Meta:
