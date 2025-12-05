@@ -8641,14 +8641,23 @@ def main():
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
+            # Store message IDs to remove buttons later when approved
+            notification_key = f"spin_reward_{user_id}"
+            if not hasattr(app.bot_data, 'spin_notification_messages'):
+                app.bot_data['spin_notification_messages'] = {}
+            app.bot_data['spin_notification_messages'][notification_key] = []
+
             # Send to super admin with button
             try:
-                await app.bot.send_message(
+                sent_msg = await app.bot.send_message(
                     chat_id=ADMIN_USER_ID,
                     text=admin_message,
                     parse_mode='HTML',
                     reply_markup=reply_markup
                 )
+                # Store message ID for later button removal
+                app.bot_data['spin_notification_messages'][notification_key].append((ADMIN_USER_ID, sent_msg.message_id))
+                logger.info(f"✅ Stored message ID {sent_msg.message_id} for super admin {ADMIN_USER_ID}")
             except Exception as e:
                 logger.error(f"Failed to notify super admin: {e}")
 
@@ -8664,13 +8673,15 @@ def main():
 
                     if admin_telegram_id != ADMIN_USER_ID:
                         try:
-                            await app.bot.send_message(
+                            sent_msg = await app.bot.send_message(
                                 chat_id=admin_telegram_id,
                                 text=admin_message,
                                 parse_mode='HTML',
                                 reply_markup=reply_markup
                             )
-                            logger.info(f"✅ Sent notification to admin {admin_telegram_id}")
+                            # Store message ID for later button removal
+                            app.bot_data['spin_notification_messages'][notification_key].append((admin_telegram_id, sent_msg.message_id))
+                            logger.info(f"✅ Sent notification to admin {admin_telegram_id}, stored message ID {sent_msg.message_id}")
                         except Exception as e:
                             logger.error(f"❌ Failed to notify admin {admin_telegram_id}: {e}")
                     else:
