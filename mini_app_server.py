@@ -105,136 +105,17 @@ def invalidate_user_cache(user_id):
 
 
 async def notify_user_win(user_id: int, username: str, prize: str, chips: int):
-    """Send notification to user when they win chips"""
-    try:
-        # Make sure bot is initialized
-        global bot
-        if bot is None:
-            bot = Bot(token=BOT_TOKEN)
-
-        message = (
-            f"🎊 <b>CONGRATULATIONS!</b> 🎊\n\n"
-            f"🎰 <b>You won:</b> {prize}\n"
-            f"💰 <b>Chips:</b> {chips}\n\n"
-            f"⏳ <b>Your reward is pending approval</b>\n\n"
-            f"✅ Our admin team will review and approve your chips shortly.\n"
-            f"📬 You'll receive a notification once approved!\n\n"
-            f"🎮 Your chips will be added to your PPPoker account.\n\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"Thank you for playing! 🎲"
-        )
-        await bot.send_message(chat_id=user_id, text=message, parse_mode='HTML')
-        logger.info(f"✅ User notified: {username} won {prize}")
-    except TelegramError as e:
-        logger.error(f"❌ Failed to notify user: {e}")
-    except Exception as e:
-        logger.error(f"❌ Unexpected error in notify_user_win: {e}")
+    """Send notification to user when they win chips - DISABLED, using batched notifications instead"""
+    # DISABLED: Instant notifications replaced by batched notifications (bot.py line 8596)
+    # The bot now sends notifications every 30 seconds in batches to avoid spam
+    logger.info(f"✅ Spin recorded: {username} won {prize} (notification will be sent in batch)")
 
 
 async def notify_admin(user_id: int, username: str, prize: str, chips: int, pppoker_id: str):
-    """Send notification to ALL admins when user wins chips - with instant approve button"""
-    try:
-        # Import InlineKeyboardButton and InlineKeyboardMarkup
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-
-        # Make sure bot is initialized
-        global bot
-        if bot is None:
-            bot = Bot(token=BOT_TOKEN)
-
-        # Get ALL pending chips for this user (including this new win)
-        pending_rewards = api.get_pending_spin_rewards()
-
-        # Handle paginated response
-        if isinstance(pending_rewards, dict) and 'results' in pending_rewards:
-            pending_rewards = pending_rewards['results']
-
-        # Filter by telegram_id (from user_details, not user_id)
-        user_pending = [p for p in pending_rewards if str(p.get('user_details', {}).get('telegram_id')) == str(user_id)]
-        total_pending_chips = sum(p.get('chips', 0) for p in user_pending)
-        pending_count = len(user_pending)
-
-        logger.info(f"📊 Pending rewards for user {user_id}: {pending_count} spins, {total_pending_chips} chips")
-
-        # Get PPPoker ID from user's last deposit
-        last_deposit_pppoker = pppoker_id  # Default to profile PPPoker ID
-        try:
-            # Get user's deposits (most recent first)
-            deposits = api.get_all_deposits()
-            if isinstance(deposits, dict) and 'results' in deposits:
-                deposits = deposits['results']
-
-            # Filter approved deposits for this user
-            user_deposits = [d for d in deposits if d.get('user_details', {}).get('telegram_id') == user_id and d.get('status') == 'Approved']
-
-            if user_deposits:
-                last_deposit = user_deposits[0]  # Most recent
-                last_deposit_pppoker = last_deposit.get('pppoker_id', pppoker_id)  # PPPoker ID from last deposit
-        except Exception as e:
-            logger.warning(f"Could not fetch last deposit PPPoker ID: {e}")
-
-        message = (
-            f"🎰 <b>SPIN WHEEL WIN!</b> 🎰\n\n"
-            f"👤 User: {username} (ID: {user_id})\n"
-            f"🎁 This Win: {prize}\n"
-            f"💰 This Win Chips: {chips}\n\n"
-            f"📊 <b>Total Pending:</b>\n"
-            f"💎 Total Chips: {total_pending_chips}\n"
-            f"📦 Pending Rewards: {pending_count}\n"
-            f"🎮 PPPoker ID: {last_deposit_pppoker or 'Not set'}"
-        )
-
-        # Create instant approve button
-        keyboard = [
-            [InlineKeyboardButton("✅ Approve Now", callback_data=f"approve_instant_{user_id}")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        # Send to super admin
-        try:
-            await bot.send_message(
-                chat_id=ADMIN_USER_ID,
-                text=message,
-                parse_mode='HTML',
-                reply_markup=reply_markup
-            )
-            logger.info(f"✅ Super admin notified: {username} won {prize}")
-        except Exception as e:
-            logger.error(f"❌ Failed to notify super admin: {e}")
-
-        # Send to all regular admins (excluding super admin to avoid duplicates)
-        try:
-            admins_response = api.get_all_admins()
-
-            # Handle paginated response from Django API
-            if isinstance(admins_response, dict) and 'results' in admins_response:
-                admins = admins_response['results']
-            else:
-                admins = admins_response
-
-            for admin in admins:
-                # Skip if this is the super admin (already notified above)
-                if admin['telegram_id'] == ADMIN_USER_ID:
-                    logger.info(f"⏭️ Skipping super admin {ADMIN_USER_ID} (already notified)")
-                    continue
-
-                try:
-                    await bot.send_message(
-                        chat_id=admin['telegram_id'],
-                        text=message,
-                        parse_mode='HTML',
-                        reply_markup=reply_markup
-                    )
-                    logger.info(f"✅ Admin {admin['telegram_id']} notified: {username} won {prize}")
-                except Exception as e:
-                    logger.error(f"❌ Failed to notify admin {admin['telegram_id']}: {e}")
-        except Exception as e:
-            logger.error(f"❌ Failed to get admin list: {e}")
-
-    except TelegramError as e:
-        logger.error(f"❌ Failed to notify admins: {e}")
-    except Exception as e:
-        logger.error(f"❌ Unexpected error in notify_admin: {e}")
+    """Send notification to ALL admins when user wins chips - DISABLED, using batched notifications instead"""
+    # DISABLED: Instant admin notifications replaced by batched notifications (bot.py line 8618)
+    # The bot now sends admin notifications every 30 seconds in batches with approve buttons
+    logger.info(f"✅ Admin notification will be sent in batch for {username} winning {prize}")
 
 
 def send_aggregated_notifications(user_id: int):

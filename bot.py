@@ -8624,28 +8624,46 @@ def main():
                 logger.error(f"Failed to notify user {user_id}: {e}")
 
             # Notify admins
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
             admin_message = (
                 f"🎰 <b>NEW SPIN REWARDS</b> 🎰\n\n"
                 f"👤 User: @{username}\n"
                 f"🆔 Telegram ID: <code>{user_id}</code>\n"
                 f"🎮 PPPoker ID: <code>{pppoker_id}</code>\n\n"
                 f"🎁 <b>{spin_count} spin{'s' if spin_count > 1 else ''}: {total_chips} chips</b>\n\n"
-                f"Use /pendingspins to review and approve."
+                f"Use the button below or /pendingspins to review."
             )
 
-            # Send to super admin
+            # Create approve button
+            keyboard = [
+                [InlineKeyboardButton("✅ Approve All", callback_data=f"approve_instant_{user_id}")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            # Send to super admin with button
             try:
-                await app.bot.send_message(chat_id=ADMIN_USER_ID, text=admin_message, parse_mode='HTML')
+                await app.bot.send_message(
+                    chat_id=ADMIN_USER_ID,
+                    text=admin_message,
+                    parse_mode='HTML',
+                    reply_markup=reply_markup
+                )
             except Exception as e:
                 logger.error(f"Failed to notify super admin: {e}")
 
-            # Send to regular admins
+            # Send to regular admins with button
             admins = api.get_all_admins()
             if isinstance(admins, list):
                 for admin in admins:
                     if admin.get('telegram_id') != ADMIN_USER_ID:
                         try:
-                            await app.bot.send_message(chat_id=admin['telegram_id'], text=admin_message, parse_mode='HTML')
+                            await app.bot.send_message(
+                                chat_id=admin['telegram_id'],
+                                text=admin_message,
+                                parse_mode='HTML',
+                                reply_markup=reply_markup
+                            )
                         except Exception as e:
                             logger.error(f"Failed to notify admin {admin['telegram_id']}: {e}")
             else:
