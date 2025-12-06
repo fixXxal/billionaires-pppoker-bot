@@ -58,12 +58,10 @@
             pointer-events: none;
             animation: floatGift 10s ease-in-out infinite;
             font-size: 60px;
-            opacity: 0.6;
-            filter:
-                drop-shadow(0 4px 12px rgba(100, 200, 180, 0.6))
-                hue-rotate(120deg)
-                saturate(0.8)
-                brightness(1.1);
+            opacity: 0.5;
+            /* Simplified filter for better performance - removed expensive hue-rotate */
+            filter: drop-shadow(0 2px 8px rgba(100, 200, 180, 0.4));
+            will-change: transform;
         }
 
         .gift-box::before {
@@ -191,14 +189,14 @@
         }
 
         #spinsInfo {
-            background: rgba(255,255,255,0.2);
+            background: rgba(13, 77, 77, 0.95);
             padding: 12px;
             border-radius: 12px;
             text-align: center;
             color: white;
             font-size: 1.1em;
             margin-bottom: 20px;
-            backdrop-filter: blur(10px);
+            /* Removed backdrop-filter for faster initial load */
         }
 
         .wheel-container {
@@ -359,6 +357,7 @@
             display: block;
             transform: translateZ(0);
             -webkit-transform: translateZ(0);
+            will-change: transform;
         }
 
         #wheelWrapper.spinning {
@@ -627,13 +626,7 @@
     </style>
 </head>
 <body>
-    <!-- Floating gift boxes -->
-    <div class="gift-box"></div>
-    <div class="gift-box"></div>
-    <div class="gift-box"></div>
-    <div class="gift-box"></div>
-    <div class="gift-box"></div>
-    <div class="gift-box"></div>
+    <!-- Floating gift boxes (reduced for performance) -->
     <div class="gift-box"></div>
     <div class="gift-box"></div>
     <div class="gift-box"></div>
@@ -1157,8 +1150,15 @@
         // ========== INITIALIZATION ==========
         async function init() {
             console.log('🎰 Initializing βILLIONAIRES WHEEL...');
-            await preloadImages();
+
+            // Draw wheel immediately (don't wait for images)
             drawWheel();
+
+            // Load images in background (non-blocking)
+            preloadImages().then(() => {
+                console.log('✅ Images loaded, redrawing wheel...');
+                drawWheel(); // Redraw with images once loaded
+            });
 
             // Prevent scroll on wheel during spin only, allow page scroll
             const wheelWrapper = document.getElementById('wheelWrapper');
