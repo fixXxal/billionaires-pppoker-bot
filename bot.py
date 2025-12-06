@@ -8551,9 +8551,9 @@ def main():
         name='Check Expired 50/50 Investments'
     )
 
-    # Schedule spin notification check every 10 seconds
+    # Schedule spin notification check every 3 seconds for near-instant notifications
     async def check_spin_notifications():
-        """Check for new spin rewards that need notification (after 30 sec idle)"""
+        """Check for new spin rewards and send notifications instantly"""
         try:
             from datetime import datetime, timedelta
             import requests
@@ -8580,7 +8580,7 @@ def main():
 
             logger.info(f"📊 Check spin notifications: Found {len(pending_spins)} unnotified pending spins")
 
-            # Group by user first, then check if user's batch is ready
+            # Group by user for batching spins from same session
             from collections import defaultdict
             user_all_spins = defaultdict(list)
 
@@ -8592,7 +8592,8 @@ def main():
                 else:
                     logger.warning(f"⚠️ Spin {spin.get('id')} has no user telegram_id")
 
-            # Now check each user's batch - send if most recent spin is 30+ seconds old
+            # Smart batching: Wait 2 seconds only if user just spun (to catch multiple quick spins)
+            # This allows batching 50x spins while keeping notifications near-instant
             user_spins = {}
             for user_id, spins in user_all_spins.items():
                 # Find the most recent spin for this user
@@ -8608,14 +8609,14 @@ def main():
 
                 age_seconds = (now_utc - created_at).total_seconds()
 
-                logger.info(f"📅 User {user_id}: {len(spins)} unnotified spins, most recent is {age_seconds:.1f}s old (need 15+)")
-                logger.info(f"   Created: {created_at}, Now: {now_utc}")
+                logger.info(f"📅 User {user_id}: {len(spins)} unnotified spins, most recent is {age_seconds:.1f}s old")
 
-                if age_seconds >= 15:
-                    logger.info(f"✅ Queueing {len(spins)} spins for user {user_id} notification")
+                # Smart logic: Send immediately if 2+ seconds old OR if user has 10+ spins (bulk spin)
+                if age_seconds >= 2 or len(spins) >= 10:
+                    logger.info(f"✅ Sending instant notification for user {user_id} ({len(spins)} spins)")
                     user_spins[user_id] = spins
                 else:
-                    logger.info(f"⏳ User {user_id} batch not ready yet, waiting for 15s idle")
+                    logger.info(f"⏳ User {user_id} batch waiting {age_seconds:.1f}s (need 2s)")
 
             # Send notifications for each user
             if user_spins:
@@ -8623,7 +8624,7 @@ def main():
                 for user_id, spins in user_spins.items():
                     await send_spin_notification(application, user_id, spins)
             else:
-                logger.info(f"⏳ All unnotified spins are too recent (waiting for 15s idle time)")
+                logger.info(f"⏳ All unnotified spins are too recent (waiting 2s for batching)")
 
         except Exception as e:
             logger.error(f"❌ Error checking spin notifications: {e}")
@@ -8776,7 +8777,7 @@ def main():
     scheduler.add_job(
         check_spin_notifications,
         trigger='interval',
-        seconds=10,  # Check every 10 seconds
+        seconds=3,  # Check every 3 seconds for near-instant notifications
         id='check_spin_notifications',
         name='Check Spin Notifications'
     )
@@ -8786,7 +8787,7 @@ def main():
         scheduler.start()
         logger.info("Scheduler started - Daily reports will be sent at midnight (00:00) Maldives time")
         logger.info("50/50 investment expiry check will run every hour")
-        logger.info("Spin notifications check runs every 10 seconds (30 sec idle detection)")
+        logger.info("Spin notifications: Near-instant delivery (3s checks, 2s batching for multiple spins)")
 
     application.post_init = post_init
 
