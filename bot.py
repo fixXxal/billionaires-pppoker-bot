@@ -7606,81 +7606,29 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         )
 
         # Remove approve buttons from ALL admin notification messages for this user
+        # This is like deposit approval - buttons disappear, no new messages sent
         notification_key = f"spin_reward_{target_user_id}"
         if hasattr(context.bot_data, 'spin_notification_messages') and notification_key in context.bot_data.get('spin_notification_messages', {}):
-            logger.info(f"Removing approve buttons from {len(context.bot_data['spin_notification_messages'][notification_key])} admin messages")
+            logger.info(f"🗑️ Removing approve buttons from {len(context.bot_data['spin_notification_messages'][notification_key])} admin messages")
             for admin_id, message_id in context.bot_data['spin_notification_messages'][notification_key]:
                 try:
-                    await context.bot.edit_message_reply_markup(
-                        chat_id=admin_id,
-                        message_id=message_id,
-                        reply_markup=InlineKeyboardMarkup([])
-                    )
-                    logger.info(f"Removed approve button for admin {admin_id}, message {message_id}")
+                    # If this is the approver's message, edit the full text to show approval
+                    if admin_id == user.id and message_id == query.message.message_id:
+                        # This message was already edited above
+                        logger.info(f"✅ Approver's message already edited: admin {admin_id}, message {message_id}")
+                    else:
+                        # For other admins, just remove the button (keep original message text)
+                        await context.bot.edit_message_reply_markup(
+                            chat_id=admin_id,
+                            message_id=message_id,
+                            reply_markup=InlineKeyboardMarkup([])
+                        )
+                        logger.info(f"🔘 Removed approve button for admin {admin_id}, message {message_id}")
                 except Exception as e:
-                    logger.error(f"Failed to remove button for admin {admin_id}: {e}")
+                    logger.error(f"❌ Failed to remove button for admin {admin_id}: {e}")
             # Clean up stored message IDs
             del context.bot_data['spin_notification_messages'][notification_key]
-            logger.info(f"Cleaned up notification storage for {notification_key}")
-
-        # Notify ALL other admins about the approval
-        admin_notification = (
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"✅ <b>REWARDS APPROVED</b> ✅\n"
-            f"━━━━━━━━━━━━━━━━━━\n\n"
-            f"👤 <b>User:</b> {username_safe}\n"
-            f"🎁 <b>Rewards:</b> {approved_count}\n"
-            f"💎 <b>Total Chips:</b> {total_chips}\n\n"
-            f"✅ <b>Approved by:</b> {approver_name_safe}\n\n"
-            f"━━━━━━━━━━━━━━━━━━"
-        )
-
-        # Send to super admin (if not the one who approved)
-        if user.id != ADMIN_USER_ID:
-            try:
-                await context.bot.send_message(
-                    chat_id=ADMIN_USER_ID,
-                    text=admin_notification,
-                    parse_mode='HTML'
-                )
-            except Exception as e:
-                logger.error(f"Failed to notify super admin: {e}")
-
-        # Send to all regular admins (except the one who approved)
-        try:
-            regular_admins_response = api.get_all_admins()
-            logger.info(f"📋 Got admin list response type: {type(regular_admins_response)}")
-
-            # Handle paginated response from Django API
-            if isinstance(regular_admins_response, dict) and 'results' in regular_admins_response:
-                regular_admins = regular_admins_response['results']
-            else:
-                regular_admins = regular_admins_response
-
-            logger.info(f"📋 Found {len(regular_admins)} regular admins to notify about approval")
-            logger.info(f"📋 Approver ID: {user.id}, will skip this admin")
-
-            for admin in regular_admins:
-                logger.info(f"📋 Checking admin: {admin.get('telegram_id')} (name: {admin.get('name', 'N/A')})")
-                if admin['telegram_id'] != user.id:
-                    try:
-                        logger.info(f"✅ Sending approval notification to admin {admin['telegram_id']}")
-                        await context.bot.send_message(
-                            chat_id=admin['telegram_id'],
-                            text=admin_notification,
-                            parse_mode='HTML'
-                        )
-                        logger.info(f"✅ Successfully sent approval notification to admin {admin['telegram_id']}")
-                    except Exception as e:
-                        logger.error(f"❌ Failed to notify admin {admin['telegram_id']}: {e}")
-                        import traceback
-                        logger.error(traceback.format_exc())
-                else:
-                    logger.info(f"⏭️ Skipping admin {admin['telegram_id']} (is the approver)")
-        except Exception as e:
-            logger.error(f"❌ Failed to get admin list: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.info(f"✅ Cleaned up notification storage for {notification_key}")
 
         # Notify the user
         try:
