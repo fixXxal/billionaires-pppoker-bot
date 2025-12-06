@@ -269,13 +269,15 @@ class DjangoAPI:
 
     # ==================== SPIN HISTORY METHODS ====================
 
-    def process_spin(self, telegram_id: int, results: List[Dict]) -> Dict:
+    def process_spin(self, telegram_id: int, results: List[Dict], username: str = None) -> Dict:
         """Process one or more spins"""
         data = {
             'telegram_id': telegram_id,
             'spin_count': len(results),
             'results': results
         }
+        if username:
+            data['username'] = username
         return self._post('spin-history/process_spin/', data)
 
     def get_pending_spin_rewards(self) -> List[Dict]:

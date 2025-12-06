@@ -485,6 +485,7 @@ class SpinHistoryViewSet(viewsets.ModelViewSet):
         telegram_id = request.data.get('telegram_id')
         spin_count = request.data.get('spin_count', 1)
         results = request.data.get('results', [])
+        username = request.data.get('username')  # Get username from request
 
         if not telegram_id:
             return Response(
@@ -495,6 +496,12 @@ class SpinHistoryViewSet(viewsets.ModelViewSet):
         try:
             user = User.objects.get(telegram_id=telegram_id)
             spin_user = SpinUser.objects.get(user=user)
+
+            # Update username if provided (user may have changed their Telegram username)
+            if username and user.username != username:
+                user.username = username
+                user.save(update_fields=['username'])
+
         except (User.DoesNotExist, SpinUser.DoesNotExist):
             return Response(
                 {'error': 'User or SpinUser not found'},
