@@ -8748,14 +8748,23 @@ def main():
 
             # Mark spins as notified
             from datetime import datetime
+            now_iso = datetime.now().isoformat()
+            logger.info(f"⏰ Marking {len(spins)} spins as notified at {now_iso}")
+
             for spin in spins:
                 try:
                     # Use the django_api method to properly mark as notified
                     result = api.update_spin_history(
                         spin_id=spin['id'],
-                        notified_at=datetime.now().isoformat()
+                        notified_at=now_iso
                     )
-                    logger.info(f"✅ Successfully marked spin {spin['id']} as notified")
+                    logger.info(f"✅ API response for spin {spin['id']}: {result}")
+
+                    # Verify it was actually updated
+                    if result and result.get('notified_at'):
+                        logger.info(f"✅ Successfully marked spin {spin['id']} as notified")
+                    else:
+                        logger.error(f"⚠️ Spin {spin['id']} marked but API returned unexpected response: {result}")
                 except Exception as e:
                     logger.error(f"❌ Failed to mark spin {spin['id']} as notified: {e}")
                     import traceback
