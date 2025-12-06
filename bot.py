@@ -8565,24 +8565,29 @@ def main():
             data = response.json()
             pending_spins = data.get('results', []) if isinstance(data, dict) else data
 
-            logger.info(f"📊 Check spin notifications: Found {len(pending_spins)} total pending spins")
-
             # Group by user first, then check if user's batch is ready
             from collections import defaultdict
             user_all_spins = defaultdict(list)
+
+            # Track statistics
+            already_notified_count = 0
+            unnotified_count = 0
 
             # Group all unnotified spins by user
             for spin in pending_spins:
                 # Skip if already notified
                 if spin.get('notified_at'):
-                    logger.info(f"⏭️ Skipping spin {spin.get('id')} - already notified at {spin.get('notified_at')}")
+                    already_notified_count += 1
                     continue
 
                 user_id = spin.get('user_details', {}).get('telegram_id')
                 if user_id:
                     user_all_spins[user_id].append(spin)
+                    unnotified_count += 1
                 else:
                     logger.warning(f"⚠️ Spin {spin.get('id')} has no user telegram_id")
+
+            logger.info(f"📊 Check spin notifications: {len(pending_spins)} total pending spins ({unnotified_count} new, {already_notified_count} already notified)")
 
             # Now check each user's batch - send if most recent spin is 30+ seconds old
             user_spins = {}
