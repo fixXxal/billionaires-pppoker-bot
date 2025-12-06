@@ -73,9 +73,16 @@ class UserViewSet(viewsets.ModelViewSet):
             )
 
             # Always update username if provided (in case user changed their Telegram username)
-            if not created and request.data.get('username'):
-                user.username = request.data.get('username')
-                user.save(update_fields=['username'])
+            # ALSO update if current username is a default/placeholder (like "User" or "User123456")
+            new_username = request.data.get('username')
+            if not created and new_username:
+                # Update if: new username provided AND (current is default OR new is better)
+                is_current_default = (user.username.startswith('User') or
+                                     user.username.startswith('user_') or
+                                     user.username == 'User')
+                if is_current_default or user.username != new_username:
+                    user.username = new_username
+                    user.save(update_fields=['username'])
 
             serializer = self.get_serializer(user)
             return Response({
