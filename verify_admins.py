@@ -16,9 +16,8 @@ def verify_admins():
     """Verify that all required admins exist in database"""
 
     required_admins = [
-        {'telegram_id': 8044148230, 'username': 'superadmin', 'role': 'superadmin'},
-        {'telegram_id': 5465086879, 'username': 'admin1', 'role': 'admin'},
-        {'telegram_id': 7928805328, 'username': 'admin2', 'role': 'admin'},
+        {'telegram_id': 7928805328, 'username': 'billionaires_370625', 'role': 'superadmin'},
+        {'telegram_id': 5465086879, 'username': 'FixXxaL', 'role': 'admin'},
     ]
 
     print("🔍 Checking admins in database...\n")

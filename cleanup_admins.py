@@ -17,9 +17,8 @@ def cleanup_admins():
 
     # These are the ONLY admins we want to keep
     required_admins = [
-        8044148230,  # superadmin
-        5465086879,  # FixXxaL
-        7928805328,  # billionaires_370625
+        7928805328,  # billionaires_370625 (SUPER ADMIN from ADMIN_USER_ID)
+        5465086879,  # FixXxaL (regular admin)
     ]
 
     print("🔍 Cleaning up admin database...\n")
@@ -47,7 +46,7 @@ def cleanup_admins():
         print(f"  ✅ ID: {admin.telegram_id}, Username: {admin.username}, Role: {admin.role}, Active: {admin.is_active}")
 
 if __name__ == '__main__':
-    response = input("⚠️  This will remove admins NOT in the required list (8044148230, 5465086879, 7928805328). Continue? (yes/no): ")
+    response = input("⚠️  This will remove admins NOT in the required list (7928805328, 5465086879). Continue? (yes/no): ")
     if response.lower() == 'yes':
         cleanup_admins()
     else:
