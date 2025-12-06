@@ -8747,8 +8747,8 @@ def main():
                 logger.warning(f"⚠️ No admins to notify (besides super admin)")
 
             # Mark spins as notified
-            from datetime import datetime
-            now_iso = datetime.now().isoformat()
+            from datetime import datetime, timezone
+            now_iso = datetime.now(timezone.utc).isoformat()
             logger.info(f"⏰ Marking {len(spins)} spins as notified at {now_iso}")
 
             for spin in spins:
