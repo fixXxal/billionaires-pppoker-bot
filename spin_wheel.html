@@ -58,9 +58,12 @@
             pointer-events: none;
             animation: floatGift 10s ease-in-out infinite;
             font-size: 60px;
-            opacity: 0.5;
-            /* Simplified filter for better performance - removed expensive hue-rotate */
-            filter: drop-shadow(0 2px 8px rgba(100, 200, 180, 0.4));
+            opacity: 0.6;
+            filter:
+                drop-shadow(0 4px 12px rgba(100, 200, 180, 0.6))
+                hue-rotate(120deg)
+                saturate(0.8)
+                brightness(1.1);
             will-change: transform;
         }
 
@@ -626,7 +629,13 @@
     </style>
 </head>
 <body>
-    <!-- Floating gift boxes (reduced for performance) -->
+    <!-- Floating gift boxes -->
+    <div class="gift-box"></div>
+    <div class="gift-box"></div>
+    <div class="gift-box"></div>
+    <div class="gift-box"></div>
+    <div class="gift-box"></div>
+    <div class="gift-box"></div>
     <div class="gift-box"></div>
     <div class="gift-box"></div>
     <div class="gift-box"></div>
