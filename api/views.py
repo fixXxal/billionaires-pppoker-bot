@@ -439,6 +439,25 @@ class SpinHistoryViewSet(viewsets.ModelViewSet):
     """API endpoint for Spin History (LEGACY - kept for backward compatibility)"""
     queryset = SpinHistory.objects.all()
     serializer_class = SpinHistorySerializer
+    filterset_fields = ['status', 'notified_at']  # Enable filtering by status and notified_at
+
+    def get_queryset(self):
+        """Override to support query parameter filtering"""
+        queryset = SpinHistory.objects.all()
+
+        # Filter by status if provided
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+
+        # Filter by notified_at__isnull if provided
+        notified_at_isnull = self.request.query_params.get('notified_at__isnull')
+        if notified_at_isnull is not None:
+            # Convert string 'true'/'false' to boolean
+            is_null = notified_at_isnull.lower() in ('true', '1', 'yes')
+            queryset = queryset.filter(notified_at__isnull=is_null)
+
+        return queryset
 
     @action(detail=False, methods=['get'])
     def pending(self, request):
@@ -520,9 +539,14 @@ class SpinHistoryViewSet(viewsets.ModelViewSet):
             spin_user = SpinUser.objects.get(user=user)
 
             # Update username if provided (user may have changed their Telegram username)
-            if username and user.username != username:
-                user.username = username
-                user.save(update_fields=['username'])
+            # ALSO update if current username is a default/placeholder
+            if username:
+                is_current_default = (user.username.startswith('User') or
+                                     user.username.startswith('user_') or
+                                     user.username == 'User')
+                if is_current_default or user.username != username:
+                    user.username = username
+                    user.save(update_fields=['username'])
 
         except (User.DoesNotExist, SpinUser.DoesNotExist):
             return Response(
