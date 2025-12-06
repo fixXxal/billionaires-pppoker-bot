@@ -8638,13 +8638,20 @@ def main():
 
             # Get current user info from API (not from spin record which might be outdated)
             user_info = api.get_user_by_telegram_id(user_id)
-            if isinstance(user_info, dict):
-                username = user_info.get('username', 'User')
+            logger.info(f"📋 Retrieved user info from API: {user_info}")
+
+            if isinstance(user_info, dict) and user_info:
+                # API returns username with @ prefix, so remove it if present
+                raw_username = user_info.get('username', 'User')
+                username = raw_username.lstrip('@') if raw_username else 'User'
                 pppoker_id = user_info.get('pppoker_id', 'N/A')
+                logger.info(f"📝 Using API data - Username: {username}, PPPoker ID: {pppoker_id}")
             else:
                 # Fallback to spin record if API call fails
+                logger.warning(f"⚠️ API call failed, using spin record data")
                 username = spins[0].get('user_details', {}).get('username', 'User')
                 pppoker_id = spins[0].get('user_details', {}).get('pppoker_id', 'N/A')
+                logger.info(f"📝 Using spin record - Username: {username}, PPPoker ID: {pppoker_id}")
 
             # Notify user
             user_message = (
