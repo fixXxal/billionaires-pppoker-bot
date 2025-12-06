@@ -8551,8 +8551,9 @@ def main():
             import requests
 
             # Get all pending spins that haven't been notified yet
+            # Filter at database level to avoid fetching already-notified spins
             response = requests.get(
-                f'{DJANGO_API_URL}/spin-history/?status=Pending',
+                f'{DJANGO_API_URL}/spin-history/?status=Pending&notified_at__isnull=true',
                 headers={
                     'Authorization': f'Bearer {api.token}' if hasattr(api, 'token') and api.token else '',
                     'Content-Type': 'application/json'
@@ -8565,29 +8566,23 @@ def main():
             data = response.json()
             pending_spins = data.get('results', []) if isinstance(data, dict) else data
 
+            if not pending_spins:
+                # No unnotified spins - this is normal, just check again later
+                return
+
+            logger.info(f"📊 Check spin notifications: Found {len(pending_spins)} unnotified pending spins")
+
             # Group by user first, then check if user's batch is ready
             from collections import defaultdict
             user_all_spins = defaultdict(list)
 
-            # Track statistics
-            already_notified_count = 0
-            unnotified_count = 0
-
             # Group all unnotified spins by user
             for spin in pending_spins:
-                # Skip if already notified
-                if spin.get('notified_at'):
-                    already_notified_count += 1
-                    continue
-
                 user_id = spin.get('user_details', {}).get('telegram_id')
                 if user_id:
                     user_all_spins[user_id].append(spin)
-                    unnotified_count += 1
                 else:
                     logger.warning(f"⚠️ Spin {spin.get('id')} has no user telegram_id")
-
-            logger.info(f"📊 Check spin notifications: {len(pending_spins)} total pending spins ({unnotified_count} new, {already_notified_count} already notified)")
 
             # Now check each user's batch - send if most recent spin is 30+ seconds old
             user_spins = {}
@@ -8620,7 +8615,7 @@ def main():
                 for user_id, spins in user_spins.items():
                     await send_spin_notification(application, user_id, spins)
             else:
-                logger.info(f"✅ No spins ready for notification (all either too new or already notified)")
+                logger.info(f"⏳ All unnotified spins are too recent (waiting for 15s idle time)")
 
         except Exception as e:
             logger.error(f"❌ Error checking spin notifications: {e}")
