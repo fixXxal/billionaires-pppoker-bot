@@ -456,6 +456,19 @@ class SpinHistoryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # CRITICAL: Don't mark as notified if already approved/rejected
+        # This prevents re-notifying about already-processed spins
+        if spin.status != 'Pending':
+            logger.warning(f"⚠️ Refusing to mark spin {pk} as notified - status is {spin.status}, not Pending")
+            return Response(
+                {
+                    'warning': f'Spin {pk} is already {spin.status}, not marked as notified',
+                    'status': spin.status,
+                    'notified_at': spin.notified_at
+                },
+                status=status.HTTP_200_OK  # Return 200 to avoid errors, but with warning
+            )
+
         try:
             # Parse the datetime string
             from datetime import datetime
@@ -466,7 +479,7 @@ class SpinHistoryViewSet(viewsets.ModelViewSet):
             spin.notified_at = notified_at
             spin.save(update_fields=['notified_at'])
 
-            logger.info(f"✅ Successfully marked spin {pk} as notified at {notified_at}")
+            logger.info(f"✅ Successfully marked spin {pk} (status={spin.status}) as notified at {notified_at}")
 
             # Return updated object to confirm
             serializer = self.get_serializer(spin)
@@ -474,6 +487,8 @@ class SpinHistoryViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             logger.error(f"❌ Failed to mark spin {pk} as notified: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
