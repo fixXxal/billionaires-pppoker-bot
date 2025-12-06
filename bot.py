@@ -8096,6 +8096,14 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def main():
     """Start the bot"""
+    # Generate unique instance ID to detect multiple running instances
+    import uuid
+    import socket
+    instance_id = str(uuid.uuid4())[:8]
+    hostname = socket.gethostname()
+    logger.info(f"🚀 STARTING BOT INSTANCE: {instance_id} on {hostname}")
+    logger.info(f"⚠️  WARNING: If you see multiple instance IDs, you have duplicate bots running!")
+
     # Create application
     application = Application.builder().token(TOKEN).build()
 
