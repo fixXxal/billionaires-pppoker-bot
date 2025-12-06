@@ -8611,7 +8611,7 @@ def main():
 
             # Send notifications for each user
             if user_spins:
-                logger.info(f"📨 Sending notifications to {len(user_spins)} users")
+                logger.info(f"📨 Sending spin notifications for {len(user_spins)} user(s) (notifying users + all admins)")
                 for user_id, spins in user_spins.items():
                     await send_spin_notification(application, user_id, spins)
             else:
@@ -8694,6 +8694,7 @@ def main():
             admins = api.get_all_admins()
             logger.info(f"📋 Retrieved admins list: {admins}")
 
+            admin_notified_count = 1  # Already sent to super admin
             if isinstance(admins, list):
                 logger.info(f"📊 Total admins found: {len(admins)}")
                 for admin in admins:
@@ -8711,10 +8712,13 @@ def main():
                             # Store message ID for later button removal
                             app.bot_data['spin_notification_messages'][notification_key].append((admin_telegram_id, sent_msg.message_id))
                             logger.info(f"✅ Sent notification to admin {admin_telegram_id}, stored message ID {sent_msg.message_id}")
+                            admin_notified_count += 1
                         except Exception as e:
                             logger.error(f"❌ Failed to notify admin {admin_telegram_id}: {e}")
                     else:
                         logger.info(f"⏭️ Skipping super admin {admin_telegram_id} (already notified)")
+
+                logger.info(f"📬 Total notifications sent: 1 user + {admin_notified_count} admin(s) = {1 + admin_notified_count} messages")
             else:
                 logger.error(f"❌ Failed to get admins list (not a list): {admins}")
 
