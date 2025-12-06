@@ -2,18 +2,22 @@
 {% load i18n static %}
 
 {% block content %}
-<!-- Custom Broadcast Button - Prominent at Top -->
-<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-    <div style="display: flex; align-items: center; justify-content: space-between;">
-        <div>
-            <h2 style="color: white; margin: 0 0 8px 0; font-size: 24px;">📢 Broadcast Message</h2>
-            <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 14px;">Send announcements to all users instantly</p>
-        </div>
-        <a href="/api/admin/broadcast/" style="background: white; color: #667eea; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-            Send Broadcast →
-        </a>
-    </div>
-</div>
-
 {{ block.super }}
+
+<!-- Custom Broadcast Button - At Bottom -->
+<div class="module">
+    <table>
+        <caption>
+            <a href="/api/admin/broadcast/" class="section">Broadcasting</a>
+        </caption>
+        <tbody>
+            <tr>
+                <th scope="row">
+                    <a href="/api/admin/broadcast/">📢 Broadcast Message</a>
+                </th>
+                <td>Send announcements to all users instantly</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 {% endblock %}
