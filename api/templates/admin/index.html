@@ -1,0 +1,27 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+{% block content %}
+{{ block.super }}
+
+<div class="module" style="margin-top: 20px;">
+    <table>
+        <caption>
+            <div class="text">
+                <h2>📢 Communication Tools</h2>
+            </div>
+        </caption>
+        <tbody>
+            <tr class="model-admin addlink">
+                <th scope="row">
+                    <a href="/api/admin/broadcast/" style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 20px;">📢</span>
+                        <span>Broadcast Message</span>
+                    </a>
+                </th>
+                <td>Send messages to all users</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
