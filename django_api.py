@@ -289,7 +289,12 @@ class DjangoAPI:
 
     def update_spin_history(self, spin_id: int, **kwargs) -> Dict:
         """Update a spin history record (e.g., notified_at)"""
-        return self._patch(f'spin-history/{spin_id}/', kwargs)
+        # Use custom mark_notified endpoint for notified_at updates (more reliable)
+        if 'notified_at' in kwargs and len(kwargs) == 1:
+            return self._post(f'spin-history/{spin_id}/mark_notified/', {'notified_at': kwargs['notified_at']})
+        else:
+            # Use PATCH for other updates
+            return self._patch(f'spin-history/{spin_id}/', kwargs)
 
     def get_all_spin_history(self) -> List[Dict]:
         """Get all spin history"""

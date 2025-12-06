@@ -440,6 +440,45 @@ class SpinHistoryViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(spins, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['post'])
+    def mark_notified(self, request, pk=None):
+        """Mark a spin as notified - CRITICAL endpoint for notification system"""
+        from django.utils import timezone
+        import logging
+        logger = logging.getLogger(__name__)
+
+        spin = self.get_object()
+        notified_at = request.data.get('notified_at')
+
+        if not notified_at:
+            return Response(
+                {'error': 'notified_at is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Parse the datetime string
+            from datetime import datetime
+            if isinstance(notified_at, str):
+                notified_at = datetime.fromisoformat(notified_at.replace('Z', '+00:00'))
+
+            # Update and save
+            spin.notified_at = notified_at
+            spin.save(update_fields=['notified_at'])
+
+            logger.info(f"✅ Successfully marked spin {pk} as notified at {notified_at}")
+
+            # Return updated object to confirm
+            serializer = self.get_serializer(spin)
+            return Response(serializer.data)
+
+        except Exception as e:
+            logger.error(f"❌ Failed to mark spin {pk} as notified: {e}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     @action(detail=False, methods=['post'])
     def process_spin(self, request):
         """Process one or more spins"""
