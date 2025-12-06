@@ -3917,6 +3917,34 @@ async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return BROADCAST_MESSAGE
 
 
+async def broadcast_start_from_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start broadcast from admin panel callback"""
+    query = update.callback_query
+    await query.answer()
+
+    if not is_admin(update.effective_user.id):
+        await query.edit_message_text("❌ This feature is only for admins.")
+        return ConversationHandler.END
+
+    # Add cancel button
+    keyboard = [[InlineKeyboardButton("❌ Cancel Broadcast", callback_data="broadcast_cancel")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        "📢 **Broadcast System**\n\n"
+        "Please send the message or image you want to broadcast to all users.\n\n"
+        "You can send:\n"
+        "• Text message\n"
+        "• Image with caption\n"
+        "• Image only\n\n"
+        "Click the button below or type /cancel to cancel.",
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
+
+    return BROADCAST_MESSAGE
+
+
 async def broadcast_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel the broadcast"""
     query = update.callback_query
@@ -8249,6 +8277,7 @@ def main():
     broadcast_conv = ConversationHandler(
         entry_points=[
             CommandHandler("broadcast", broadcast_start),
+            CallbackQueryHandler(broadcast_start_from_callback, pattern="^admin_broadcast$"),
         ],
         states={
             BROADCAST_MESSAGE: [
