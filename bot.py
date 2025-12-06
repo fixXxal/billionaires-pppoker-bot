@@ -8616,17 +8616,57 @@ def main():
             except Exception as e:
                 logger.error(f"Failed to notify user {user_id}: {e}")
 
-            # Notify admins
+            # Notify admins - show TOTAL pending rewards for this user
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            import requests
 
-            admin_message = (
-                f"🎰 <b>NEW SPIN REWARDS</b> 🎰\n\n"
-                f"👤 User: @{username}\n"
-                f"🆔 Telegram ID: <code>{user_id}</code>\n"
-                f"🎮 PPPoker ID: <code>{pppoker_id}</code>\n\n"
-                f"🎁 <b>{spin_count} spin{'s' if spin_count > 1 else ''}: {total_chips} chips</b>\n\n"
-                f"Use the button below or /pendingspins to review."
-            )
+            # Get ALL pending spins for this user to show total
+            try:
+                response = requests.get(
+                    f'{DJANGO_API_URL}/spin-history/?status=Pending',
+                    headers={
+                        'Authorization': f'Bearer {api.token}' if hasattr(api, 'token') and api.token else '',
+                        'Content-Type': 'application/json'
+                    }
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    all_pending = data.get('results', []) if isinstance(data, dict) else data
+                    # Filter for this specific user
+                    user_pending = [s for s in all_pending if s.get('user_details', {}).get('telegram_id') == user_id]
+                    total_pending_count = len(user_pending)
+                    total_pending_chips = sum(s.get('chips', 0) for s in user_pending)
+                else:
+                    # Fallback to current batch
+                    total_pending_count = spin_count
+                    total_pending_chips = total_chips
+            except Exception as e:
+                logger.error(f"Error fetching total pending: {e}")
+                total_pending_count = spin_count
+                total_pending_chips = total_chips
+
+            # Show current batch + total pending
+            if total_pending_count > spin_count:
+                # User has multiple batches of pending spins
+                admin_message = (
+                    f"🎰 <b>NEW SPIN REWARDS</b> 🎰\n\n"
+                    f"👤 User: @{username}\n"
+                    f"🆔 Telegram ID: <code>{user_id}</code>\n"
+                    f"🎮 PPPoker ID: <code>{pppoker_id}</code>\n\n"
+                    f"🆕 <b>Latest: {spin_count} spin{'s' if spin_count > 1 else ''} = {total_chips} chips</b>\n"
+                    f"📊 <b>TOTAL PENDING: {total_pending_count} spins = {total_pending_chips} chips</b>\n\n"
+                    f"Use the button below or /pendingspins to review."
+                )
+            else:
+                # Only one batch pending
+                admin_message = (
+                    f"🎰 <b>NEW SPIN REWARDS</b> 🎰\n\n"
+                    f"👤 User: @{username}\n"
+                    f"🆔 Telegram ID: <code>{user_id}</code>\n"
+                    f"🎮 PPPoker ID: <code>{pppoker_id}</code>\n\n"
+                    f"🎁 <b>{spin_count} spin{'s' if spin_count > 1 else ''}: {total_chips} chips</b>\n\n"
+                    f"Use the button below or /pendingspins to review."
+                )
 
             # Create approve button
             keyboard = [
@@ -8635,10 +8675,14 @@ def main():
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             # Store message IDs to remove buttons later when approved
+            # IMPORTANT: Use setdefault to APPEND to existing list, not replace it!
+            # This ensures old notification buttons are also removed when approving
             notification_key = f"spin_reward_{user_id}"
             if not hasattr(app.bot_data, 'spin_notification_messages'):
                 app.bot_data['spin_notification_messages'] = {}
-            app.bot_data['spin_notification_messages'][notification_key] = []
+            # Don't reset the list - keep accumulating message IDs for this user
+            if notification_key not in app.bot_data['spin_notification_messages']:
+                app.bot_data['spin_notification_messages'][notification_key] = []
 
             # Send to super admin with button
             try:
