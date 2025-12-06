@@ -77,6 +77,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🏦 Payment Accounts", callback_data="admin_view_accounts")],
         [InlineKeyboardButton("💎 50/50 Investments", callback_data="admin_investments")],
         [InlineKeyboardButton("🏦 Club Balances", callback_data="admin_club_balances")],
+        [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast")],
         [InlineKeyboardButton(counter_button_text, callback_data=counter_callback)],
         [InlineKeyboardButton("📊 Counter Status", callback_data="admin_counter_status")],
         [InlineKeyboardButton("❌ Close", callback_data="admin_close")]
@@ -1778,6 +1779,23 @@ async def admin_open_counter(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
 
 
+async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle broadcast button from admin panel"""
+    query = update.callback_query
+    await query.answer()
+
+    keyboard = [[InlineKeyboardButton("« Back to Admin Panel", callback_data="admin_back")]]
+
+    await query.edit_message_text(
+        "📢 <b>Broadcast Message</b>\n\n"
+        "To send a broadcast message to all users, use the command:\n\n"
+        "<code>/broadcast</code>\n\n"
+        "After sending the command, you can send text or image messages to broadcast.",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
 async def admin_investments(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show 50/50 investments menu"""
     query = update.callback_query
@@ -2459,6 +2477,7 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
     application.add_handler(CallbackQueryHandler(admin_counter_status, pattern="^admin_counter_status$"))
     application.add_handler(CallbackQueryHandler(admin_close_counter, pattern="^admin_close_counter$"))
     application.add_handler(CallbackQueryHandler(admin_open_counter, pattern="^admin_open_counter$"))
+    application.add_handler(CallbackQueryHandler(admin_broadcast, pattern="^admin_broadcast$"))
     application.add_handler(CallbackQueryHandler(admin_investments, pattern="^admin_investments$"))
     application.add_handler(CallbackQueryHandler(investment_view_active, pattern="^investment_view_active$"))
     application.add_handler(CallbackQueryHandler(investment_view_completed, pattern="^investment_view_completed$"))
