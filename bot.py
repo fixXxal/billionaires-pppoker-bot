@@ -8691,11 +8691,20 @@ def main():
                 logger.error(f"Failed to notify super admin: {e}")
 
             # Send to regular admins with button
-            admins = api.get_all_admins()
-            logger.info(f"📋 Retrieved admins list: {admins}")
+            admins_response = api.get_all_admins()
+            logger.info(f"📋 Retrieved admins response: {admins_response}")
+
+            # Handle paginated response
+            if isinstance(admins_response, dict) and 'results' in admins_response:
+                admins = admins_response['results']
+            elif isinstance(admins_response, list):
+                admins = admins_response
+            else:
+                logger.error(f"❌ Unexpected admins response format: {admins_response}")
+                admins = []
 
             admin_notified_count = 1  # Already sent to super admin
-            if isinstance(admins, list):
+            if admins:
                 logger.info(f"📊 Total admins found: {len(admins)}")
                 for admin in admins:
                     admin_telegram_id = admin.get('telegram_id')
@@ -8720,7 +8729,7 @@ def main():
 
                 logger.info(f"📬 Total notifications sent: 1 user + {admin_notified_count} admin(s) = {1 + admin_notified_count} messages")
             else:
-                logger.error(f"❌ Failed to get admins list (not a list): {admins}")
+                logger.warning(f"⚠️ No admins to notify (besides super admin)")
 
             # Mark spins as notified
             from datetime import datetime
