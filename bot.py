@@ -8571,14 +8571,14 @@ def main():
 
                 age_seconds = (now_utc - created_at).total_seconds()
 
-                logger.info(f"📅 User {user_id}: {len(spins)} unnotified spins, most recent is {age_seconds:.1f}s old (need 30+)")
+                logger.info(f"📅 User {user_id}: {len(spins)} unnotified spins, most recent is {age_seconds:.1f}s old (need 15+)")
                 logger.info(f"   Created: {created_at}, Now: {now_utc}")
 
-                if age_seconds >= 30:
+                if age_seconds >= 15:
                     logger.info(f"✅ Queueing {len(spins)} spins for user {user_id} notification")
                     user_spins[user_id] = spins
                 else:
-                    logger.info(f"⏳ User {user_id} batch not ready yet, waiting for 30s idle")
+                    logger.info(f"⏳ User {user_id} batch not ready yet, waiting for 15s idle")
 
             # Send notifications for each user
             if user_spins:
