@@ -2,26 +2,18 @@
 {% load i18n static %}
 
 {% block content %}
-{{ block.super }}
-
-<div class="module" style="margin-top: 20px;">
-    <table>
-        <caption>
-            <div class="text">
-                <h2>📢 Communication Tools</h2>
-            </div>
-        </caption>
-        <tbody>
-            <tr class="model-admin addlink">
-                <th scope="row">
-                    <a href="/api/admin/broadcast/" style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 20px;">📢</span>
-                        <span>Broadcast Message</span>
-                    </a>
-                </th>
-                <td>Send messages to all users</td>
-            </tr>
-        </tbody>
-    </table>
+<!-- Custom Broadcast Button - Prominent at Top -->
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <h2 style="color: white; margin: 0 0 8px 0; font-size: 24px;">📢 Broadcast Message</h2>
+            <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 14px;">Send announcements to all users instantly</p>
+        </div>
+        <a href="/api/admin/broadcast/" style="background: white; color: #667eea; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            Send Broadcast →
+        </a>
+    </div>
 </div>
+
+{{ block.super }}
 {% endblock %}
