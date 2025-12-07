@@ -31,7 +31,14 @@ class DjangoAPI:
         try:
             response = self.session.get(url, params=params, timeout=10)
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+
+            # Validate that we got actual data, not null
+            if data is None:
+                logger.error(f"GET {url} returned null/None")
+                raise ValueError(f"API returned null response for {endpoint}")
+
+            return data
         except requests.exceptions.RequestException as e:
             logger.error(f"GET {url} failed: {e}, Response: {response.text if 'response' in locals() else 'N/A'}")
             raise
@@ -544,9 +551,15 @@ class DjangoAPI:
         """Get all payment accounts"""
         return self._get('payment-accounts/')
 
-    def get_payment_account(self, account_id: int) -> Dict:
+    def get_payment_account(self, account_id: int) -> Optional[Dict]:
         """Get a single payment account by ID"""
-        return self._get(f'payment-accounts/{account_id}/')
+        try:
+            return self._get(f'payment-accounts/{account_id}/')
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.warning(f"Payment account {account_id} not found")
+                return None
+            raise
 
     def update_payment_account(self, account_id: int, **kwargs) -> Dict:
         """Update a payment account by ID"""

@@ -1491,6 +1491,15 @@ async def account_delete_confirm(update: Update, context: ContextTypes.DEFAULT_T
         logger.info(f"🗑️ Fetching account details for ID {account_id}")
         account = api.get_payment_account(account_id)
         logger.info(f"🗑️ Account fetched: {account}")
+
+        if not account:
+            logger.error(f"🗑️ Account {account_id} not found or returned None")
+            await query.edit_message_text(
+                "❌ Error: Payment account not found",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_accounts")]])
+            )
+            return
+
         method = account.get('method', 'Unknown')
         account_num = account.get('account_number', 'N/A')
 
@@ -2673,6 +2682,15 @@ async def account_edit_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     try:
         account = api.get_payment_account(account_id)
+
+        if not account:
+            logger.error(f"Account {account_id} not found or returned None")
+            await query.edit_message_text(
+                "❌ Error: Payment account not found",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_accounts")]])
+            )
+            return
+
         method = account.get('method', 'Unknown')
         current_number = account.get('account_number', 'N/A')
         current_holder = account.get('account_name', '')
