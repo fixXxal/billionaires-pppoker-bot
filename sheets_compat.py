@@ -492,16 +492,22 @@ class SheetsCompatAPI(DjangoAPI):
                 return {}
 
             # Convert to legacy dict format: {'BML': {...}, 'MIB': {...}}
+            # Only include ACTIVE accounts (is_active=True)
             accounts_dict = {}
             for account in accounts_list:
                 if isinstance(account, dict) and 'method' in account:
+                    # Skip inactive accounts
+                    if not account.get('is_active', True):
+                        logger.info(f"Skipping inactive account: {account['method']}")
+                        continue
+
                     method = account['method']
                     accounts_dict[method] = account
                     logger.info(f"Added {method} to accounts dict: {account}")
                 else:
                     logger.warning(f"Skipping invalid account: {account}")
 
-            logger.info(f"Final accounts_dict: {accounts_dict}")
+            logger.info(f"Final accounts_dict (active only): {accounts_dict}")
             return accounts_dict
         except Exception as e:
             logger.error(f"Error getting all payment accounts: {e}", exc_info=True)
