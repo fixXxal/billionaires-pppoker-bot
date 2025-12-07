@@ -7518,16 +7518,30 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         logger.info(f"🔍 Found {len(user_pending)} pending spins for user {target_user_id}")
 
         if not user_pending:
-            # Try to find who already approved by checking spin history
+            # Try to find who already approved by checking spin history via Django API
             try:
-                all_spins = spin_bot.api.spin_history_sheet.get_all_values()[1:]  # Skip header
-                user_spins = [s for s in all_spins if len(s) > 7 and str(s[0]) == str(target_user_id) and s[6] == 'Approved']
+                # Query Django API for approved spins for this user
+                response = api.get_all_spin_history()
+
+                # Handle paginated response
+                if isinstance(response, dict) and 'results' in response:
+                    all_spins = response['results']
+                else:
+                    all_spins = response if isinstance(response, list) else []
+
+                # Filter for approved spins from this user
+                user_spins = [
+                    s for s in all_spins
+                    if s.get('user_details', {}).get('telegram_id') == target_user_id
+                    and s.get('status') == 'Approved'
+                ]
 
                 if user_spins:
                     # Get LAST (most recent) approved spin details
-                    approved_by = user_spins[-1][7] if len(user_spins[-1]) > 7 else 'Unknown Admin'
-                    total_chips = sum(int(s[3]) for s in user_spins if len(s) > 3 and s[3])
-                    username = user_spins[-1][1] if len(user_spins[-1]) > 1 else 'User'
+                    last_spin = user_spins[-1]
+                    approved_by = last_spin.get('approved_by', 'Unknown Admin')
+                    total_chips = sum(s.get('chips_won', 0) for s in user_spins)
+                    username = last_spin.get('user_details', {}).get('username', 'User')
 
                     # Escape HTML characters to prevent parsing errors
                     from html import escape
@@ -7552,6 +7566,8 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
                     )
             except Exception as e:
                 logger.error(f"Error checking approval status: {e}")
+                import traceback
+                traceback.print_exc()
                 await query.edit_message_text(
                     f"✅ All rewards already approved!\n\n"
                     f"No pending spins found for this user.",
