@@ -1444,6 +1444,7 @@ async def admin_view_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE
                 message_text += "\n"
 
                 # Add Edit and Delete/Activate buttons
+                # Only add buttons if account has an ID (new format)
                 if account_id:
                     if is_active:
                         keyboard.append([
@@ -1455,6 +1456,9 @@ async def admin_view_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE
                             InlineKeyboardButton(f"✏️ Edit {method}", callback_data=f"account_edit_{account_id}"),
                             InlineKeyboardButton(f"✅ Activate {method}", callback_data=f"account_activate_{account_id}")
                         ])
+                else:
+                    # Old format account without ID - show warning
+                    message_text += f"   <i>⚠️ Legacy account (use /update_{method.lower()} to recreate)</i>\n\n"
     else:
         message_text += "<i>No payment accounts configured yet.</i>\n\n"
 
@@ -1478,11 +1482,15 @@ async def account_delete_confirm(update: Update, context: ContextTypes.DEFAULT_T
     await query.answer()
 
     # Extract account ID from callback_data
+    logger.info(f"🗑️ Delete button clicked. Callback data: {query.data}")
     account_id = int(query.data.replace("account_delete_", ""))
+    logger.info(f"🗑️ Extracted account ID: {account_id}")
 
     # Get account details
     try:
+        logger.info(f"🗑️ Fetching account details for ID {account_id}")
         account = api.get_payment_account(account_id)
+        logger.info(f"🗑️ Account fetched: {account}")
         method = account.get('method', 'Unknown')
         account_num = account.get('account_number', 'N/A')
 
@@ -1504,9 +1512,15 @@ async def account_delete_confirm(update: Update, context: ContextTypes.DEFAULT_T
         )
     except Exception as e:
         logger.error(f"Error fetching account for deletion: {e}")
+        import traceback
+        traceback.print_exc()
         await query.edit_message_text(
-            "❌ Error: Account not found",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_accounts")]])
+            f"❌ <b>Error: Account not found</b>\n\n"
+            f"Account ID: {account_id}\n"
+            f"Error: {str(e)}\n\n"
+            f"<i>This might be a legacy account without an ID.\nPlease use \"➕ Add New Payment Method\" to create a new account.</i>",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_accounts")]]),
+            parse_mode='HTML'
         )
 
 
