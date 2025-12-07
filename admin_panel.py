@@ -2360,6 +2360,16 @@ async def investment_return_amount_received(update: Update, context: ContextType
         return ConversationHandler.END
 
 
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel any conversation"""
+    await update.message.reply_text(
+        "❌ Operation cancelled.",
+        parse_mode='HTML'
+    )
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
 async def cancel_investment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel investment conversation"""
     await update.message.reply_text(
