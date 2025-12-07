@@ -1407,16 +1407,33 @@ async def admin_view_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Get all payment accounts from Django API
     try:
         accounts_response = api.get_all_payment_accounts()
+        logger.info(f"📋 Payment accounts response type: {type(accounts_response)}")
+        logger.info(f"📋 Payment accounts response: {accounts_response}")
 
         # Handle different response formats
         if isinstance(accounts_response, list):
             accounts = accounts_response
+            logger.info(f"📋 Using list format, {len(accounts)} accounts")
         elif isinstance(accounts_response, dict):
-            accounts = accounts_response.get('results', []) if 'results' in accounts_response else list(accounts_response.values())
+            if 'results' in accounts_response:
+                accounts = accounts_response.get('results', [])
+                logger.info(f"📋 Using paginated format, {len(accounts)} accounts")
+            else:
+                # Legacy format - dict keyed by method
+                accounts = list(accounts_response.values())
+                logger.info(f"📋 Using legacy dict format, {len(accounts)} accounts")
         else:
             accounts = []
+            logger.warning(f"📋 Unknown response format: {type(accounts_response)}")
+
+        # Log each account's ID
+        for idx, acc in enumerate(accounts):
+            if isinstance(acc, dict):
+                logger.info(f"📋 Account {idx}: method={acc.get('method')}, id={acc.get('id')}, has_id={bool(acc.get('id'))}")
     except Exception as e:
         logger.error(f"Error fetching payment accounts: {e}")
+        import traceback
+        traceback.print_exc()
         accounts = []
 
     message_text = "🏦 <b>Payment Accounts Management</b>\n\n"
