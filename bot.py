@@ -7441,6 +7441,73 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
             parse_mode='HTML'
         )
 
+        # Remove approve buttons from ALL admin /pendingspins messages for this user
+        # Retrieve message IDs from Django database (persists across bot restarts)
+        notification_key = f"pendingspins_{target_user_id}"
+
+        # Get stored message IDs from Django database
+        try:
+            stored_messages = api.get_notification_messages(notification_key)
+            logger.info(f"🗑️ Retrieved {len(stored_messages)} stored /pendingspins messages from database for {notification_key}")
+        except Exception as e:
+            logger.error(f"❌ Failed to retrieve stored messages from database: {e}")
+            stored_messages = []
+
+        if stored_messages:
+            logger.info(f"🗑️ Removing approve buttons from {len(stored_messages)} stored /pendingspins messages")
+
+            # Track which admins we've already sent the approval notification to (avoid duplicates)
+            notified_admins = set()
+
+            for msg_record in stored_messages:
+                admin_id = msg_record['admin_telegram_id']
+                message_id = msg_record['message_id']
+                try:
+                    # If this is the approver's message, skip (already edited above)
+                    if admin_id == user.id and message_id == query.message.message_id:
+                        logger.info(f"✅ Approver's message already edited: admin {admin_id}, message {message_id}")
+                    else:
+                        # Remove button from this notification
+                        try:
+                            await context.bot.edit_message_reply_markup(
+                                chat_id=admin_id,
+                                message_id=message_id,
+                                reply_markup=InlineKeyboardMarkup([])
+                            )
+                            logger.info(f"🔘 Removed button from admin {admin_id}, message {message_id}")
+                        except Exception as e:
+                            logger.error(f"❌ Failed to remove button: {e}")
+
+                        # Send approval notification ONCE per admin (not per message)
+                        if admin_id not in notified_admins:
+                            try:
+                                await context.bot.send_message(
+                                    chat_id=admin_id,
+                                    text=f"✅ <b>Spin Rewards APPROVED</b>\n\n"
+                                         f"👤 User: {username_safe}\n"
+                                         f"💰 Total: {total_chips} chips\n"
+                                         f"📦 Rewards: {approved_count}\n\n"
+                                         f"👤 Approved by: {approver_name_safe}\n"
+                                         f"✨ User notified and chips credited.",
+                                    parse_mode='HTML'
+                                )
+                                notified_admins.add(admin_id)
+                                logger.info(f"📬 Sent approval notification to admin {admin_id}")
+                            except Exception as e:
+                                logger.error(f"❌ Failed to send notification to admin {admin_id}: {e}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to process message for admin {admin_id}, message {message_id}: {e}")
+
+            # Clean up stored message IDs from Django database
+            try:
+                deleted_count = api.delete_notification_messages(notification_key)
+                logger.info(f"✅ Deleted {deleted_count} /pendingspins notification messages from database for {notification_key}")
+            except Exception as e:
+                logger.error(f"❌ Failed to delete notification messages from database: {e}")
+        else:
+            # No stored messages found
+            logger.warning(f"⚠️ No stored /pendingspins message IDs found in database for {notification_key}")
+
         # Notify the user with detailed message
         try:
             # Get PPPoker ID for the message

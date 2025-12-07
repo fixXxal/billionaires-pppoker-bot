@@ -1050,16 +1050,33 @@ async def pendingspins_command(update: Update, context: ContextTypes.DEFAULT_TYP
         reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
 
         # Send message based on whether it's from callback or command
+        sent_message = None
         if update.callback_query:
             if reply_markup:
-                await update.callback_query.message.reply_text(message, parse_mode='MarkdownV2', reply_markup=reply_markup)
+                sent_message = await update.callback_query.message.reply_text(message, parse_mode='MarkdownV2', reply_markup=reply_markup)
             else:
-                await update.callback_query.message.reply_text(message, parse_mode='MarkdownV2')
+                sent_message = await update.callback_query.message.reply_text(message, parse_mode='MarkdownV2')
         else:
             if reply_markup:
-                await update.message.reply_text(message, parse_mode='MarkdownV2', reply_markup=reply_markup)
+                sent_message = await update.message.reply_text(message, parse_mode='MarkdownV2', reply_markup=reply_markup)
             else:
-                await update.message.reply_text(message, parse_mode='MarkdownV2')
+                sent_message = await update.message.reply_text(message, parse_mode='MarkdownV2')
+
+        # Store message ID in Django database for each user (so buttons can be removed when approved)
+        if sent_message and reply_markup:
+            admin_id = user.id
+            for user_id in user_rewards.keys():
+                notification_key = f"pendingspins_{user_id}"
+                try:
+                    spin_bot.api.store_notification_message(
+                        notification_type='spin_reward',
+                        notification_key=notification_key,
+                        admin_telegram_id=admin_id,
+                        message_id=sent_message.message_id
+                    )
+                    logger.info(f"✅ Stored /pendingspins message ID {sent_message.message_id} for user {user_id}, admin {admin_id}")
+                except Exception as e:
+                    logger.error(f"Failed to store message ID: {e}")
 
     except Exception as e:
         logger.error(f"Error in pendingspins command: {e}")
