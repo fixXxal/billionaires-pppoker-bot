@@ -40,6 +40,10 @@ db.sqlite3-journal
 media/
 staticfiles/
 
+# Bot persistence (contains runtime data)
+bot_persistence.pickle
+bot_persistence.pickle.bak
+
 # Claude Code
 .claude/settings.local.json
 .claude/*.local.json

@@ -8084,8 +8084,16 @@ def main():
     logger.info(f"🚀 STARTING BOT INSTANCE: {instance_id} on {hostname}")
     logger.info(f"⚠️  WARNING: If you see multiple instance IDs, you have duplicate bots running!")
 
-    # Create application
-    application = Application.builder().token(TOKEN).build()
+    # Create application with persistence
+    from telegram.ext import PicklePersistence
+    import os
+
+    # Use persistence to save bot_data (message IDs for button removal)
+    persistence_path = os.path.join(os.path.dirname(__file__), 'bot_persistence.pickle')
+    persistence = PicklePersistence(filepath=persistence_path)
+
+    application = Application.builder().token(TOKEN).persistence(persistence).build()
+    logger.info(f"💾 Persistence enabled: {persistence_path}")
 
     # Add handlers
     application.add_handler(CommandHandler("start", start))
