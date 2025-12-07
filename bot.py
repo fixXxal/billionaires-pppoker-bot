@@ -103,7 +103,7 @@ logger.info(f"✅ SpinBot initialized successfully - Minimum deposit for spins: 
 
 # Conversation states
 (DEPOSIT_METHOD, DEPOSIT_AMOUNT, DEPOSIT_PPPOKER_ID, DEPOSIT_ACCOUNT_NAME,
- DEPOSIT_PROOF, WITHDRAWAL_METHOD, WITHDRAWAL_AMOUNT, WITHDRAWAL_PPPOKER_ID,
+ DEPOSIT_PROOF, DEPOSIT_USDT_AMOUNT, WITHDRAWAL_METHOD, WITHDRAWAL_AMOUNT, WITHDRAWAL_PPPOKER_ID,
  WITHDRAWAL_ACCOUNT_NAME, WITHDRAWAL_ACCOUNT_NUMBER, JOIN_PPPOKER_ID,
  ADMIN_APPROVAL_NOTES, SUPPORT_CHAT, ADMIN_REPLY_MESSAGE, UPDATE_ACCOUNT_METHOD, UPDATE_ACCOUNT_NUMBER, BROADCAST_MESSAGE,
  PROMO_PERCENTAGE, PROMO_START_DATE, PROMO_END_DATE, SEAT_AMOUNT, SEAT_SLIP_UPLOAD,
@@ -534,7 +534,7 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("💵 USD", callback_data="deposit_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT'].get('account_number'):
         logger.info(f"Adding USDT button: {payment_accounts['USDT']}")
-        keyboard.append([InlineKeyboardButton("💎 USDT (TRC20)", callback_data="deposit_usdt")])
+        keyboard.append([InlineKeyboardButton("💎 USDT (BEP20)", callback_data="deposit_usdt")])
 
     # Add cancel button
     keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
@@ -578,7 +578,7 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
         )
         return ConversationHandler.END
 
-    method_names = {'BML': 'Bank of Maldives', 'MIB': 'Maldives Islamic Bank', 'USD': 'USD Bank Transfer', 'USDT': 'USDT (TRC20)'}
+    method_names = {'BML': 'Bank of Maldives', 'MIB': 'Maldives Islamic Bank', 'USD': 'USD Bank Transfer', 'USDT': 'USDT (BEP20)'}
 
     # Ask for receipt/slip directly after showing account details
     if method == 'USDT':
@@ -675,9 +675,18 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     transaction_ref = context.user_data['transaction_ref']
     extracted_details = context.user_data.get('extracted_details')
 
+    # Get USDT specific data if available
+    usdt_amount = context.user_data.get('usdt_amount')
+    usdt_rate = context.user_data.get('usdt_exchange_rate')
+
     # Get amount and account name from extracted details (or use defaults)
-    amount = extracted_details['amount'] if extracted_details and extracted_details['amount'] else 0
-    account_name = extracted_details['sender_name'] if extracted_details and extracted_details['sender_name'] else "Not extracted"
+    if method == 'USDT' and usdt_amount:
+        # For USDT, use the MVR equivalent amount
+        amount = context.user_data.get('deposit_amount', 0)  # This is MVR amount
+        account_name = "USDT Deposit"
+    else:
+        amount = extracted_details['amount'] if extracted_details and extracted_details['amount'] else 0
+        account_name = extracted_details['sender_name'] if extracted_details and extracted_details['sender_name'] else "Not extracted"
 
     # Update user's account name if we extracted it
     if extracted_details and extracted_details['sender_name']:
@@ -695,9 +704,17 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     request_id = deposit_response.get('id') if isinstance(deposit_response, dict) else deposit_response
 
     # Send confirmation to user
-    currency = 'MVR' if method != 'USDT' else 'USD'
     confirmation_msg = f"✅ <b>Deposit sent!</b>\n\n"
-    confirmation_msg += f"💰 {amount} {currency} via {method}\n"
+
+    if method == 'USDT' and usdt_amount and usdt_rate:
+        # Show both USDT and MVR amounts
+        confirmation_msg += f"💎 {usdt_amount} USDT (≈{amount:,.2f} MVR)\n"
+        confirmation_msg += f"🔗 TXID: {transaction_ref[:20]}...\n"
+        confirmation_msg += f"💱 Rate: 1 USDT = {usdt_rate:.2f} MVR\n"
+    else:
+        currency = 'MVR' if method not in ['USD', 'USDT'] else method
+        confirmation_msg += f"💰 {amount} {currency} via {method}\n"
+
     confirmation_msg += f"🎮 ID: {pppoker_id}\n\n"
     confirmation_msg += f"Awaiting admin approval."
 
@@ -767,8 +784,14 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     # Combine warnings
     validation_warnings = name_validation_warning + account_validation_warning
 
-    # Currency
-    currency = 'MVR' if method != 'USDT' else 'USD'
+    # Currency and USDT display
+    currency = 'MVR' if method not in ['USD', 'USDT'] else 'USD'
+    amount_display = f"{currency} {verified_amount:,.2f}"
+
+    # If USDT deposit, show both USDT and MVR
+    if method == 'USDT' and usdt_amount and usdt_rate:
+        amount_display = f"{usdt_amount} USDT (≈{verified_amount:,.2f} MVR)\n💱 Rate: 1 USDT = {usdt_rate:.2f} MVR"
+        currency = 'MVR'  # Use MVR for bonus calculations
 
     # Check for active promotion and user eligibility
     promotion_info = ""
@@ -817,7 +840,7 @@ User ID: <code>{user.id}</code>
 
 🏦 <b>TRANSACTION DETAILS</b>
 Reference: <code>{ref_number}</code>
-Amount: <b>{currency} {verified_amount:,.2f}</b>
+Amount: <b>{amount_display}</b>
 Bank: {verified_bank}
 From: {sender_name}
 To: {receiver_name}
@@ -1067,6 +1090,20 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
         # Text is only allowed for USDT (TXID)
         if method == 'USDT':
             transaction_ref = update.message.text.strip()
+            # Store TXID
+            context.user_data['transaction_ref'] = transaction_ref
+
+            # Ask for amount next
+            usdt_rate = api.get_exchange_rate('USDT', 'MVR')
+            rate_msg = f"\n\n💱 Current Rate: 1 USDT = {usdt_rate:.2f} MVR" if usdt_rate else ""
+
+            await update.message.reply_text(
+                f"✅ Transaction ID received!\n{rate_msg}\n\n"
+                f"💎 Please enter the **amount you sent** (in USDT):\n\n"
+                f"Example: 100 or 100.5",
+                parse_mode='Markdown'
+            )
+            return DEPOSIT_USDT_AMOUNT
         else:
             # For BML/MIB, reject text and require image
             await update.message.reply_text(
@@ -1090,6 +1127,51 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
     )
 
     return DEPOSIT_PPPOKER_ID
+
+
+async def deposit_usdt_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle USDT amount input"""
+    try:
+        usdt_amount = float(update.message.text.replace(',', '').strip())
+        if usdt_amount <= 0:
+            raise ValueError("Amount must be positive")
+
+        # Store USDT amount
+        context.user_data['usdt_amount'] = usdt_amount
+
+        # Get exchange rate and convert to MVR
+        usdt_rate = api.get_exchange_rate('USDT', 'MVR')
+        if usdt_rate:
+            mvr_amount = usdt_amount * usdt_rate
+            context.user_data['deposit_amount'] = mvr_amount  # Store MVR amount for deposit creation
+            context.user_data['usdt_exchange_rate'] = usdt_rate
+
+            await update.message.reply_text(
+                f"✅ Amount received!\n\n"
+                f"💎 {usdt_amount} USDT\n"
+                f"💱 Rate: 1 USDT = {usdt_rate:.2f} MVR\n"
+                f"💰 Equivalent: **{mvr_amount:,.2f} MVR**\n\n"
+                f"🎮 Please enter your **PPPoker ID**:",
+                parse_mode='Markdown'
+            )
+        else:
+            # No exchange rate available - store USDT amount as deposit amount
+            context.user_data['deposit_amount'] = usdt_amount
+            await update.message.reply_text(
+                f"✅ Amount received: {usdt_amount} USDT\n\n"
+                f"⚠️ Exchange rate not available. Please contact admin.\n\n"
+                f"🎮 Please enter your **PPPoker ID**:",
+                parse_mode='Markdown'
+            )
+
+        return DEPOSIT_PPPOKER_ID
+
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid amount. Please enter a valid number.\n\n"
+            "Example: 100 or 100.5"
+        )
+        return DEPOSIT_USDT_AMOUNT
 
 
 # Withdrawal Flow
@@ -1137,7 +1219,7 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
         keyboard.append([InlineKeyboardButton("💵 USD", callback_data="withdrawal_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
-        keyboard.append([InlineKeyboardButton("💎 USDT (TRC20)", callback_data="withdrawal_usdt")])
+        keyboard.append([InlineKeyboardButton("💎 USDT (BEP20)", callback_data="withdrawal_usdt")])
 
     # Add cancel button
     keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
@@ -1177,7 +1259,7 @@ async def withdrawal_method_selected(update: Update, context: ContextTypes.DEFAU
     method = query.data.replace('withdrawal_', '').upper()
     context.user_data['withdrawal_method'] = method
 
-    method_names = {'BML': 'Bank of Maldives', 'MIB': 'Maldives Islamic Bank', 'USD': 'USD Bank Transfer', 'USDT': 'USDT (TRC20)'}
+    method_names = {'BML': 'Bank of Maldives', 'MIB': 'Maldives Islamic Bank', 'USD': 'USD Bank Transfer', 'USDT': 'USDT (BEP20)'}
 
     message = f"💸 <b>Withdrawal via {method_names[method]}</b>\n\n"
 
@@ -1242,7 +1324,7 @@ async def withdrawal_pppoker_id_received(update: Update, context: ContextTypes.D
 
     if method == 'USDT':
         await update.message.reply_text(
-            "💎 Please enter your **USDT wallet address** (TRC20):\n\n"
+            "💎 Please enter your **USDT wallet address** (BEP20):\n\n"
             "⚠️ Make sure the address is correct! Transactions cannot be reversed.",
             parse_mode='Markdown'
         )
@@ -8014,7 +8096,7 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
     if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
         keyboard.append([InlineKeyboardButton("💵 USD", callback_data="deposit_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
-        keyboard.append([InlineKeyboardButton("💎 USDT (TRC20)", callback_data="deposit_usdt")])
+        keyboard.append([InlineKeyboardButton("💎 USDT (BEP20)", callback_data="deposit_usdt")])
 
     # Add cancel button
     keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
@@ -8290,6 +8372,7 @@ def main():
                 (filters.PHOTO | filters.Document.ALL | filters.TEXT) & ~filters.COMMAND,
                 deposit_proof_received
             )],
+            DEPOSIT_USDT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_usdt_amount_received)],
             DEPOSIT_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_pppoker_id_received)],
         },
         fallbacks=[
