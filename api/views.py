@@ -523,10 +523,15 @@ class SpinHistoryViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def process_spin(self, request):
         """Process one or more spins"""
+        import logging
+        logger = logging.getLogger(__name__)
+
         telegram_id = request.data.get('telegram_id')
         spin_count = request.data.get('spin_count', 1)
         results = request.data.get('results', [])
         username = request.data.get('username')  # Get username from request
+
+        logger.info(f"🎰 process_spin called: telegram_id={telegram_id}, username={username}, spin_count={spin_count}")
 
         if not telegram_id:
             return Response(
@@ -538,6 +543,9 @@ class SpinHistoryViewSet(viewsets.ModelViewSet):
             user = User.objects.get(telegram_id=telegram_id)
             spin_user = SpinUser.objects.get(user=user)
 
+            logger.info(f"📝 Current user in DB: id={user.telegram_id}, username={user.username}")
+            logger.info(f"📝 Username from request: {username}")
+
             # Update username if provided (user may have changed their Telegram username)
             # ALSO update if current username is a default/placeholder
             if username:
@@ -545,8 +553,14 @@ class SpinHistoryViewSet(viewsets.ModelViewSet):
                                      user.username.startswith('user_') or
                                      user.username == 'User')
                 if is_current_default or user.username != username:
+                    logger.info(f"✏️ Updating username from '{user.username}' to '{username}'")
                     user.username = username
                     user.save(update_fields=['username'])
+                    logger.info(f"✅ Username updated successfully")
+                else:
+                    logger.info(f"⏭️ Username unchanged (already '{user.username}')")
+            else:
+                logger.warning(f"⚠️ No username provided in request! User.username will not be updated.")
 
         except (User.DoesNotExist, SpinUser.DoesNotExist):
             return Response(
