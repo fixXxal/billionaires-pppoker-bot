@@ -7643,13 +7643,28 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
                     if admin_id == user.id and message_id == query.message.message_id:
                         logger.info(f"✅ Approver's message already edited: admin {admin_id}, message {message_id}")
                     else:
-                        # For other admins, just remove the button (keep original message text)
-                        await context.bot.edit_message_reply_markup(
-                            chat_id=admin_id,
-                            message_id=message_id,
-                            reply_markup=InlineKeyboardMarkup([])
-                        )
-                        logger.info(f"🔘 Removed approve button for admin {admin_id}, message {message_id}")
+                        # For other admins, remove button AND send notification (like deposit approval)
+                        try:
+                            # First, remove buttons from their notification
+                            await context.bot.edit_message_reply_markup(
+                                chat_id=admin_id,
+                                message_id=message_id,
+                                reply_markup=InlineKeyboardMarkup([])
+                            )
+                            # Then send them a notification about who approved
+                            await context.bot.send_message(
+                                chat_id=admin_id,
+                                text=f"✅ <b>Spin Rewards APPROVED</b>\n\n"
+                                     f"👤 User: {username_safe}\n"
+                                     f"💰 Total: {total_chips} chips\n"
+                                     f"📦 Rewards: {approved_count}\n\n"
+                                     f"👤 Approved by: {approver_name_safe}\n"
+                                     f"✨ User notified and chips credited.",
+                                parse_mode='HTML'
+                            )
+                            logger.info(f"🔘 Removed button and notified admin {admin_id}")
+                        except Exception as e:
+                            logger.error(f"❌ Failed to update admin {admin_id}: {e}")
                 except Exception as e:
                     logger.error(f"❌ Failed to remove button for admin {admin_id}, message {message_id}: {e}")
 
