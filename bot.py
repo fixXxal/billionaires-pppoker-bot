@@ -7640,6 +7640,9 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         if stored_messages:
             logger.info(f"🗑️ Removing approve buttons from {len(stored_messages)} stored admin messages")
 
+            # Track which admins we've already sent the approval notification to (avoid duplicates)
+            notified_admins = set()
+
             for msg_record in stored_messages:
                 admin_id = msg_record['admin_telegram_id']
                 message_id = msg_record['message_id']
@@ -7648,30 +7651,36 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
                     if admin_id == user.id and message_id == query.message.message_id:
                         logger.info(f"✅ Approver's message already edited: admin {admin_id}, message {message_id}")
                     else:
-                        # For other admins, remove button AND send notification (like deposit approval)
+                        # Remove button from this notification
                         try:
-                            # First, remove buttons from their notification
                             await context.bot.edit_message_reply_markup(
                                 chat_id=admin_id,
                                 message_id=message_id,
                                 reply_markup=InlineKeyboardMarkup([])
                             )
-                            # Then send them a notification about who approved
-                            await context.bot.send_message(
-                                chat_id=admin_id,
-                                text=f"✅ <b>Spin Rewards APPROVED</b>\n\n"
-                                     f"👤 User: {username_safe}\n"
-                                     f"💰 Total: {total_chips} chips\n"
-                                     f"📦 Rewards: {approved_count}\n\n"
-                                     f"👤 Approved by: {approver_name_safe}\n"
-                                     f"✨ User notified and chips credited.",
-                                parse_mode='HTML'
-                            )
-                            logger.info(f"🔘 Removed button and notified admin {admin_id}")
+                            logger.info(f"🔘 Removed button from admin {admin_id}, message {message_id}")
                         except Exception as e:
-                            logger.error(f"❌ Failed to update admin {admin_id}: {e}")
+                            logger.error(f"❌ Failed to remove button: {e}")
+
+                        # Send approval notification ONCE per admin (not per message)
+                        if admin_id not in notified_admins:
+                            try:
+                                await context.bot.send_message(
+                                    chat_id=admin_id,
+                                    text=f"✅ <b>Spin Rewards APPROVED</b>\n\n"
+                                         f"👤 User: {username_safe}\n"
+                                         f"💰 Total: {total_chips} chips\n"
+                                         f"📦 Rewards: {approved_count}\n\n"
+                                         f"👤 Approved by: {approver_name_safe}\n"
+                                         f"✨ User notified and chips credited.",
+                                    parse_mode='HTML'
+                                )
+                                notified_admins.add(admin_id)
+                                logger.info(f"📬 Sent approval notification to admin {admin_id}")
+                            except Exception as e:
+                                logger.error(f"❌ Failed to send notification to admin {admin_id}: {e}")
                 except Exception as e:
-                    logger.error(f"❌ Failed to remove button for admin {admin_id}, message {message_id}: {e}")
+                    logger.error(f"❌ Failed to process message for admin {admin_id}, message {message_id}: {e}")
 
             # Clean up stored message IDs from Django database
             try:
