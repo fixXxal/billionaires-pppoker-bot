@@ -322,7 +322,7 @@ class PaymentAccount(models.Model):
     ]
 
     method = models.CharField(max_length=50, choices=METHOD_CHOICES, unique=True)
-    account_name = models.CharField(max_length=255)
+    account_name = models.CharField(max_length=255, blank=True, default='')
     account_number = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
