@@ -115,7 +115,7 @@ logger.info(f"✅ SpinBot initialized successfully - Minimum deposit for spins: 
  BALANCE_BUY_CHIPS, BALANCE_BUY_COST,
  BALANCE_ADD_CURRENCY, BALANCE_ADD_AMOUNT, BALANCE_ADD_NOTE,
  ACCOUNT_ADD_METHOD, ACCOUNT_ADD_NUMBER, ACCOUNT_ADD_HOLDER,
- ACCOUNT_EDIT_NUMBER, ACCOUNT_EDIT_HOLDER) = range(47)
+ ACCOUNT_EDIT_NUMBER, ACCOUNT_EDIT_HOLDER) = range(48)
 
 # Store for live support sessions
 live_support_sessions: Dict[int, int] = {}  # user_id: admin_user_id (which admin is handling this user)
