@@ -7609,13 +7609,19 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         # Remove approve buttons from ALL admin notification messages for this user
         # This is like deposit approval - buttons disappear, no new messages sent
         notification_key = f"spin_reward_{target_user_id}"
-        if hasattr(context.bot_data, 'spin_notification_messages') and notification_key in context.bot_data.get('spin_notification_messages', {}):
-            logger.info(f"🗑️ Removing approve buttons from {len(context.bot_data['spin_notification_messages'][notification_key])} admin messages")
-            for admin_id, message_id in context.bot_data['spin_notification_messages'][notification_key]:
+
+        # Check if we have stored message IDs
+        has_stored_messages = (hasattr(context.bot_data, 'spin_notification_messages') and
+                              notification_key in context.bot_data.get('spin_notification_messages', {}))
+
+        if has_stored_messages:
+            stored_messages = context.bot_data['spin_notification_messages'][notification_key]
+            logger.info(f"🗑️ Removing approve buttons from {len(stored_messages)} stored admin messages")
+
+            for admin_id, message_id in stored_messages:
                 try:
-                    # If this is the approver's message, edit the full text to show approval
+                    # If this is the approver's message, skip (already edited above)
                     if admin_id == user.id and message_id == query.message.message_id:
-                        # This message was already edited above
                         logger.info(f"✅ Approver's message already edited: admin {admin_id}, message {message_id}")
                     else:
                         # For other admins, just remove the button (keep original message text)
@@ -7626,10 +7632,16 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
                         )
                         logger.info(f"🔘 Removed approve button for admin {admin_id}, message {message_id}")
                 except Exception as e:
-                    logger.error(f"❌ Failed to remove button for admin {admin_id}: {e}")
+                    logger.error(f"❌ Failed to remove button for admin {admin_id}, message {message_id}: {e}")
+
             # Clean up stored message IDs
             del context.bot_data['spin_notification_messages'][notification_key]
             logger.info(f"✅ Cleaned up notification storage for {notification_key}")
+        else:
+            # No stored messages (bot might have restarted)
+            # Other admins will see "Already Approved" when they click their buttons
+            logger.warning(f"⚠️ No stored message IDs found for {notification_key} - buttons will remain until clicked")
+            logger.warning(f"⚠️ This usually happens after bot restart. Other admins will see 'Already Approved' when clicking.")
 
         # Notify the user
         try:
