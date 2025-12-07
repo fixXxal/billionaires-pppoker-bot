@@ -437,12 +437,22 @@ class SheetsCompatAPI(DjangoAPI):
 
     # ==================== LEGACY PAYMENT ACCOUNT METHODS ====================
 
-    def get_payment_account(self, method: str) -> Optional[Dict]:
-        """Get payment account by method"""
+    def get_payment_account(self, method_or_id) -> Optional[Dict]:
+        """
+        Get payment account by method name (str) or account ID (int)
+
+        This method handles both legacy usage (method name) and new usage (account ID)
+        to support both SheetsCompatAPI pattern and DjangoAPI pattern.
+        """
         try:
+            # If integer ID provided, call parent DjangoAPI method
+            if isinstance(method_or_id, int):
+                return super().get_payment_account(method_or_id)
+
+            # Otherwise treat as method name (legacy behavior)
             accounts = self.get_active_payment_accounts()
             for account in accounts:
-                if account.get('method', '').lower() == method.lower():
+                if account.get('method', '').lower() == str(method_or_id).lower():
                     return account
             return None
         except Exception as e:
