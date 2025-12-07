@@ -7441,17 +7441,31 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
             parse_mode='HTML'
         )
 
-        # Remove approve buttons from ALL admin /pendingspins messages for this user
+        # Remove approve buttons from ALL admin messages for this user
+        # Need to remove from BOTH /pendingspins messages AND instant notification messages
         # Retrieve message IDs from Django database (persists across bot restarts)
-        notification_key = f"pendingspins_{target_user_id}"
 
-        # Get stored message IDs from Django database
+        # Get /pendingspins messages
+        pendingspins_key = f"pendingspins_{target_user_id}"
         try:
-            stored_messages = api.get_notification_messages(notification_key)
-            logger.info(f"🗑️ Retrieved {len(stored_messages)} stored /pendingspins messages from database for {notification_key}")
+            pendingspins_messages = api.get_notification_messages(pendingspins_key)
+            logger.info(f"🗑️ Retrieved {len(pendingspins_messages)} stored /pendingspins messages from database")
         except Exception as e:
-            logger.error(f"❌ Failed to retrieve stored messages from database: {e}")
-            stored_messages = []
+            logger.error(f"❌ Failed to retrieve /pendingspins messages from database: {e}")
+            pendingspins_messages = []
+
+        # Get instant notification messages
+        instant_key = f"spin_reward_{target_user_id}"
+        try:
+            instant_messages = api.get_notification_messages(instant_key)
+            logger.info(f"🗑️ Retrieved {len(instant_messages)} stored instant notification messages from database")
+        except Exception as e:
+            logger.error(f"❌ Failed to retrieve instant messages from database: {e}")
+            instant_messages = []
+
+        # Combine all messages
+        stored_messages = pendingspins_messages + instant_messages
+        logger.info(f"🗑️ Total messages to process: {len(stored_messages)}")
 
         if stored_messages:
             logger.info(f"🗑️ Removing approve buttons from {len(stored_messages)} stored /pendingspins messages")
@@ -7498,15 +7512,16 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
                 except Exception as e:
                     logger.error(f"❌ Failed to process message for admin {admin_id}, message {message_id}: {e}")
 
-            # Clean up stored message IDs from Django database
+            # Clean up stored message IDs from Django database (both types)
             try:
-                deleted_count = api.delete_notification_messages(notification_key)
-                logger.info(f"✅ Deleted {deleted_count} /pendingspins notification messages from database for {notification_key}")
+                deleted_pendingspins = api.delete_notification_messages(pendingspins_key)
+                deleted_instant = api.delete_notification_messages(instant_key)
+                logger.info(f"✅ Deleted {deleted_pendingspins} /pendingspins + {deleted_instant} instant notification messages from database")
             except Exception as e:
                 logger.error(f"❌ Failed to delete notification messages from database: {e}")
         else:
             # No stored messages found
-            logger.warning(f"⚠️ No stored /pendingspins message IDs found in database for {notification_key}")
+            logger.warning(f"⚠️ No stored message IDs found in database for user {target_user_id}")
 
         # Notify the user with detailed message
         try:
