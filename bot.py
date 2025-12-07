@@ -8393,6 +8393,9 @@ def main():
             CommandHandler("cancel", cancel),
             CallbackQueryHandler(broadcast_cancel, pattern="^broadcast_cancel$"),
         ],
+        per_user=True,
+        per_chat=True,
+        name="broadcast_conv"
     )
 
     # Promotion creation conversation handler
