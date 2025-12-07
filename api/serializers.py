@@ -9,7 +9,7 @@ from .models import (
     JoinRequest, SeatRequest, CashbackRequest, PaymentAccount,
     Admin, CounterStatus, PromoCode, PromotionEligibility, CashbackEligibility,
     SupportMessage, UserCredit, ExchangeRate, FiftyFiftyInvestment,
-    ClubBalance, InventoryTransaction
+    ClubBalance, InventoryTransaction, NotificationMessage
 )
 
 
@@ -300,5 +300,17 @@ class InventoryTransactionSerializer(serializers.ModelSerializer):
             'id', 'item_name', 'quantity', 'transaction_type',
             'price_per_unit', 'total_amount', 'notes',
             'created_at', 'created_by'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class NotificationMessageSerializer(serializers.ModelSerializer):
+    """Serializer for NotificationMessage model"""
+
+    class Meta:
+        model = NotificationMessage
+        fields = [
+            'id', 'notification_type', 'notification_key',
+            'admin_telegram_id', 'message_id', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']

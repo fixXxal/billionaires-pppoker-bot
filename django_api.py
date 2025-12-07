@@ -892,6 +892,64 @@ class DjangoAPI:
 
         return self._post('broadcast/', data)
 
+    # ==================== NOTIFICATION MESSAGE METHODS ====================
+
+    def store_notification_message(self, notification_type: str, notification_key: str,
+                                   admin_telegram_id: int, message_id: int) -> Dict:
+        """
+        Store a notification message ID for later button removal
+
+        Args:
+            notification_type: Type of notification (deposit, spin_reward, etc.)
+            notification_key: Unique key for this notification (e.g., "spin_reward_12345")
+            admin_telegram_id: Telegram ID of admin who received the message
+            message_id: Telegram message ID
+
+        Returns:
+            Dict containing created notification message record
+        """
+        data = {
+            'notification_type': notification_type,
+            'notification_key': notification_key,
+            'admin_telegram_id': admin_telegram_id,
+            'message_id': message_id
+        }
+        return self._post('notification-messages/', data)
+
+    def get_notification_messages(self, notification_key: str) -> List[Dict]:
+        """
+        Get all notification messages for a given key
+
+        Args:
+            notification_key: The notification key (e.g., "spin_reward_12345")
+
+        Returns:
+            List of notification message records with admin_telegram_id and message_id
+        """
+        response = self._get(f'notification-messages/get_by_key/?notification_key={notification_key}')
+        return response if isinstance(response, list) else []
+
+    def delete_notification_messages(self, notification_key: str) -> int:
+        """
+        Delete all notification messages for a given key
+
+        Args:
+            notification_key: The notification key to delete
+
+        Returns:
+            Number of messages deleted
+        """
+        response = self._delete_with_body('notification-messages/delete_by_key/', {'notification_key': notification_key})
+        return response.get('deleted_count', 0)
+
+    def _delete_with_body(self, endpoint: str, data: Dict) -> Dict:
+        """DELETE request with JSON body (not standard but Django REST supports it)"""
+        url = f'{self.base_url}/{endpoint}'
+        headers = {'Content-Type': 'application/json'}
+        response = requests.delete(url, json=data, headers=headers, timeout=30)
+        response.raise_for_status()
+        return response.json()
+
 
 # Create singleton instance
 api = DjangoAPI()

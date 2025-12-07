@@ -7626,18 +7626,23 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         )
 
         # Remove approve buttons from ALL admin notification messages for this user
-        # This is like deposit approval - buttons disappear, no new messages sent
+        # Retrieve message IDs from Django database (persists across bot restarts)
         notification_key = f"spin_reward_{target_user_id}"
 
-        # Check if we have stored message IDs
-        has_stored_messages = (hasattr(context.bot_data, 'spin_notification_messages') and
-                              notification_key in context.bot_data.get('spin_notification_messages', {}))
+        # Get stored message IDs from Django database
+        try:
+            stored_messages = api.get_notification_messages(notification_key)
+            logger.info(f"🗑️ Retrieved {len(stored_messages)} stored messages from database for {notification_key}")
+        except Exception as e:
+            logger.error(f"❌ Failed to retrieve stored messages from database: {e}")
+            stored_messages = []
 
-        if has_stored_messages:
-            stored_messages = context.bot_data['spin_notification_messages'][notification_key]
+        if stored_messages:
             logger.info(f"🗑️ Removing approve buttons from {len(stored_messages)} stored admin messages")
 
-            for admin_id, message_id in stored_messages:
+            for msg_record in stored_messages:
+                admin_id = msg_record['admin_telegram_id']
+                message_id = msg_record['message_id']
                 try:
                     # If this is the approver's message, skip (already edited above)
                     if admin_id == user.id and message_id == query.message.message_id:
@@ -7668,14 +7673,16 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
                 except Exception as e:
                     logger.error(f"❌ Failed to remove button for admin {admin_id}, message {message_id}: {e}")
 
-            # Clean up stored message IDs
-            del context.bot_data['spin_notification_messages'][notification_key]
-            logger.info(f"✅ Cleaned up notification storage for {notification_key}")
+            # Clean up stored message IDs from Django database
+            try:
+                deleted_count = api.delete_notification_messages(notification_key)
+                logger.info(f"✅ Deleted {deleted_count} notification messages from database for {notification_key}")
+            except Exception as e:
+                logger.error(f"❌ Failed to delete notification messages from database: {e}")
         else:
-            # No stored messages (bot might have restarted)
-            # Other admins will see "Already Approved" when they click their buttons
-            logger.warning(f"⚠️ No stored message IDs found for {notification_key} - buttons will remain until clicked")
-            logger.warning(f"⚠️ This usually happens after bot restart. Other admins will see 'Already Approved' when clicking.")
+            # No stored messages found
+            logger.warning(f"⚠️ No stored message IDs found in database for {notification_key}")
+            logger.warning(f"⚠️ Other admins will see 'Already Approved' when clicking their buttons.")
 
         # Notify the user
         try:
@@ -8099,16 +8106,10 @@ def main():
     logger.info(f"🚀 STARTING BOT INSTANCE: {instance_id} on {hostname}")
     logger.info(f"⚠️  WARNING: If you see multiple instance IDs, you have duplicate bots running!")
 
-    # Create application with persistence
-    from telegram.ext import PicklePersistence
-    import os
-
-    # Use persistence to save bot_data (message IDs for button removal)
-    persistence_path = os.path.join(os.path.dirname(__file__), 'bot_persistence.pickle')
-    persistence = PicklePersistence(filepath=persistence_path)
-
-    application = Application.builder().token(TOKEN).persistence(persistence).build()
-    logger.info(f"💾 Persistence enabled: {persistence_path}")
+    # Create application
+    # Note: Message IDs are now stored in Django database, no need for local persistence
+    application = Application.builder().token(TOKEN).build()
+    logger.info(f"💾 Message IDs stored in Django database (survives Railway redeploys)")
 
     # Add handlers
     application.add_handler(CommandHandler("start", start))
@@ -8729,15 +8730,9 @@ def main():
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            # Store message IDs to remove buttons later when approved
-            # IMPORTANT: Use setdefault to APPEND to existing list, not replace it!
-            # This ensures old notification buttons are also removed when approving
+            # Store message IDs in Django database to persist across bot restarts
+            # This ensures buttons can be removed even after Railway redeploys
             notification_key = f"spin_reward_{user_id}"
-            if not hasattr(app.bot_data, 'spin_notification_messages'):
-                app.bot_data['spin_notification_messages'] = {}
-            # Don't reset the list - keep accumulating message IDs for this user
-            if notification_key not in app.bot_data['spin_notification_messages']:
-                app.bot_data['spin_notification_messages'][notification_key] = []
 
             # Send to super admin with button
             try:
@@ -8747,9 +8742,17 @@ def main():
                     parse_mode='HTML',
                     reply_markup=reply_markup
                 )
-                # Store message ID for later button removal
-                app.bot_data['spin_notification_messages'][notification_key].append((ADMIN_USER_ID, sent_msg.message_id))
-                logger.info(f"✅ Stored message ID {sent_msg.message_id} for super admin {ADMIN_USER_ID}")
+                # Store message ID in Django database for later button removal
+                try:
+                    api.store_notification_message(
+                        notification_type='spin_reward',
+                        notification_key=notification_key,
+                        admin_telegram_id=ADMIN_USER_ID,
+                        message_id=sent_msg.message_id
+                    )
+                    logger.info(f"✅ Stored message ID {sent_msg.message_id} in database for super admin {ADMIN_USER_ID}")
+                except Exception as e:
+                    logger.error(f"Failed to store message ID in database: {e}")
             except Exception as e:
                 logger.error(f"Failed to notify super admin: {e}")
 
@@ -8781,9 +8784,17 @@ def main():
                                 parse_mode='HTML',
                                 reply_markup=reply_markup
                             )
-                            # Store message ID for later button removal
-                            app.bot_data['spin_notification_messages'][notification_key].append((admin_telegram_id, sent_msg.message_id))
-                            logger.info(f"✅ Sent notification to admin {admin_telegram_id}, stored message ID {sent_msg.message_id}")
+                            # Store message ID in Django database for later button removal
+                            try:
+                                api.store_notification_message(
+                                    notification_type='spin_reward',
+                                    notification_key=notification_key,
+                                    admin_telegram_id=admin_telegram_id,
+                                    message_id=sent_msg.message_id
+                                )
+                                logger.info(f"✅ Sent notification to admin {admin_telegram_id}, stored message ID {sent_msg.message_id} in database")
+                            except Exception as e:
+                                logger.error(f"Failed to store message ID in database: {e}")
                             admin_notified_count += 1
                         except Exception as e:
                             logger.error(f"❌ Failed to notify admin {admin_telegram_id}: {e}")

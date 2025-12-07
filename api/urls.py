@@ -32,6 +32,7 @@ router.register(r'exchange-rates', views.ExchangeRateViewSet, basename='exchange
 router.register(r'investments', views.FiftyFiftyInvestmentViewSet, basename='investment')
 router.register(r'club-balances', views.ClubBalanceViewSet, basename='clubbalance')
 router.register(r'inventory-transactions', views.InventoryTransactionViewSet, basename='inventorytransaction')
+router.register(r'notification-messages', views.NotificationMessageViewSet, basename='notificationmessage')
 
 urlpatterns = [
     path('', include(router.urls)),

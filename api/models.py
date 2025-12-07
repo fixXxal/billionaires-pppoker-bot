@@ -620,3 +620,31 @@ class PromotionEligibility(models.Model):
 
     def __str__(self):
         return f"Bonus {self.id} - {self.user.username} - {self.bonus_amount} from {self.promotion.code}"
+
+
+class NotificationMessage(models.Model):
+    """Notification Message model - stores Telegram message IDs for button removal"""
+    NOTIFICATION_TYPE_CHOICES = [
+        ('deposit', 'Deposit Request'),
+        ('spin_reward', 'Spin Reward'),
+        ('withdrawal', 'Withdrawal Request'),
+        ('seat_request', 'Seat Request'),
+    ]
+
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPE_CHOICES)
+    notification_key = models.CharField(max_length=255, db_index=True)  # e.g., "spin_reward_12345"
+    admin_telegram_id = models.BigIntegerField()
+    message_id = models.BigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'notification_messages'
+        indexes = [
+            models.Index(fields=['notification_key']),
+            models.Index(fields=['notification_type', 'notification_key']),
+            models.Index(fields=['admin_telegram_id']),
+        ]
+        unique_together = ['admin_telegram_id', 'message_id']  # Prevent duplicates
+
+    def __str__(self):
+        return f"{self.notification_type} - {self.notification_key} - Admin {self.admin_telegram_id} - Msg {self.message_id}"

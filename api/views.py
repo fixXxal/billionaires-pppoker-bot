@@ -18,7 +18,7 @@ from .models import (
     JoinRequest, SeatRequest, CashbackRequest, PaymentAccount,
     Admin, CounterStatus, PromoCode, PromotionEligibility, CashbackEligibility,
     SupportMessage, UserCredit, ExchangeRate, FiftyFiftyInvestment,
-    ClubBalance, InventoryTransaction
+    ClubBalance, InventoryTransaction, NotificationMessage
 )
 from .serializers import (
     UserSerializer, DepositSerializer, WithdrawalSerializer,
@@ -28,7 +28,7 @@ from .serializers import (
     PromotionEligibilitySerializer, CashbackEligibilitySerializer,
     SupportMessageSerializer, UserCreditSerializer, ExchangeRateSerializer,
     FiftyFiftyInvestmentSerializer, ClubBalanceSerializer,
-    InventoryTransactionSerializer
+    InventoryTransactionSerializer, NotificationMessageSerializer
 )
 
 
@@ -1750,3 +1750,43 @@ def broadcast_message(request):
         'failed_count': failed_count,
         'message': f'Broadcast sent to {success_count} users'
     })
+
+
+class NotificationMessageViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for Notification Messages (Telegram message IDs for button removal)
+
+    list: Get all notification messages
+    retrieve: Get specific notification message
+    create: Create new notification message
+    destroy: Delete notification message
+    get_by_key: Get all messages for a notification_key (custom action)
+    delete_by_key: Delete all messages for a notification_key (custom action)
+    """
+    queryset = NotificationMessage.objects.all()
+    serializer_class = NotificationMessageSerializer
+
+    @action(detail=False, methods=['get'])
+    def get_by_key(self, request):
+        """Get all messages for a notification_key"""
+        notification_key = request.query_params.get('notification_key')
+        if not notification_key:
+            return Response({'error': 'notification_key parameter required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        messages = NotificationMessage.objects.filter(notification_key=notification_key)
+        serializer = self.get_serializer(messages, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['delete'])
+    def delete_by_key(self, request):
+        """Delete all messages for a notification_key"""
+        notification_key = request.data.get('notification_key')
+        if not notification_key:
+            return Response({'error': 'notification_key required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        deleted_count = NotificationMessage.objects.filter(notification_key=notification_key).delete()[0]
+        return Response({
+            'success': True,
+            'deleted_count': deleted_count,
+            'notification_key': notification_key
+        })
