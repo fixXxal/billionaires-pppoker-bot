@@ -3967,8 +3967,15 @@ async def broadcast_message_received(update: Update, context: ContextTypes.DEFAU
     # Get the message to broadcast
     broadcast_msg = update.message
 
-    # Get all user IDs from Google Sheets
-    user_ids = api.get_all_user_ids()
+    # Get all users from Django API
+    users = api.get_all_users()
+
+    # Handle paginated response
+    if isinstance(users, dict) and 'results' in users:
+        users = users['results']
+
+    # Extract telegram IDs
+    user_ids = [user['telegram_id'] for user in users if 'telegram_id' in user]
 
     if not user_ids:
         await update.message.reply_text("❌ No users found in database.")
