@@ -2659,7 +2659,8 @@ async def account_add_holder_received(update: Update, context: ContextTypes.DEFA
 
     try:
         # First, check if an inactive account with this method already exists
-        all_accounts_response = api.django_api.get_all_payment_accounts()  # Get ALL accounts including inactive
+        # Call the parent DjangoAPI method using super() pattern
+        all_accounts_response = super(type(api), api).get_all_payment_accounts()
         existing_account = None
 
         # Handle paginated response
