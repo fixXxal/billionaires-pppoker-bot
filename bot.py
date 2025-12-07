@@ -7560,7 +7560,8 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         approver_name = user.username or user.first_name
         approved_count = 0
         total_chips = 0
-        username = user_pending[0].get('username', 'Unknown')
+        # Get username from user_details nested object (not directly from spin record)
+        username = user_pending[0].get('user_details', {}).get('username', 'Unknown')
 
         # Get user data first
         user_data = spin_bot.api.get_spin_user(target_user_id)
