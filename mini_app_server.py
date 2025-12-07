@@ -247,9 +247,15 @@ def spin():
 
         available_spins = user_data.get('available_spins', 0)
 
-        # Get username and PPPoker ID from user_details
+        # Get username from request (latest from Telegram) or fallback to cached data
+        username = data.get('username')  # Get from request first (most up-to-date)
+        if not username:
+            # Fallback to cached user data
+            user_details = user_data.get('user_details', {})
+            username = user_details.get('username', 'Unknown')
+
+        # Get PPPoker ID from user_details
         user_details = user_data.get('user_details', {})
-        username = user_details.get('username', 'Unknown')
         pppoker_id = user_details.get('pppoker_id', '')
 
         # Try to get from deposits only if empty (fast lookup, no updates)
@@ -340,8 +346,9 @@ def spin():
                     })
 
                 # Send to Django API - handles everything in one call
-                response = api.process_spin(user_id, spin_results)
-                logger.info(f"✅ Processed {len(spin_results)} spins via Django API")
+                # Pass username to preserve it in database
+                response = api.process_spin(user_id, spin_results, username=username)
+                logger.info(f"✅ Processed {len(spin_results)} spins via Django API for user {username}")
 
             except Exception as e:
                 logger.error(f"❌ Failed to process spins: {e}")

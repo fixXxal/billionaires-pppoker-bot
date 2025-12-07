@@ -686,6 +686,7 @@
 
         const user = tg.initDataUnsafe.user;
         const userId = user ? user.id : null;
+        const username = user ? user.username : null;
 
         // Track spinning state
         let spinning = false;
@@ -976,7 +977,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         user_id: userId,
-                        spin_count: spinCount
+                        spin_count: spinCount,
+                        username: username  // Send username to preserve it in database
                     })
                 });
 
