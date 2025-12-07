@@ -544,6 +544,23 @@ class DjangoAPI:
         """Get all payment accounts"""
         return self._get('payment-accounts/')
 
+    def get_payment_account(self, account_id: int) -> Dict:
+        """Get a single payment account by ID"""
+        return self._get(f'payment-accounts/{account_id}/')
+
+    def update_payment_account(self, account_id: int, **kwargs) -> Dict:
+        """Update a payment account by ID"""
+        return self._patch(f'payment-accounts/{account_id}/', kwargs)
+
+    def delete_payment_account(self, account_id: int) -> bool:
+        """Delete a payment account by ID (sets is_active=False)"""
+        try:
+            self._patch(f'payment-accounts/{account_id}/', {'is_active': False})
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting payment account: {e}")
+            return False
+
     def clear_payment_account(self, method: str) -> bool:
         """Deactivate a payment account by method"""
         try:

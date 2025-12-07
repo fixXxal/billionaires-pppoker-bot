@@ -1393,7 +1393,7 @@ async def join_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Payment accounts
 async def admin_view_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """View payment accounts"""
+    """View and manage payment accounts with interactive buttons"""
     # Handle both callback query and text message
     if update.callback_query:
         query = update.callback_query
@@ -1404,41 +1404,158 @@ async def admin_view_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE
         query = update
         edit_func = update.message.reply_text
 
-    accounts = api.get_all_payment_accounts()
+    # Get all payment accounts from Django API
+    try:
+        accounts_response = api.get_all_payment_accounts()
 
-    message_text = "🏦 <b>Current Payment Accounts</b>\n\n"
-
-    for method, details in accounts.items():
-        if isinstance(details, dict):
-            # New format with account_number and account_name
-            account_num = details.get('account_number', 'Not set')
-            holder = details.get('account_name', 'Not set')
-
-            message_text += f"💳 <b>{method}</b>\n"
-            message_text += f"   Account: <code>{account_num}</code>\n"
-
-            if holder and holder != 'Not set' and holder.strip():
-                message_text += f"   Holder: {holder}\n"
-
-            message_text += "\n"
+        # Handle different response formats
+        if isinstance(accounts_response, list):
+            accounts = accounts_response
+        elif isinstance(accounts_response, dict):
+            accounts = accounts_response.get('results', []) if 'results' in accounts_response else list(accounts_response.values())
         else:
-            # Fallback for old simple string format
-            message_text += f"💳 <b>{method}:</b> <code>{details}</code>\n\n"
+            accounts = []
+    except Exception as e:
+        logger.error(f"Error fetching payment accounts: {e}")
+        accounts = []
+
+    message_text = "🏦 <b>Payment Accounts Management</b>\n\n"
+
+    # Build keyboard with edit/delete buttons for each account
+    keyboard = []
+
+    if accounts:
+        for account in accounts:
+            if isinstance(account, dict):
+                # Django API format
+                method = account.get('method', 'Unknown')
+                account_num = account.get('account_number', 'Not set')
+                holder = account.get('account_name', 'Not set')
+                is_active = account.get('is_active', True)
+                account_id = account.get('id')
+
+                status_icon = "✅" if is_active else "❌"
+                message_text += f"{status_icon} <b>{method}</b>\n"
+                message_text += f"   Account: <code>{account_num}</code>\n"
+
+                if holder and holder != 'Not set' and holder.strip():
+                    message_text += f"   Holder: {holder}\n"
+
+                message_text += "\n"
+
+                # Add Edit and Delete/Activate buttons
+                if account_id:
+                    if is_active:
+                        keyboard.append([
+                            InlineKeyboardButton(f"✏️ Edit {method}", callback_data=f"account_edit_{account_id}"),
+                            InlineKeyboardButton(f"🗑️ Delete {method}", callback_data=f"account_delete_{account_id}")
+                        ])
+                    else:
+                        keyboard.append([
+                            InlineKeyboardButton(f"✏️ Edit {method}", callback_data=f"account_edit_{account_id}"),
+                            InlineKeyboardButton(f"✅ Activate {method}", callback_data=f"account_activate_{account_id}")
+                        ])
+    else:
+        message_text += "<i>No payment accounts configured yet.</i>\n\n"
 
     message_text += "━━━━━━━━━━━━━━━━━━\n"
-    message_text += "📝 <b>Update Commands:</b>\n"
-    message_text += "<code>/update_bml</code> - Update BML account\n"
-    message_text += "<code>/update_mib</code> - Update MIB account\n"
-    message_text += "<code>/update_usd</code> - Update USD account\n"
-    message_text += "<code>/update_usdt</code> - Update USDT wallet"
+    message_text += "💡 <b>Tip:</b> Add payment methods for deposits/withdrawals"
+
+    # Add "Add New Account" button
+    keyboard.append([InlineKeyboardButton("➕ Add New Payment Method", callback_data="account_add")])
+    keyboard.append([InlineKeyboardButton("« Back to Panel", callback_data="admin_back")])
 
     await edit_func(
         message_text,
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("« Back to Panel", callback_data="admin_back")
-        ]]),
+        reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='HTML'
     )
+
+
+async def account_delete_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Confirm deletion of payment account"""
+    query = update.callback_query
+    await query.answer()
+
+    # Extract account ID from callback_data
+    account_id = int(query.data.replace("account_delete_", ""))
+
+    # Get account details
+    try:
+        account = api.get_payment_account(account_id)
+        method = account.get('method', 'Unknown')
+        account_num = account.get('account_number', 'N/A')
+
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Yes, Delete", callback_data=f"account_delete_yes_{account_id}"),
+                InlineKeyboardButton("❌ Cancel", callback_data="admin_view_accounts")
+            ]
+        ]
+
+        await query.edit_message_text(
+            f"⚠️ <b>Confirm Deletion</b>\n\n"
+            f"Are you sure you want to delete this payment account?\n\n"
+            f"<b>Method:</b> {method}\n"
+            f"<b>Account:</b> <code>{account_num}</code>\n\n"
+            f"<i>This action cannot be undone!</i>",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='HTML'
+        )
+    except Exception as e:
+        logger.error(f"Error fetching account for deletion: {e}")
+        await query.edit_message_text(
+            "❌ Error: Account not found",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_accounts")]])
+        )
+
+
+async def account_delete_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Execute deletion of payment account"""
+    query = update.callback_query
+    await query.answer()
+
+    # Extract account ID
+    account_id = int(query.data.replace("account_delete_yes_", ""))
+
+    try:
+        # Delete via Django API
+        api.delete_payment_account(account_id)
+
+        await query.answer("✅ Payment account deleted!", show_alert=True)
+        # Return to accounts view
+        await admin_view_accounts(update, context)
+    except Exception as e:
+        logger.error(f"Error deleting account: {e}")
+        await query.edit_message_text(
+            f"❌ <b>Error deleting account</b>\n\n{str(e)}",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_accounts")]]),
+            parse_mode='HTML'
+        )
+
+
+async def account_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Activate a deleted payment account"""
+    query = update.callback_query
+    await query.answer()
+
+    # Extract account ID
+    account_id = int(query.data.replace("account_activate_", ""))
+
+    try:
+        # Activate via Django API
+        api.update_payment_account(account_id, is_active=True)
+
+        await query.answer("✅ Payment account activated!", show_alert=True)
+        # Return to accounts view
+        await admin_view_accounts(update, context)
+    except Exception as e:
+        logger.error(f"Error activating account: {e}")
+        await query.edit_message_text(
+            f"❌ <b>Error activating account</b>\n\n{str(e)}",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_accounts")]]),
+            parse_mode='HTML'
+        )
 
 
 async def admin_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2428,6 +2545,205 @@ async def balances_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# Payment Account Add/Edit Conversation Handlers
+async def account_add_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start adding a new payment account"""
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "➕ <b>Add New Payment Method</b>\n\n"
+        "Enter the payment method name:\n"
+        "(e.g., BML, MIB, USD, USDT, BTC, etc.)",
+        parse_mode='HTML'
+    )
+
+    from bot import ACCOUNT_ADD_METHOD
+    return ACCOUNT_ADD_METHOD
+
+
+async def account_add_method_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive payment method name"""
+    method = update.message.text.strip().upper()
+
+    # Store in context
+    context.user_data['new_account_method'] = method
+
+    await update.message.reply_text(
+        f"✅ Payment Method: <b>{method}</b>\n\n"
+        f"Now enter the account number/wallet address:",
+        parse_mode='HTML'
+    )
+
+    from bot import ACCOUNT_ADD_NUMBER
+    return ACCOUNT_ADD_NUMBER
+
+
+async def account_add_number_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive account number"""
+    account_number = update.message.text.strip()
+
+    # Store in context
+    context.user_data['new_account_number'] = account_number
+
+    await update.message.reply_text(
+        f"✅ Account Number: <code>{account_number}</code>\n\n"
+        f"Enter the account holder name (or type 'skip' to leave empty):",
+        parse_mode='HTML'
+    )
+
+    from bot import ACCOUNT_ADD_HOLDER
+    return ACCOUNT_ADD_HOLDER
+
+
+async def account_add_holder_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive account holder name and create account"""
+    holder = update.message.text.strip()
+
+    if holder.lower() == 'skip':
+        holder = ''
+
+    # Get stored data
+    method = context.user_data.get('new_account_method')
+    account_number = context.user_data.get('new_account_number')
+
+    try:
+        # Create via Django API
+        api.create_payment_account(
+            method=method,
+            account_number=account_number,
+            account_name=holder
+        )
+
+        await update.message.reply_text(
+            f"✅ <b>Payment Account Created!</b>\n\n"
+            f"<b>Method:</b> {method}\n"
+            f"<b>Account:</b> <code>{account_number}</code>\n"
+            f"<b>Holder:</b> {holder if holder else 'Not set'}",
+            parse_mode='HTML'
+        )
+
+        # Clear context
+        context.user_data.pop('new_account_method', None)
+        context.user_data.pop('new_account_number', None)
+
+    except Exception as e:
+        logger.error(f"Error creating payment account: {e}")
+        await update.message.reply_text(
+            f"❌ <b>Error creating account</b>\n\n{str(e)}",
+            parse_mode='HTML'
+        )
+
+    from telegram.ext import ConversationHandler
+    return ConversationHandler.END
+
+
+async def account_edit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start editing a payment account"""
+    query = update.callback_query
+    await query.answer()
+
+    # Extract account ID
+    account_id = int(query.data.replace("account_edit_", ""))
+    context.user_data['edit_account_id'] = account_id
+
+    try:
+        account = api.get_payment_account(account_id)
+        method = account.get('method', 'Unknown')
+        current_number = account.get('account_number', 'N/A')
+        current_holder = account.get('account_name', '')
+
+        context.user_data['edit_account_method'] = method
+
+        await query.edit_message_text(
+            f"✏️ <b>Edit Payment Account</b>\n\n"
+            f"<b>Method:</b> {method}\n"
+            f"<b>Current Account:</b> <code>{current_number}</code>\n"
+            f"<b>Current Holder:</b> {current_holder if current_holder else 'Not set'}\n\n"
+            f"Enter new account number (or type 'skip' to keep current):",
+            parse_mode='HTML'
+        )
+
+        from bot import ACCOUNT_EDIT_NUMBER
+        return ACCOUNT_EDIT_NUMBER
+
+    except Exception as e:
+        logger.error(f"Error fetching account for edit: {e}")
+        await query.edit_message_text(
+            f"❌ Error: Account not found",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_accounts")]])
+        )
+        from telegram.ext import ConversationHandler
+        return ConversationHandler.END
+
+
+async def account_edit_number_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive new account number"""
+    new_number = update.message.text.strip()
+
+    if new_number.lower() != 'skip':
+        context.user_data['edit_account_number'] = new_number
+    else:
+        context.user_data['edit_account_number'] = None
+
+    await update.message.reply_text(
+        f"Enter new account holder name (or type 'skip' to keep current):",
+        parse_mode='HTML'
+    )
+
+    from bot import ACCOUNT_EDIT_HOLDER
+    return ACCOUNT_EDIT_HOLDER
+
+
+async def account_edit_holder_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive new holder name and update account"""
+    new_holder = update.message.text.strip()
+
+    if new_holder.lower() == 'skip':
+        new_holder = None
+
+    # Get stored data
+    account_id = context.user_data.get('edit_account_id')
+    new_number = context.user_data.get('edit_account_number')
+    method = context.user_data.get('edit_account_method')
+
+    try:
+        # Build update data
+        update_data = {}
+        if new_number:
+            update_data['account_number'] = new_number
+        if new_holder:
+            update_data['account_name'] = new_holder
+
+        if update_data:
+            api.update_payment_account(account_id, **update_data)
+
+            await update.message.reply_text(
+                f"✅ <b>Payment Account Updated!</b>\n\n"
+                f"<b>Method:</b> {method}\n"
+                f"{f'<b>New Account:</b> <code>{new_number}</code>' if new_number else ''}\n"
+                f"{f'<b>New Holder:</b> {new_holder}' if new_holder else ''}",
+                parse_mode='HTML'
+            )
+        else:
+            await update.message.reply_text("ℹ️ No changes made.")
+
+        # Clear context
+        context.user_data.pop('edit_account_id', None)
+        context.user_data.pop('edit_account_number', None)
+        context.user_data.pop('edit_account_method', None)
+
+    except Exception as e:
+        logger.error(f"Error updating payment account: {e}")
+        await update.message.reply_text(
+            f"❌ <b>Error updating account</b>\n\n{str(e)}",
+            parse_mode='HTML'
+        )
+
+    from telegram.ext import ConversationHandler
+    return ConversationHandler.END
+
+
 def register_admin_handlers(application, notif_messages=None, spin_bot_instance=None):
     """Register all admin handlers"""
     global notification_messages, spin_bot
@@ -2469,6 +2785,11 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
     application.add_handler(CallbackQueryHandler(balances_history, pattern="^balances_history$"))
     application.add_handler(CallbackQueryHandler(admin_back, pattern="^admin_back$"))
     application.add_handler(CallbackQueryHandler(admin_close, pattern="^admin_close$"))
+
+    # Payment Account Management
+    application.add_handler(CallbackQueryHandler(account_delete_confirm, pattern="^account_delete_\d+$"))
+    application.add_handler(CallbackQueryHandler(account_delete_execute, pattern="^account_delete_yes_\d+$"))
+    application.add_handler(CallbackQueryHandler(account_activate, pattern="^account_activate_\d+$"))
 
     # Deposit navigation
     application.add_handler(CallbackQueryHandler(deposit_navigate, pattern="^deposit_(next|prev)$"))
@@ -2541,3 +2862,34 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
 
     application.add_handler(investment_add_conv)
     application.add_handler(investment_return_conv)
+
+    # Payment Account Add/Edit Conversation Handlers
+    from bot import ACCOUNT_ADD_METHOD, ACCOUNT_ADD_NUMBER, ACCOUNT_ADD_HOLDER, ACCOUNT_EDIT_NUMBER, ACCOUNT_EDIT_HOLDER
+
+    account_add_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(account_add_start, pattern="^account_add$")],
+        states={
+            ACCOUNT_ADD_METHOD: [MessageHandler(filters.TEXT & ~filters.COMMAND, account_add_method_received)],
+            ACCOUNT_ADD_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, account_add_number_received)],
+            ACCOUNT_ADD_HOLDER: [MessageHandler(filters.TEXT, account_add_holder_received)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)],
+        per_user=True,
+        per_chat=True,
+        name="account_add_conv"
+    )
+
+    account_edit_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(account_edit_start, pattern="^account_edit_\d+$")],
+        states={
+            ACCOUNT_EDIT_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, account_edit_number_received)],
+            ACCOUNT_EDIT_HOLDER: [MessageHandler(filters.TEXT, account_edit_holder_received)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)],
+        per_user=True,
+        per_chat=True,
+        name="account_edit_conv"
+    )
+
+    application.add_handler(account_add_conv)
+    application.add_handler(account_edit_conv)
