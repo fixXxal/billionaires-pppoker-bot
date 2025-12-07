@@ -513,12 +513,38 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error getting all payment accounts: {e}", exc_info=True)
             return {}
 
-    def update_payment_account(self, method: str, account_number: str, account_name: str = None) -> bool:
-        """Update payment account"""
+    def update_payment_account(self, method_or_id, account_number=None, account_name=None, **kwargs):
+        """
+        Update payment account - supports both legacy and new calling patterns
+
+        Legacy pattern: update_payment_account(method: str, account_number: str, account_name: str)
+        New pattern: update_payment_account(account_id: int, **kwargs)
+        """
         try:
-            # Call parent DjangoAPI method which handles update-or-create
-            super().update_payment_account(method, account_number, account_name)
-            return True
+            # If first arg is int (account_id), use parent DjangoAPI method
+            if isinstance(method_or_id, int):
+                # New pattern: account_id + keyword args
+                return super().update_payment_account(method_or_id, **kwargs)
+
+            # Legacy pattern: method + account details as positional args
+            # First, find the account ID for this method
+            account = self.get_payment_account(method_or_id)
+            if not account:
+                raise ValueError(f"Payment account not found for method: {method_or_id}")
+
+            account_id = account.get('id')
+            if not account_id:
+                raise ValueError(f"Payment account for {method_or_id} has no ID")
+
+            # Build update data
+            update_data = {}
+            if account_number:
+                update_data['account_number'] = account_number
+            if account_name:
+                update_data['account_name'] = account_name
+
+            # Call parent with ID and kwargs
+            return super().update_payment_account(account_id, **update_data)
         except Exception as e:
             logger.error(f"Error updating payment account: {e}", exc_info=True)
             raise  # Re-raise so bot shows error to admin
