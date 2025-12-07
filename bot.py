@@ -7540,20 +7540,23 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
                         f"💰 Total: {total_chips} chips\n"
                         f"📦 Approved Spins: {len(user_spins)}\n\n"
                         f"✨ <b>Approved by:</b> {approved_by_safe}",
-                        parse_mode='HTML'
+                        parse_mode='HTML',
+                        reply_markup=None  # Remove button
                     )
                 else:
                     await query.edit_message_text(
                         f"✅ All rewards already approved!\n\n"
                         f"No pending spins found for this user.",
-                        parse_mode='Markdown'
+                        parse_mode='Markdown',
+                        reply_markup=None  # Remove button
                     )
             except Exception as e:
                 logger.error(f"Error checking approval status: {e}")
                 await query.edit_message_text(
                     f"✅ All rewards already approved!\n\n"
                     f"No pending spins found for this user.",
-                    parse_mode='Markdown'
+                    parse_mode='Markdown',
+                    reply_markup=None  # Remove button
                 )
             return
 
