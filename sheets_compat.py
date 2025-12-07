@@ -524,6 +524,11 @@ class SheetsCompatAPI(DjangoAPI):
             # If first arg is int (account_id), use parent DjangoAPI method
             if isinstance(method_or_id, int):
                 # New pattern: account_id + keyword args
+                # Merge account_number and account_name into kwargs if provided
+                if account_number is not None:
+                    kwargs['account_number'] = account_number
+                if account_name is not None:
+                    kwargs['account_name'] = account_name
                 return super().update_payment_account(method_or_id, **kwargs)
 
             # Legacy pattern: method + account details as positional args
