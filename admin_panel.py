@@ -2658,15 +2658,46 @@ async def account_add_holder_received(update: Update, context: ContextTypes.DEFA
     account_number = context.user_data.get('new_account_number')
 
     try:
-        # Create via Django API
-        api.create_payment_account(
-            method=method,
-            account_number=account_number,
-            account_name=holder
-        )
+        # First, check if an inactive account with this method already exists
+        all_accounts_response = api.django_api.get_all_payment_accounts()  # Get ALL accounts including inactive
+        existing_account = None
+
+        # Handle paginated response
+        if isinstance(all_accounts_response, list):
+            accounts_list = all_accounts_response
+        elif isinstance(all_accounts_response, dict) and 'results' in all_accounts_response:
+            accounts_list = all_accounts_response['results']
+        else:
+            accounts_list = []
+
+        # Search for existing account with this method
+        for acc in accounts_list:
+            if isinstance(acc, dict) and acc.get('method') == method:
+                existing_account = acc
+                break
+
+        if existing_account and not existing_account.get('is_active', True):
+            # Reactivate existing inactive account
+            logger.info(f"Reactivating inactive account: {existing_account}")
+            account_id = existing_account['id']
+            api.update_payment_account(
+                account_id,
+                account_number=account_number,
+                account_name=holder,
+                is_active=True
+            )
+            action = "Reactivated"
+        else:
+            # Create new account
+            api.create_payment_account(
+                method=method,
+                account_number=account_number,
+                account_name=holder
+            )
+            action = "Created"
 
         await update.message.reply_text(
-            f"✅ <b>Payment Account Created!</b>\n\n"
+            f"✅ <b>Payment Account {action}!</b>\n\n"
             f"<b>Method:</b> {method}\n"
             f"<b>Account:</b> <code>{account_number}</code>\n"
             f"<b>Holder:</b> {holder if holder else 'Not set'}",
