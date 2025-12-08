@@ -14,6 +14,30 @@ logger = logging.getLogger(__name__)
 class SheetsCompatAPI(DjangoAPI):
     """Extended Django API with legacy Sheets API compatibility methods"""
 
+    def _filter_by_date_range(self, records: List[Dict], start_date, end_date) -> List[Dict]:
+        """Helper to filter records by date range"""
+        try:
+            from datetime import datetime
+            filtered = []
+
+            for record in records:
+                created_at = record.get('created_at')
+                if created_at:
+                    # Parse datetime string
+                    if isinstance(created_at, str):
+                        record_date = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                    else:
+                        record_date = created_at
+
+                    # Filter by date range
+                    if record_date >= start_date and record_date <= end_date:
+                        filtered.append(record)
+
+            return filtered
+        except Exception as e:
+            logger.error(f"Error filtering by date: {e}")
+            return records  # Return all if filtering fails
+
     # ==================== LEGACY USER METHODS ====================
 
     def get_user(self, telegram_id: int) -> Optional[Dict]:
@@ -98,12 +122,11 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error updating deposit status: {e}")
             return False
 
-    def get_deposits_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+    def get_deposits_by_date_range(self, start_date, end_date) -> List[Dict]:
         """Get deposits within date range"""
         try:
             all_deposits = self.get_all_deposits()
-            # Filter by date range if needed
-            return all_deposits
+            return self._filter_by_date_range(all_deposits, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting deposits by date: {e}")
             return []
@@ -155,10 +178,11 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error updating withdrawal status: {e}")
             return False
 
-    def get_withdrawals_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+    def get_withdrawals_by_date_range(self, start_date, end_date) -> List[Dict]:
         """Get withdrawals within date range"""
         try:
-            return self.get_all_withdrawals()
+            all_withdrawals = self.get_all_withdrawals()
+            return self._filter_by_date_range(all_withdrawals, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting withdrawals by date: {e}")
             return []
@@ -300,10 +324,11 @@ class SheetsCompatAPI(DjangoAPI):
         """Reject a cashback request - delegates to DjangoAPI"""
         return super().reject_cashback_request(request_id, approved_by, rejection_reason)
 
-    def get_cashback_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+    def get_cashback_by_date_range(self, start_date, end_date) -> List[Dict]:
         """Get cashback requests by date range"""
         try:
-            return self.get_all_cashback_requests()
+            all_cashback = self.get_all_cashback_requests()
+            return self._filter_by_date_range(all_cashback, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting cashback by date: {e}")
             return []
@@ -435,9 +460,14 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error getting all cashback promotions: {e}")
             return []
 
-    def get_bonuses_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
-        """Get bonuses by date range - placeholder"""
-        return []
+    def get_bonuses_by_date_range(self, start_date, end_date) -> List[Dict]:
+        """Get bonuses by date range"""
+        try:
+            all_bonuses = self.get_all_promotion_bonuses()
+            return self._filter_by_date_range(all_bonuses, start_date, end_date)
+        except Exception as e:
+            logger.error(f"Error getting bonuses by date: {e}")
+            return []
 
     # ==================== LEGACY PAYMENT ACCOUNT METHODS ====================
 
@@ -643,26 +673,29 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error getting spin: {e}")
             return None
 
-    def get_spins_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+    def get_spins_by_date_range(self, start_date, end_date) -> List[Dict]:
         """Get spins by date range"""
         try:
-            return self.get_all_spin_history()
+            all_spins = self.get_all_spin_history()
+            return self._filter_by_date_range(all_spins, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting spins by date: {e}")
             return []
 
-    def get_investments_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+    def get_investments_by_date_range(self, start_date, end_date) -> List[Dict]:
         """Get 50/50 investments by date range"""
         try:
-            return self.get_all_investments()
+            all_investments = self.get_all_investments()
+            return self._filter_by_date_range(all_investments, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting investments by date: {e}")
             return []
 
-    def get_credits_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+    def get_credits_by_date_range(self, start_date, end_date) -> List[Dict]:
         """Get user credits by date range"""
         try:
-            return self.get_all_user_credits()
+            all_credits = self.get_all_user_credits()
+            return self._filter_by_date_range(all_credits, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting credits by date: {e}")
             return []
