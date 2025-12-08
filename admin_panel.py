@@ -256,7 +256,8 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_details = deposit.get('user_details', {})
         user_id = user_details.get('telegram_id') or deposit.get('user')
         username = user_details.get('username', 'User')
-        currency = 'MVR' if deposit.get('method') != 'USDT' else 'USD'
+        # All deposits are stored in MVR (USDT/USD are converted)
+        currency = 'MVR'
 
         # Add free spins based on deposit amount
         spins_message = ""

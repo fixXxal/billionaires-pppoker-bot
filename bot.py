@@ -5634,7 +5634,8 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
 
         # Format amount nicely
         amount = float(deposit['amount'])
-        currency = 'MVR' if deposit.get('method') != 'USDT' else 'USD'
+        # All deposits are stored in MVR (USDT/USD are converted)
+        currency = 'MVR'
 
         try:
             await context.bot.send_message(
@@ -5690,7 +5691,7 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
                                 chat_id=admin_id,
                                 text=f"✅ <b>Deposit {request_id} APPROVED</b>\n\n"
                                      f"👤 Approved by: {admin_name}\n"
-                                     f"💰 Amount: {deposit['amount']} {'MVR' if deposit.get('method') != 'USDT' else 'USD'}\n"
+                                     f"💰 Amount: {deposit['amount']} MVR\n"
                                      f"User notified and chips credited.",
                                 parse_mode='HTML'
                             )
