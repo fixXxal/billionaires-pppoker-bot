@@ -1166,6 +1166,7 @@ async def deposit_usdt_amount_received(update: Update, context: ContextTypes.DEF
 
         # Get exchange rate and convert to MVR
         usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.42  # Fallback to standard MVR rate
+        usdt_rate = float(usdt_rate)  # Convert to float for calculations
         mvr_amount = usdt_amount * usdt_rate
         context.user_data['deposit_amount'] = mvr_amount  # Store MVR amount for deposit creation
         context.user_data['usdt_exchange_rate'] = usdt_rate
