@@ -20,7 +20,15 @@ class SheetsCompatAPI(DjangoAPI):
             from datetime import datetime
             filtered = []
 
+            # Handle case where records is not a list of dicts
+            if not records or not isinstance(records, list):
+                return []
+
             for record in records:
+                # Skip if record is not a dict
+                if not isinstance(record, dict):
+                    continue
+
                 created_at = record.get('created_at')
                 if created_at:
                     # Parse datetime string
@@ -36,7 +44,7 @@ class SheetsCompatAPI(DjangoAPI):
             return filtered
         except Exception as e:
             logger.error(f"Error filtering by date: {e}")
-            return records  # Return all if filtering fails
+            return []  # Return empty list if filtering fails
 
     # ==================== LEGACY USER METHODS ====================
 
@@ -461,13 +469,11 @@ class SheetsCompatAPI(DjangoAPI):
             return []
 
     def get_bonuses_by_date_range(self, start_date, end_date) -> List[Dict]:
-        """Get bonuses by date range"""
-        try:
-            all_bonuses = self.get_all_promotion_bonuses()
-            return self._filter_by_date_range(all_bonuses, start_date, end_date)
-        except Exception as e:
-            logger.error(f"Error getting bonuses by date: {e}")
-            return []
+        """Get bonuses by date range - bonuses are tracked via PromotionEligibility, not a separate table"""
+        # Bonuses are given during deposit approval and tracked in PromotionEligibility
+        # For stats purposes, we can return empty since bonus amounts are already included
+        # in the deposit amounts when approved
+        return []
 
     # ==================== LEGACY PAYMENT ACCOUNT METHODS ====================
 
