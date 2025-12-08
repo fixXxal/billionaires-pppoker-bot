@@ -32,6 +32,8 @@ ADMIN_NOTES, UPDATE_ACCOUNT_NUMBER = range(2)
 # Investment conversation states
 INVESTMENT_TELEGRAM_ID, INVESTMENT_AMOUNT, INVESTMENT_NOTES = range(2, 5)
 RETURN_SELECT_USER, RETURN_AMOUNT = range(5, 7)
+# Exchange rate conversation states
+SET_USD_RATE, SET_USDT_RATE = range(7, 9)
 
 # Notification messages storage (will be set by bot.py)
 notification_messages = {}
@@ -2860,13 +2862,10 @@ async def admin_exchange_rates(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             message += "No active exchange rates set.\n"
 
-        message += "\n<b>Commands:</b>\n"
-        message += "• /set_usd_rate &lt;rate&gt; - Set USD to MVR\n"
-        message += "  Example: /set_usd_rate 15.42\n\n"
-        message += "• /set_usdt_rate &lt;rate&gt; - Set USDT to MVR\n"
-        message += "  Example: /set_usdt_rate 15.42\n"
-
         keyboard = [
+            [InlineKeyboardButton("💵 Set USD Rate", callback_data="set_usd_rate")],
+            [InlineKeyboardButton("💎 Set USDT Rate", callback_data="set_usdt_rate")],
+            [InlineKeyboardButton("🔄 Refresh", callback_data="admin_exchange_rates")],
             [InlineKeyboardButton("« Back to Admin Panel", callback_data="admin_back")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -2881,27 +2880,33 @@ async def admin_exchange_rates(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 
-async def set_usd_rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Set USD to MVR exchange rate"""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ You don't have admin access.")
-        return
+async def set_usd_rate_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start USD rate setting conversation"""
+    query = update.callback_query
+    await query.answer()
 
+    # Get current USD rate
+    current_rate = api.get_exchange_rate('USD', 'MVR') or 15.42
+
+    await query.edit_message_text(
+        f"💵 <b>Set USD Exchange Rate</b>\n\n"
+        f"<b>Current Rate:</b> 1 USD = {current_rate:.2f} MVR\n\n"
+        f"Please enter the new exchange rate (numbers only):\n"
+        f"Example: 15.42 or 17.50",
+        parse_mode='HTML'
+    )
+
+    return SET_USD_RATE
+
+
+async def set_usd_rate_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive and save USD rate"""
     try:
-        if not context.args or len(context.args) != 1:
-            await update.message.reply_text(
-                "❌ <b>Invalid format</b>\n\n"
-                "Usage: /set_usd_rate &lt;rate&gt;\n"
-                "Example: /set_usd_rate 15.42",
-                parse_mode='HTML'
-            )
-            return
-
-        rate = float(context.args[0])
+        rate = float(update.message.text.strip())
 
         if rate <= 0:
-            await update.message.reply_text("❌ Rate must be greater than 0")
-            return
+            await update.message.reply_text("❌ Rate must be greater than 0. Please try again:")
+            return SET_USD_RATE
 
         # Create or update the exchange rate
         api.set_exchange_rate('USD', 'MVR', rate)
@@ -2912,34 +2917,46 @@ async def set_usd_rate_command(update: Update, context: ContextTypes.DEFAULT_TYP
             parse_mode='HTML'
         )
 
+        from telegram.ext import ConversationHandler
+        return ConversationHandler.END
+
     except ValueError:
-        await update.message.reply_text("❌ Invalid rate value. Please enter a number.")
+        await update.message.reply_text("❌ Invalid rate value. Please enter a number:")
+        return SET_USD_RATE
     except Exception as e:
         logger.error(f"Error setting USD rate: {e}")
         await update.message.reply_text(f"❌ Error: {str(e)}")
+        from telegram.ext import ConversationHandler
+        return ConversationHandler.END
 
 
-async def set_usdt_rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Set USDT to MVR exchange rate"""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ You don't have admin access.")
-        return
+async def set_usdt_rate_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start USDT rate setting conversation"""
+    query = update.callback_query
+    await query.answer()
 
+    # Get current USDT rate
+    current_rate = api.get_exchange_rate('USDT', 'MVR') or 15.42
+
+    await query.edit_message_text(
+        f"💎 <b>Set USDT Exchange Rate</b>\n\n"
+        f"<b>Current Rate:</b> 1 USDT = {current_rate:.2f} MVR\n\n"
+        f"Please enter the new exchange rate (numbers only):\n"
+        f"Example: 15.42 or 18.50",
+        parse_mode='HTML'
+    )
+
+    return SET_USDT_RATE
+
+
+async def set_usdt_rate_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive and save USDT rate"""
     try:
-        if not context.args or len(context.args) != 1:
-            await update.message.reply_text(
-                "❌ <b>Invalid format</b>\n\n"
-                "Usage: /set_usdt_rate &lt;rate&gt;\n"
-                "Example: /set_usdt_rate 15.42",
-                parse_mode='HTML'
-            )
-            return
-
-        rate = float(context.args[0])
+        rate = float(update.message.text.strip())
 
         if rate <= 0:
-            await update.message.reply_text("❌ Rate must be greater than 0")
-            return
+            await update.message.reply_text("❌ Rate must be greater than 0. Please try again:")
+            return SET_USDT_RATE
 
         # Create or update the exchange rate
         api.set_exchange_rate('USDT', 'MVR', rate)
@@ -2950,11 +2967,17 @@ async def set_usdt_rate_command(update: Update, context: ContextTypes.DEFAULT_TY
             parse_mode='HTML'
         )
 
+        from telegram.ext import ConversationHandler
+        return ConversationHandler.END
+
     except ValueError:
-        await update.message.reply_text("❌ Invalid rate value. Please enter a number.")
+        await update.message.reply_text("❌ Invalid rate value. Please enter a number:")
+        return SET_USDT_RATE
     except Exception as e:
         logger.error(f"Error setting USDT rate: {e}")
         await update.message.reply_text(f"❌ Error: {str(e)}")
+        from telegram.ext import ConversationHandler
+        return ConversationHandler.END
 
 
 def register_admin_handlers(application, notif_messages=None, spin_bot_instance=None):
@@ -2970,10 +2993,6 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
 
     # Admin panel
     application.add_handler(CommandHandler("admin", admin_panel))
-
-    # Exchange rate commands
-    application.add_handler(CommandHandler("set_usd_rate", set_usd_rate_command))
-    application.add_handler(CommandHandler("set_usdt_rate", set_usdt_rate_command))
 
     # NOTE: Update account commands (/update_bml, /update_mib, /update_usdt) are now
     # handled by conversation handlers in bot.py, not here
@@ -3111,3 +3130,29 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
 
     application.add_handler(account_add_conv)
     application.add_handler(account_edit_conv)
+
+    # Exchange Rate Conversation Handlers
+    set_usd_rate_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(set_usd_rate_start, pattern="^set_usd_rate$")],
+        states={
+            SET_USD_RATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_usd_rate_received)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)],
+        per_user=True,
+        per_chat=True,
+        name="set_usd_rate_conv"
+    )
+
+    set_usdt_rate_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(set_usdt_rate_start, pattern="^set_usdt_rate$")],
+        states={
+            SET_USDT_RATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_usdt_rate_received)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)],
+        per_user=True,
+        per_chat=True,
+        name="set_usdt_rate_conv"
+    )
+
+    application.add_handler(set_usd_rate_conv)
+    application.add_handler(set_usdt_rate_conv)
