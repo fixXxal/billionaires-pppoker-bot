@@ -3082,6 +3082,7 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
         bonuses = api.get_bonuses_by_date_range(start, end)
         cashback = api.get_cashback_by_date_range(start, end)
         investments = api.get_investments_by_date_range(start, end)
+        credits = api.get_credits_by_date_range(start, end)
 
         # Handle paginated responses from Django API
         if isinstance(deposits, dict) and 'results' in deposits:
@@ -3096,6 +3097,8 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
             cashback = cashback['results']
         if isinstance(investments, dict) and 'results' in investments:
             investments = investments['results']
+        if isinstance(credits, dict) and 'results' in credits:
+            credits = credits['results']
 
         # Calculate chip costs (money given to users as chips)
         total_spin_rewards = sum([float(s.get('chips', 0)) for s in spins if s.get('chips')])
@@ -3118,6 +3121,11 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
             for inv in fiftyfifty_lost
         ])
         fiftyfifty_net = fiftyfifty_profit - fiftyfifty_loss
+
+        # Calculate outstanding credits (money users owe to club)
+        # All credits in DB are outstanding (unpaid debts)
+        total_credits = sum([float(c.get('amount', 0)) for c in credits])
+        credits_count = len(credits)
 
         # All deposits/withdrawals are stored in MVR (USD/USDT are converted at deposit time)
         # So we just sum everything - no need to separate by currency or convert
@@ -3186,11 +3194,21 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
             fiftyfifty_emoji = "📈" if fiftyfifty_net > 0 else "📉" if fiftyfifty_net < 0 else "➖"
             report += f"  {fiftyfifty_emoji} Net 50/50: {fiftyfifty_net:+,.2f} MVR\n\n"
 
+        # Show outstanding credits (money users owe)
+        if credits_count > 0:
+            report += f"💳 <b>Outstanding Credits:</b>\n"
+            report += f"  {credits_count} user(s) owe {total_credits:,.2f} MVR\n"
+            report += f"  <i>(Unpaid debts - not included in profit)</i>\n\n"
+
         # Show final profit/loss
         if total_deposits > 0 or total_costs > 0 or fiftyfifty_net != 0:
             total_emoji = "📈" if total_mvr_profit > 0 else "📉" if total_mvr_profit < 0 else "➖"
             report += f"<b>{total_emoji} Net Profit:</b> {total_mvr_profit:,.2f} MVR\n"
-            report += f"<i>(Deposits + 50/50 Wins - Withdrawals - Rewards - Bonuses - Cashback - 50/50 Losses)</i>\n\n"
+            report += f"<i>(Deposits + 50/50 Wins - Withdrawals - Rewards - Bonuses - Cashback - 50/50 Losses)</i>\n"
+            if credits_count > 0:
+                potential_profit = total_mvr_profit + total_credits
+                report += f"\n💡 <i>Potential Profit (if all credits paid): {potential_profit:,.2f} MVR</i>\n"
+            report += "\n"
 
         report += f"━━━━━━━━━━━━━━━━━━\n\n"
 

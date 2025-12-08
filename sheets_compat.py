@@ -659,6 +659,14 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error getting investments by date: {e}")
             return []
 
+    def get_credits_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+        """Get user credits by date range"""
+        try:
+            return self.get_all_user_credits()
+        except Exception as e:
+            logger.error(f"Error getting credits by date: {e}")
+            return []
+
     # ==================== LEGACY ADMIN METHODS ====================
 
     def add_admin(self, telegram_id: int, username: str, name: str = '', added_by: int = None) -> bool:
