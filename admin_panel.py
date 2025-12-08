@@ -2843,14 +2843,17 @@ async def account_edit_holder_received(update: Update, context: ContextTypes.DEF
 async def admin_exchange_rates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """View and manage exchange rates"""
     query = update.callback_query
-    await query.answer()
+    await query.answer("Refreshing rates...")
 
     try:
         # Get all active exchange rates
         rates = api.get_active_exchange_rates()
 
         # Build message showing current rates
-        message = "💱 <b>Exchange Rate Management</b>\n\n"
+        import datetime
+        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        message = f"💱 <b>Exchange Rate Management</b>\n"
+        message += f"<i>Last updated: {current_time}</i>\n\n"
         message += "<b>Current Active Rates:</b>\n"
 
         if rates:
@@ -2874,10 +2877,14 @@ async def admin_exchange_rates(update: Update, context: ContextTypes.DEFAULT_TYP
 
     except Exception as e:
         logger.error(f"Error viewing exchange rates: {e}")
-        await query.edit_message_text(
-            f"❌ Error loading exchange rates: {str(e)}",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
-        )
+        # If error is about message not modified, just acknowledge it
+        if "message is not modified" in str(e).lower():
+            await query.answer("Rates are already up to date!", show_alert=False)
+        else:
+            await query.edit_message_text(
+                f"❌ Error loading exchange rates: {str(e)}",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
+            )
 
 
 async def set_usd_rate_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
