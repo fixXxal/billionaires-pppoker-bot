@@ -34,10 +34,14 @@ class SheetsCompatAPI(DjangoAPI):
         try:
             user = self.get_user_by_telegram_id(telegram_id)
             if user:
-                # Since we don't have a direct update endpoint, we recreate
-                self.create_or_update_user(telegram_id, pppoker_id=pppoker_id)
+                # Use the direct update endpoint
+                user_id = user.get('id')
+                super().update_user_pppoker_id(user_id, pppoker_id)
+                logger.info(f"✅ Updated PPPoker ID for user {telegram_id} (DB ID: {user_id}) to {pppoker_id}")
                 return True
-            return False
+            else:
+                logger.warning(f"⚠️ User {telegram_id} not found, cannot update PPPoker ID")
+                return False
         except Exception as e:
             logger.error(f"Error updating PPPoker ID: {e}")
             return False

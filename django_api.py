@@ -122,6 +122,11 @@ class DjangoAPI:
         data = {'balance': new_balance}
         return self._put(f'users/{user_id}/', data)
 
+    def update_user_pppoker_id(self, user_id: int, pppoker_id: str) -> Dict:
+        """Update user's PPPoker ID"""
+        data = {'pppoker_id': pppoker_id}
+        return self._patch(f'users/{user_id}/', data)
+
     def get_all_users(self) -> List[Dict]:
         """Get all users"""
         return self._get('users/')
