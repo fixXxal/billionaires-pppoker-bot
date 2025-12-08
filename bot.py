@@ -1119,8 +1119,8 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
             context.user_data['transaction_ref'] = transaction_ref
 
             # Ask for amount next
-            usdt_rate = api.get_exchange_rate('USDT', 'MVR')
-            rate_msg = f"\n\n💱 Current Rate: 1 USDT = {usdt_rate:.2f} MVR" if usdt_rate else ""
+            usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.42  # Fallback to standard MVR rate
+            rate_msg = f"\n\n💱 Current Rate: 1 USDT = {usdt_rate:.2f} MVR"
 
             await update.message.reply_text(
                 f"✅ Transaction ID received!\n{rate_msg}\n\n"
@@ -1165,29 +1165,19 @@ async def deposit_usdt_amount_received(update: Update, context: ContextTypes.DEF
         context.user_data['usdt_amount'] = usdt_amount
 
         # Get exchange rate and convert to MVR
-        usdt_rate = api.get_exchange_rate('USDT', 'MVR')
-        if usdt_rate:
-            mvr_amount = usdt_amount * usdt_rate
-            context.user_data['deposit_amount'] = mvr_amount  # Store MVR amount for deposit creation
-            context.user_data['usdt_exchange_rate'] = usdt_rate
+        usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.42  # Fallback to standard MVR rate
+        mvr_amount = usdt_amount * usdt_rate
+        context.user_data['deposit_amount'] = mvr_amount  # Store MVR amount for deposit creation
+        context.user_data['usdt_exchange_rate'] = usdt_rate
 
-            await update.message.reply_text(
-                f"✅ Amount received!\n\n"
-                f"💎 {usdt_amount} USDT\n"
-                f"💱 Rate: 1 USDT = {usdt_rate:.2f} MVR\n"
-                f"💰 Equivalent: **{mvr_amount:,.2f} MVR**\n\n"
-                f"🎮 Please enter your **PPPoker ID**:",
-                parse_mode='Markdown'
-            )
-        else:
-            # No exchange rate available - store USDT amount as deposit amount
-            context.user_data['deposit_amount'] = usdt_amount
-            await update.message.reply_text(
-                f"✅ Amount received: {usdt_amount} USDT\n\n"
-                f"⚠️ Exchange rate not available. Please contact admin.\n\n"
-                f"🎮 Please enter your **PPPoker ID**:",
-                parse_mode='Markdown'
-            )
+        await update.message.reply_text(
+            f"✅ Amount received!\n\n"
+            f"💎 {usdt_amount} USDT\n"
+            f"💱 Rate: 1 USDT = {usdt_rate:.2f} MVR\n"
+            f"💰 Equivalent: **{mvr_amount:,.2f} MVR**\n\n"
+            f"🎮 Please enter your **PPPoker ID**:",
+            parse_mode='Markdown'
+        )
 
         return DEPOSIT_PPPOKER_ID
 
