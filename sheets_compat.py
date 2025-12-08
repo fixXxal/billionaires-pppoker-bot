@@ -18,11 +18,20 @@ class SheetsCompatAPI(DjangoAPI):
         """Helper to filter records by date range"""
         try:
             from datetime import datetime
+            import pytz
             filtered = []
 
             # Handle case where records is not a list of dicts
             if not records or not isinstance(records, list):
                 return []
+
+            # Ensure start_date and end_date are timezone-aware
+            if start_date.tzinfo is None:
+                utc = pytz.UTC
+                start_date = utc.localize(start_date)
+            if end_date.tzinfo is None:
+                utc = pytz.UTC
+                end_date = utc.localize(end_date)
 
             for record in records:
                 # Skip if record is not a dict
@@ -33,11 +42,16 @@ class SheetsCompatAPI(DjangoAPI):
                 if created_at:
                     # Parse datetime string
                     if isinstance(created_at, str):
+                        # Remove 'Z' and add timezone info
                         record_date = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
                     else:
                         record_date = created_at
+                        # Make timezone-aware if needed
+                        if record_date.tzinfo is None:
+                            utc = pytz.UTC
+                            record_date = utc.localize(record_date)
 
-                    # Filter by date range
+                    # Filter by date range (compare timezone-aware datetimes)
                     if record_date >= start_date and record_date <= end_date:
                         filtered.append(record)
 
