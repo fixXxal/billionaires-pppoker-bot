@@ -706,11 +706,12 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     # Send confirmation to user
     confirmation_msg = f"✅ <b>Deposit sent!</b>\n\n"
 
-    if method == 'USDT' and usdt_amount and usdt_rate:
+    if method == 'USDT' and usdt_amount:
         # Show both USDT and MVR amounts
         confirmation_msg += f"💎 {usdt_amount} USDT (≈{amount:,.2f} MVR)\n"
-        confirmation_msg += f"🔗 TXID: {transaction_ref[:20]}...\n"
-        confirmation_msg += f"💱 Rate: 1 USDT = {usdt_rate:.2f} MVR\n"
+        confirmation_msg += f"🔗 TXID: <code>{transaction_ref[:25]}...</code>\n"
+        if usdt_rate:
+            confirmation_msg += f"💱 Rate: 1 USDT = {usdt_rate:.2f} MVR\n"
     else:
         currency = 'MVR' if method not in ['USD', 'USDT'] else method
         confirmation_msg += f"💰 {amount} {currency} via {method}\n"
@@ -785,13 +786,17 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     validation_warnings = name_validation_warning + account_validation_warning
 
     # Currency and USDT display
-    currency = 'MVR' if method not in ['USD', 'USDT'] else 'USD'
-    amount_display = f"{currency} {verified_amount:,.2f}"
-
-    # If USDT deposit, show both USDT and MVR
-    if method == 'USDT' and usdt_amount and usdt_rate:
-        amount_display = f"{usdt_amount} USDT (≈{verified_amount:,.2f} MVR)\n💱 Rate: 1 USDT = {usdt_rate:.2f} MVR"
+    if method == 'USDT' and usdt_amount:
+        # USDT deposit - show both currencies
+        amount_display = f"<b>{usdt_amount} USDT</b> (≈ {verified_amount:,.2f} MVR)"
+        if usdt_rate:
+            amount_display += f"\n💱 Exchange Rate: 1 USDT = {usdt_rate:.2f} MVR"
         currency = 'MVR'  # Use MVR for bonus calculations
+        ref_number = transaction_ref  # TXID
+    else:
+        # Regular MVR/USD deposit
+        currency = 'MVR' if method not in ['USD', 'USDT'] else 'USD'
+        amount_display = f"<b>{currency} {verified_amount:,.2f}</b>"
 
     # Check for active promotion and user eligibility
     promotion_info = ""
@@ -831,7 +836,27 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
             }
 
     # Build clean, organized notification
-    admin_message = f"""💰 <b>NEW {method} DEPOSIT</b> — {request_id}
+    if method == 'USDT':
+        # Special format for USDT with TXID
+        admin_message = f"""💰 <b>NEW {method} DEPOSIT</b> — {request_id}
+
+👤 <b>USER DETAILS</b>
+Name: {user.first_name} {user.last_name or ''}
+Username: {username_display}
+User ID: <code>{user.id}</code>
+
+🏦 <b>TRANSACTION DETAILS</b>
+🔗 TXID: <code>{ref_number}</code>
+Amount: {amount_display}
+Method: {verified_bank} (BEP20)
+
+🎮 <b>PPPOKER INFO</b>
+Player ID: <code>{pppoker_id}</code>
+
+💡 <i>Verify TXID on BscScan.com</i>{validation_warnings}{promotion_info}"""
+    else:
+        # Regular deposit format
+        admin_message = f"""💰 <b>NEW {method} DEPOSIT</b> — {request_id}
 
 👤 <b>USER DETAILS</b>
 Name: {user.first_name} {user.last_name or ''}
@@ -840,7 +865,7 @@ User ID: <code>{user.id}</code>
 
 🏦 <b>TRANSACTION DETAILS</b>
 Reference: <code>{ref_number}</code>
-Amount: <b>{amount_display}</b>
+Amount: {amount_display}
 Bank: {verified_bank}
 From: {sender_name}
 To: {receiver_name}
