@@ -653,10 +653,13 @@ class SheetsCompatAPI(DjangoAPI):
 
     # ==================== LEGACY ADMIN METHODS ====================
 
-    def add_admin(self, telegram_id: int, username: str) -> bool:
+    def add_admin(self, telegram_id: int, username: str, name: str = '', added_by: int = None) -> bool:
         """Add admin"""
         try:
-            self.create_admin(telegram_id, username)
+            # Use username or construct from name if username is empty
+            display_username = username if username else name or f"user_{telegram_id}"
+            self.create_admin(telegram_id, display_username)
+            logger.info(f"✅ Added admin {telegram_id} (@{display_username}) by {added_by}")
             return True
         except Exception as e:
             logger.error(f"Error adding admin: {e}")
