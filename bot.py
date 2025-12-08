@@ -3065,7 +3065,7 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
         'THIS YEAR': (year_start, today_end)
     }
 
-    # Get exchange rates
+    # Get exchange rates (for display only)
     usd_rate = api.get_exchange_rate('USD', 'MVR') or 15.40
     usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.40
 
@@ -3098,65 +3098,67 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
         total_bonuses = sum([float(b.get('bonus_amount', 0)) for b in bonuses])
         total_cashback = sum([float(c.get('cashback_amount', 0)) for c in cashback])
 
-        # Separate by currency
+        # All deposits/withdrawals are stored in MVR (USD/USDT are converted at deposit time)
+        # So we just sum everything - no need to separate by currency or convert
+        total_deposits = sum([float(d.get('amount', 0)) for d in deposits])
+        total_withdrawals = sum([float(w.get('amount', 0)) for w in withdrawals])
+
+        # Separate by method for display purposes only
         mvr_deposits = sum([float(d.get('amount', 0)) for d in deposits if d.get('method') in ['BML', 'MIB']])
-        usd_deposits = sum([float(d.get('amount', 0)) for d in deposits if d.get('method') == 'USD'])
-        usdt_deposits = sum([float(d.get('amount', 0)) for d in deposits if d.get('method') == 'USDT'])
+        usd_deposits_mvr = sum([float(d.get('amount', 0)) for d in deposits if d.get('method') == 'USD'])
+        usdt_deposits_mvr = sum([float(d.get('amount', 0)) for d in deposits if d.get('method') == 'USDT'])
 
         mvr_withdrawals = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) in ['BML', 'MIB']])
-        usd_withdrawals = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) == 'USD'])
-        usdt_withdrawals = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) == 'USDT'])
+        usd_withdrawals_mvr = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) == 'USD'])
+        usdt_withdrawals_mvr = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) == 'USDT'])
 
-        # Calculate profits per currency
-        mvr_profit = mvr_deposits - (mvr_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
-        usd_profit = usd_deposits - usd_withdrawals
-        usdt_profit = usdt_deposits - usdt_withdrawals
-
-        # Calculate MVR equivalents
-        usd_mvr_equiv = usd_profit * usd_rate
-        usdt_mvr_equiv = usdt_profit * usdt_rate
-        total_mvr_profit = mvr_profit + usd_mvr_equiv + usdt_mvr_equiv
+        # Calculate total profit (everything is already in MVR)
+        total_mvr_profit = total_deposits - (total_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
 
         report += f"<b>{period_name}</b>\n"
 
-        # MVR Section
-        if mvr_deposits > 0 or mvr_withdrawals > 0 or total_spin_rewards > 0 or total_bonuses > 0 or total_cashback > 0:
-            mvr_emoji = "📈" if mvr_profit > 0 else "📉" if mvr_profit < 0 else "➖"
-            report += f"💰 MVR Deposits: {mvr_deposits:,.2f}\n"
-            report += f"💸 MVR Withdrawals: {mvr_withdrawals:,.2f}\n"
+        # Show deposits by payment method (all amounts already in MVR)
+        if mvr_deposits > 0:
+            report += f"💰 BML/MIB Deposits: {mvr_deposits:,.2f} MVR\n"
+        if usd_deposits_mvr > 0:
+            report += f"💵 USD Deposits: {usd_deposits_mvr:,.2f} MVR\n"
+        if usdt_deposits_mvr > 0:
+            report += f"💎 USDT Deposits: {usdt_deposits_mvr:,.2f} MVR\n"
 
-            if total_spin_rewards > 0:
-                report += f"🎰 Spin Rewards: {total_spin_rewards:,.2f}\n"
-            if total_bonuses > 0:
-                report += f"🎁 Bonuses Given: {total_bonuses:,.2f}\n"
-            if total_cashback > 0:
-                report += f"💵 Cashback Given: {total_cashback:,.2f}\n"
+        # Show total deposits
+        if total_deposits > 0:
+            report += f"<b>📥 Total Deposits: {total_deposits:,.2f} MVR</b>\n\n"
 
-            report += f"{mvr_emoji} <b>MVR Real Profit: {mvr_profit:,.2f}</b>\n"
-            report += f"   (Deposits - Withdrawals - Spins - Bonuses - Cashback)\n\n"
+        # Show withdrawals by payment method (all amounts already in MVR)
+        if mvr_withdrawals > 0:
+            report += f"💸 BML/MIB Withdrawals: {mvr_withdrawals:,.2f} MVR\n"
+        if usd_withdrawals_mvr > 0:
+            report += f"💵 USD Withdrawals: {usd_withdrawals_mvr:,.2f} MVR\n"
+        if usdt_withdrawals_mvr > 0:
+            report += f"💎 USDT Withdrawals: {usdt_withdrawals_mvr:,.2f} MVR\n"
 
-        # USD Section
-        if usd_deposits > 0 or usd_withdrawals > 0:
-            usd_emoji = "📈" if usd_profit > 0 else "📉" if usd_profit < 0 else "➖"
-            report += f"💵 USD Deposits: {usd_deposits:,.2f}\n"
-            report += f"💵 USD Withdrawals: {usd_withdrawals:,.2f}\n"
-            report += f"{usd_emoji} USD Profit: {usd_profit:,.2f}\n"
-            report += f"   ≈ {usd_mvr_equiv:,.2f} MVR\n\n"
+        # Show total withdrawals
+        if total_withdrawals > 0:
+            report += f"<b>📤 Total Withdrawals: {total_withdrawals:,.2f} MVR</b>\n\n"
 
-        # USDT Section
-        if usdt_deposits > 0 or usdt_withdrawals > 0:
-            usdt_emoji = "📈" if usdt_profit > 0 else "📉" if usdt_profit < 0 else "➖"
-            report += f"💎 USDT Deposits: {usdt_deposits:,.2f}\n"
-            report += f"💎 USDT Withdrawals: {usdt_withdrawals:,.2f}\n"
-            report += f"{usdt_emoji} USDT Profit: {usdt_profit:,.2f}\n"
-            report += f"   ≈ {usdt_mvr_equiv:,.2f} MVR\n\n"
+        # Show costs (spins, bonuses, cashback)
+        if total_spin_rewards > 0:
+            report += f"🎰 Spin Rewards: {total_spin_rewards:,.2f} MVR\n"
+        if total_bonuses > 0:
+            report += f"🎁 Bonuses Given: {total_bonuses:,.2f} MVR\n"
+        if total_cashback > 0:
+            report += f"💵 Cashback Given: {total_cashback:,.2f} MVR\n"
 
-        # Total in MVR
-        if (mvr_deposits > 0 or mvr_withdrawals > 0 or
-            usd_deposits > 0 or usd_withdrawals > 0 or
-            usdt_deposits > 0 or usdt_withdrawals > 0):
+        # Show total costs
+        total_costs = total_withdrawals + total_spin_rewards + total_bonuses + total_cashback
+        if total_costs > 0:
+            report += f"<b>💸 Total Costs: {total_costs:,.2f} MVR</b>\n\n"
+
+        # Show final profit/loss
+        if total_deposits > 0 or total_costs > 0:
             total_emoji = "📈" if total_mvr_profit > 0 else "📉" if total_mvr_profit < 0 else "➖"
-            report += f"<b>{total_emoji} Total Profit (MVR):</b> {total_mvr_profit:,.2f}\n\n"
+            report += f"<b>{total_emoji} Net Profit:</b> {total_mvr_profit:,.2f} MVR\n"
+            report += f"<i>(Deposits - Withdrawals - Rewards - Bonuses - Cashback)</i>\n\n"
 
         report += f"━━━━━━━━━━━━━━━━━━\n\n"
 
