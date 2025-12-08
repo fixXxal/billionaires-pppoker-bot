@@ -79,7 +79,6 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🏦 Payment Accounts", callback_data="admin_view_accounts")],
         [InlineKeyboardButton("💱 Exchange Rates", callback_data="admin_exchange_rates")],
         [InlineKeyboardButton("💎 50/50 Investments", callback_data="admin_investments")],
-        [InlineKeyboardButton("🏦 Club Balances", callback_data="admin_club_balances")],
         [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast")],
         [InlineKeyboardButton(counter_button_text, callback_data=counter_callback)],
         [InlineKeyboardButton("📊 Counter Status", callback_data="admin_counter_status")],
@@ -3013,8 +3012,9 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
     application.add_handler(CallbackQueryHandler(investment_view_active, pattern="^investment_view_active$"))
     application.add_handler(CallbackQueryHandler(investment_view_completed, pattern="^investment_view_completed$"))
     application.add_handler(CallbackQueryHandler(investment_check_expired, pattern="^investment_check_expired$"))
-    application.add_handler(CallbackQueryHandler(admin_club_balances, pattern="^admin_club_balances$"))
-    application.add_handler(CallbackQueryHandler(balances_history, pattern="^balances_history$"))
+    # Club Balance feature disabled - not needed, /stats tracks everything automatically
+    # application.add_handler(CallbackQueryHandler(admin_club_balances, pattern="^admin_club_balances$"))
+    # application.add_handler(CallbackQueryHandler(balances_history, pattern="^balances_history$"))
     application.add_handler(CallbackQueryHandler(admin_back, pattern="^admin_back$"))
     application.add_handler(CallbackQueryHandler(admin_close, pattern="^admin_close$"))
 

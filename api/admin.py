@@ -182,11 +182,12 @@ class FiftyFiftyInvestmentAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at']
 
 
-@admin.register(ClubBalance)
-class ClubBalanceAdmin(admin.ModelAdmin):
-    list_display = ['user', 'balance', 'last_updated']
-    search_fields = ['user__username']
-    ordering = ['-last_updated']
+# Club Balance feature disabled - not needed, /stats tracks everything automatically
+# @admin.register(ClubBalance)
+# class ClubBalanceAdmin(admin.ModelAdmin):
+#     list_display = ['user', 'balance', 'last_updated']
+#     search_fields = ['user__username']
+#     ordering = ['-last_updated']
 
 
 @admin.register(InventoryTransaction)
