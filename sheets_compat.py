@@ -45,17 +45,33 @@ class SheetsCompatAPI(DjangoAPI):
                 if created_at:
                     # Parse datetime string
                     if isinstance(created_at, str):
-                        # Remove 'Z' and add timezone info
-                        record_date = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                        # Parse the ISO format datetime
+                        if created_at.endswith('Z'):
+                            # UTC time with 'Z' suffix
+                            record_date = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                        elif '+' in created_at or created_at.count('-') > 2:
+                            # Already has timezone info
+                            record_date = datetime.fromisoformat(created_at)
+                        else:
+                            # No timezone info - assume UTC
+                            record_date = datetime.fromisoformat(created_at)
+                            record_date = pytz.UTC.localize(record_date)
                     else:
                         record_date = created_at
                         # Make timezone-aware if needed
                         if record_date.tzinfo is None:
-                            utc = pytz.UTC
-                            record_date = utc.localize(record_date)
+                            record_date = pytz.UTC.localize(record_date)
 
-                    # Filter by date range (compare timezone-aware datetimes)
-                    if record_date >= start_date and record_date <= end_date:
+                    # Ensure we're comparing apples to apples - convert both to UTC
+                    if record_date.tzinfo is None:
+                        record_date = pytz.UTC.localize(record_date)
+
+                    record_date_utc = record_date.astimezone(pytz.UTC)
+                    start_date_utc = start_date.astimezone(pytz.UTC)
+                    end_date_utc = end_date.astimezone(pytz.UTC)
+
+                    # Filter by date range (compare in UTC)
+                    if record_date_utc >= start_date_utc and record_date_utc <= end_date_utc:
                         filtered.append(record)
 
             logger.info(f"Filtered to {len(filtered)} records")
