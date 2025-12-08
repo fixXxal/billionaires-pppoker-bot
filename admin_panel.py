@@ -2860,7 +2860,7 @@ async def admin_exchange_rates(update: Update, context: ContextTypes.DEFAULT_TYP
             for rate in rates:
                 currency_from = rate.get('currency_from', 'N/A')
                 currency_to = rate.get('currency_to', 'N/A')
-                rate_value = rate.get('rate', 0)
+                rate_value = float(rate.get('rate', 0))  # Convert to float for formatting
                 message += f"• {currency_from} → {currency_to}: <b>{rate_value:.2f}</b>\n"
         else:
             message += "No active exchange rates set.\n"
