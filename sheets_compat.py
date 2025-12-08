@@ -663,8 +663,36 @@ class SheetsCompatAPI(DjangoAPI):
             return False
 
     def remove_admin(self, telegram_id: int) -> bool:
-        """Remove admin - placeholder"""
-        return True
+        """Remove admin by telegram_id"""
+        try:
+            # Get all admins and find the one with this telegram_id
+            admins = self.get_all_admins()
+
+            # Handle paginated response
+            if isinstance(admins, dict) and 'results' in admins:
+                admins = admins['results']
+
+            admin_to_remove = None
+            for admin in admins:
+                if str(admin.get('telegram_id')) == str(telegram_id):
+                    admin_to_remove = admin
+                    break
+
+            if not admin_to_remove:
+                logger.warning(f"Admin with telegram_id {telegram_id} not found")
+                return False
+
+            # Remove admin using their database ID
+            admin_id = admin_to_remove.get('id')
+            success = super().remove_admin(admin_id)
+
+            if success:
+                logger.info(f"✅ Removed admin {telegram_id} (DB ID: {admin_id})")
+            return success
+
+        except Exception as e:
+            logger.error(f"Error removing admin {telegram_id}: {e}")
+            return False
 
     # ==================== LEGACY USER CREDIT METHODS ====================
 

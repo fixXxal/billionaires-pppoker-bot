@@ -637,6 +637,15 @@ class DjangoAPI:
         """Get all admins"""
         return self._get('admins/')
 
+    def remove_admin(self, admin_id: int) -> bool:
+        """Remove/delete an admin by their database ID"""
+        try:
+            self._delete(f'admins/{admin_id}/')
+            return True
+        except Exception as e:
+            logger.error(f"Error removing admin {admin_id}: {e}")
+            return False
+
     # ==================== COUNTER STATUS METHODS ====================
 
     def get_counter_status(self) -> Dict:
