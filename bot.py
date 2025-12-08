@@ -3057,12 +3057,16 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
     year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
     # Get data from sheets - ALL PERIODS
+    # For lifetime, use a very old start date (club inception)
+    lifetime_start = datetime(2020, 1, 1, tzinfo=tz)  # Assume club started no earlier than 2020
+
     periods = {
         'TODAY': (today_start, today_end),
         'THIS WEEK': (week_start, today_end),
         'THIS MONTH': (month_start, today_end),
         '6 MONTHS': (six_months_start, today_end),
-        'THIS YEAR': (year_start, today_end)
+        'THIS YEAR': (year_start, today_end),
+        'LIFETIME TOTAL': (lifetime_start, today_end)
     }
 
     # Get exchange rates (for display only)
