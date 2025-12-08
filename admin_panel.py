@@ -265,24 +265,11 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if spin_bot:
             try:
-                # Convert USD/USDT to MVR for spin calculation
-                amount = float(deposit['amount'])
+                # Amount is already stored in MVR (USDT/USD are converted at deposit time)
+                amount_mvr = float(deposit['amount'])
                 method = deposit.get('method', 'BML')
 
-                logger.info(f"🎰 [ADMIN PANEL] SPIN CALCULATION START - User: {user_id}, Amount: {amount}, Method: {method}")
-
-                if method == 'USD':
-                    usd_rate = api.get_exchange_rate('USD', 'MVR') or 15.40
-                    amount_mvr = amount * usd_rate
-                    logger.info(f"💱 [ADMIN PANEL] Converting {amount} USD to {amount_mvr} MVR (rate: {usd_rate})")
-                elif method == 'USDT':
-                    usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.40
-                    amount_mvr = amount * usdt_rate
-                    logger.info(f"💱 [ADMIN PANEL] Converting {amount} USDT to {amount_mvr} MVR (rate: {usdt_rate})")
-                else:
-                    amount_mvr = amount  # Already in MVR
-                    logger.info(f"💰 [ADMIN PANEL] Using amount as MVR: {amount_mvr}")
-
+                logger.info(f"🎰 [ADMIN PANEL] SPIN CALCULATION START - User: {user_id}, Amount: {amount_mvr} MVR, Method: {method}")
                 logger.info(f"🎲 [ADMIN PANEL] Calling add_spins_from_deposit with amount_mvr={amount_mvr}, user={user_id}")
                 spins_added = await spin_bot.add_spins_from_deposit(
                     user_id=user_id,
