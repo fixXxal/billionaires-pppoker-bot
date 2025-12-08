@@ -651,6 +651,14 @@ class SheetsCompatAPI(DjangoAPI):
             logger.error(f"Error getting spins by date: {e}")
             return []
 
+    def get_investments_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+        """Get 50/50 investments by date range"""
+        try:
+            return self.get_all_investments()
+        except Exception as e:
+            logger.error(f"Error getting investments by date: {e}")
+            return []
+
     # ==================== LEGACY ADMIN METHODS ====================
 
     def add_admin(self, telegram_id: int, username: str, name: str = '', added_by: int = None) -> bool:

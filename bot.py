@@ -3081,6 +3081,7 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
         spins = api.get_spins_by_date_range(start, end)
         bonuses = api.get_bonuses_by_date_range(start, end)
         cashback = api.get_cashback_by_date_range(start, end)
+        investments = api.get_investments_by_date_range(start, end)
 
         # Handle paginated responses from Django API
         if isinstance(deposits, dict) and 'results' in deposits:
@@ -3093,10 +3094,30 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
             bonuses = bonuses['results']
         if isinstance(cashback, dict) and 'results' in cashback:
             cashback = cashback['results']
+        if isinstance(investments, dict) and 'results' in investments:
+            investments = investments['results']
+
         # Calculate chip costs (money given to users as chips)
         total_spin_rewards = sum([float(s.get('chips', 0)) for s in spins if s.get('chips')])
         total_bonuses = sum([float(b.get('bonus_amount', 0)) for b in bonuses])
         total_cashback = sum([float(c.get('cashback_amount', 0)) for c in cashback])
+
+        # Calculate 50/50 profit/loss
+        # Completed = profit_share - investment (club got money back)
+        # Lost = -investment (club lost the investment)
+        # Active/Cancelled = ignore for now
+        fiftyfifty_completed = [inv for inv in investments if inv.get('status') == 'Completed']
+        fiftyfifty_lost = [inv for inv in investments if inv.get('status') == 'Lost']
+
+        fiftyfifty_profit = sum([
+            float(inv.get('profit_share', 0)) - float(inv.get('investment_amount', 0))
+            for inv in fiftyfifty_completed
+        ])
+        fiftyfifty_loss = sum([
+            float(inv.get('investment_amount', 0))
+            for inv in fiftyfifty_lost
+        ])
+        fiftyfifty_net = fiftyfifty_profit - fiftyfifty_loss
 
         # All deposits/withdrawals are stored in MVR (USD/USDT are converted at deposit time)
         # So we just sum everything - no need to separate by currency or convert
@@ -3113,7 +3134,8 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
         usdt_withdrawals_mvr = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) == 'USDT'])
 
         # Calculate total profit (everything is already in MVR)
-        total_mvr_profit = total_deposits - (total_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
+        # Profit = Deposits + 50/50 Wins - Withdrawals - Spin Rewards - Bonuses - Cashback - 50/50 Losses
+        total_mvr_profit = total_deposits + fiftyfifty_net - (total_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
 
         report += f"<b>{period_name}</b>\n"
 
@@ -3154,11 +3176,21 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
         if total_costs > 0:
             report += f"<b>💸 Total Costs: {total_costs:,.2f} MVR</b>\n\n"
 
+        # Show 50/50 Investment profit/loss
+        if len(fiftyfifty_completed) > 0 or len(fiftyfifty_lost) > 0:
+            report += f"🎲 <b>50/50 Investments:</b>\n"
+            if len(fiftyfifty_completed) > 0:
+                report += f"  ✅ Completed: {len(fiftyfifty_completed)} (Profit: +{fiftyfifty_profit:,.2f} MVR)\n"
+            if len(fiftyfifty_lost) > 0:
+                report += f"  ❌ Lost: {len(fiftyfifty_lost)} (Loss: -{fiftyfifty_loss:,.2f} MVR)\n"
+            fiftyfifty_emoji = "📈" if fiftyfifty_net > 0 else "📉" if fiftyfifty_net < 0 else "➖"
+            report += f"  {fiftyfifty_emoji} Net 50/50: {fiftyfifty_net:+,.2f} MVR\n\n"
+
         # Show final profit/loss
-        if total_deposits > 0 or total_costs > 0:
+        if total_deposits > 0 or total_costs > 0 or fiftyfifty_net != 0:
             total_emoji = "📈" if total_mvr_profit > 0 else "📉" if total_mvr_profit < 0 else "➖"
             report += f"<b>{total_emoji} Net Profit:</b> {total_mvr_profit:,.2f} MVR\n"
-            report += f"<i>(Deposits - Withdrawals - Rewards - Bonuses - Cashback)</i>\n\n"
+            report += f"<i>(Deposits + 50/50 Wins - Withdrawals - Rewards - Bonuses - Cashback - 50/50 Losses)</i>\n\n"
 
         report += f"━━━━━━━━━━━━━━━━━━\n\n"
 
