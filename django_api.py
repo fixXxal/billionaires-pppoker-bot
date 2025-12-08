@@ -829,6 +829,32 @@ class DjangoAPI:
         """Get all exchange rates"""
         return self._get('exchange-rates/')
 
+    def update_exchange_rate(self, rate_id: int, rate: float) -> Dict:
+        """Update an existing exchange rate"""
+        data = {'rate': rate}
+        return self._patch(f'exchange-rates/{rate_id}/', data)
+
+    def get_exchange_rate_by_currencies(self, currency_from: str, currency_to: str) -> Optional[Dict]:
+        """Get exchange rate by currency pair"""
+        try:
+            all_rates = self.get_all_exchange_rates()
+            for rate_obj in all_rates:
+                if (rate_obj.get('currency_from') == currency_from and
+                    rate_obj.get('currency_to') == currency_to):
+                    return rate_obj
+            return None
+        except Exception as e:
+            logger.error(f"Error getting exchange rate by currencies: {e}")
+            return None
+
+    def set_exchange_rate(self, currency_from: str, currency_to: str, rate: float) -> Dict:
+        """Create or update exchange rate"""
+        existing = self.get_exchange_rate_by_currencies(currency_from, currency_to)
+        if existing:
+            return self.update_exchange_rate(existing['id'], rate)
+        else:
+            return self.create_exchange_rate(currency_from, currency_to, rate)
+
     # ==================== 50-50 INVESTMENT METHODS ====================
 
     def get_active_investments(self) -> List[Dict]:

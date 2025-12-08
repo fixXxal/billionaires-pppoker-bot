@@ -75,6 +75,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎮 Pending Join Requests", callback_data="admin_view_joins")],
         [InlineKeyboardButton("🎁 Promotions", callback_data="admin_view_promotions")],
         [InlineKeyboardButton("🏦 Payment Accounts", callback_data="admin_view_accounts")],
+        [InlineKeyboardButton("💱 Exchange Rates", callback_data="admin_exchange_rates")],
         [InlineKeyboardButton("💎 50/50 Investments", callback_data="admin_investments")],
         [InlineKeyboardButton("🏦 Club Balances", callback_data="admin_club_balances")],
         [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast")],
@@ -2835,6 +2836,127 @@ async def account_edit_holder_received(update: Update, context: ContextTypes.DEF
     return ConversationHandler.END
 
 
+# ==================== EXCHANGE RATE MANAGEMENT ====================
+
+async def admin_exchange_rates(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View and manage exchange rates"""
+    query = update.callback_query
+    await query.answer()
+
+    try:
+        # Get all active exchange rates
+        rates = api.get_active_exchange_rates()
+
+        # Build message showing current rates
+        message = "💱 <b>Exchange Rate Management</b>\n\n"
+        message += "<b>Current Active Rates:</b>\n"
+
+        if rates:
+            for rate in rates:
+                currency_from = rate.get('currency_from', 'N/A')
+                currency_to = rate.get('currency_to', 'N/A')
+                rate_value = rate.get('rate', 0)
+                message += f"• {currency_from} → {currency_to}: <b>{rate_value:.2f}</b>\n"
+        else:
+            message += "No active exchange rates set.\n"
+
+        message += "\n<b>Commands:</b>\n"
+        message += "• /set_usd_rate &lt;rate&gt; - Set USD to MVR\n"
+        message += "  Example: /set_usd_rate 15.42\n\n"
+        message += "• /set_usdt_rate &lt;rate&gt; - Set USDT to MVR\n"
+        message += "  Example: /set_usdt_rate 15.42\n"
+
+        keyboard = [
+            [InlineKeyboardButton("« Back to Admin Panel", callback_data="admin_back")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='HTML')
+
+    except Exception as e:
+        logger.error(f"Error viewing exchange rates: {e}")
+        await query.edit_message_text(
+            f"❌ Error loading exchange rates: {str(e)}",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_back")]])
+        )
+
+
+async def set_usd_rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Set USD to MVR exchange rate"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ You don't have admin access.")
+        return
+
+    try:
+        if not context.args or len(context.args) != 1:
+            await update.message.reply_text(
+                "❌ <b>Invalid format</b>\n\n"
+                "Usage: /set_usd_rate &lt;rate&gt;\n"
+                "Example: /set_usd_rate 15.42",
+                parse_mode='HTML'
+            )
+            return
+
+        rate = float(context.args[0])
+
+        if rate <= 0:
+            await update.message.reply_text("❌ Rate must be greater than 0")
+            return
+
+        # Create or update the exchange rate
+        api.set_exchange_rate('USD', 'MVR', rate)
+        await update.message.reply_text(
+            f"✅ <b>USD Exchange Rate Updated!</b>\n\n"
+            f"<b>USD → MVR:</b> {rate:.2f}\n\n"
+            f"This rate will be used for all USD deposit conversions.",
+            parse_mode='HTML'
+        )
+
+    except ValueError:
+        await update.message.reply_text("❌ Invalid rate value. Please enter a number.")
+    except Exception as e:
+        logger.error(f"Error setting USD rate: {e}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
+
+
+async def set_usdt_rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Set USDT to MVR exchange rate"""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ You don't have admin access.")
+        return
+
+    try:
+        if not context.args or len(context.args) != 1:
+            await update.message.reply_text(
+                "❌ <b>Invalid format</b>\n\n"
+                "Usage: /set_usdt_rate &lt;rate&gt;\n"
+                "Example: /set_usdt_rate 15.42",
+                parse_mode='HTML'
+            )
+            return
+
+        rate = float(context.args[0])
+
+        if rate <= 0:
+            await update.message.reply_text("❌ Rate must be greater than 0")
+            return
+
+        # Create or update the exchange rate
+        api.set_exchange_rate('USDT', 'MVR', rate)
+        await update.message.reply_text(
+            f"✅ <b>USDT Exchange Rate Updated!</b>\n\n"
+            f"<b>USDT → MVR:</b> {rate:.2f}\n\n"
+            f"This rate will be used for all USDT deposit conversions.",
+            parse_mode='HTML'
+        )
+
+    except ValueError:
+        await update.message.reply_text("❌ Invalid rate value. Please enter a number.")
+    except Exception as e:
+        logger.error(f"Error setting USDT rate: {e}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
+
+
 def register_admin_handlers(application, notif_messages=None, spin_bot_instance=None):
     """Register all admin handlers"""
     global notification_messages, spin_bot
@@ -2848,6 +2970,10 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
 
     # Admin panel
     application.add_handler(CommandHandler("admin", admin_panel))
+
+    # Exchange rate commands
+    application.add_handler(CommandHandler("set_usd_rate", set_usd_rate_command))
+    application.add_handler(CommandHandler("set_usdt_rate", set_usdt_rate_command))
 
     # NOTE: Update account commands (/update_bml, /update_mib, /update_usdt) are now
     # handled by conversation handlers in bot.py, not here
@@ -2864,6 +2990,7 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
     application.add_handler(CallbackQueryHandler(promo_deactivate, pattern="^promo_deactivate_"))
     application.add_handler(CallbackQueryHandler(cashback_promo_deactivate, pattern="^cashback_promo_deactivate_"))
     application.add_handler(CallbackQueryHandler(admin_view_accounts, pattern="^admin_view_accounts$"))
+    application.add_handler(CallbackQueryHandler(admin_exchange_rates, pattern="^admin_exchange_rates$"))
     application.add_handler(CallbackQueryHandler(admin_counter_status, pattern="^admin_counter_status$"))
     application.add_handler(CallbackQueryHandler(admin_close_counter, pattern="^admin_close_counter$"))
     application.add_handler(CallbackQueryHandler(admin_open_counter, pattern="^admin_open_counter$"))
