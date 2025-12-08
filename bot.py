@@ -684,6 +684,13 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         # For USDT, use the MVR equivalent amount
         amount = context.user_data.get('deposit_amount', 0)  # This is MVR amount
         account_name = "USDT Deposit"
+    elif method == 'USD':
+        # For USD, convert to MVR
+        usd_amount = extracted_details['amount'] if extracted_details and extracted_details['amount'] else 0
+        usd_rate = api.get_exchange_rate('USD', 'MVR') or 15.42
+        usd_rate = float(usd_rate)
+        amount = usd_amount * usd_rate  # Convert to MVR
+        account_name = extracted_details['sender_name'] if extracted_details and extracted_details['sender_name'] else "Not extracted"
     else:
         amount = extracted_details['amount'] if extracted_details and extracted_details['amount'] else 0
         account_name = extracted_details['sender_name'] if extracted_details and extracted_details['sender_name'] else "Not extracted"
@@ -712,9 +719,13 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         confirmation_msg += f"🔗 TXID: <code>{transaction_ref[:25]}...</code>\n"
         if usdt_rate:
             confirmation_msg += f"💱 Rate: 1 USDT = {float(usdt_rate):.2f} MVR\n"
+    elif method == 'USD':
+        # Show both USD and MVR amounts
+        usd_amount = extracted_details['amount'] if extracted_details and extracted_details['amount'] else 0
+        confirmation_msg += f"💵 {usd_amount} USD (≈{amount:,.2f} MVR)\n"
+        confirmation_msg += f"💱 Rate: 1 USD = {float(usd_rate):.2f} MVR\n"
     else:
-        currency = 'MVR' if method not in ['USD', 'USDT'] else method
-        confirmation_msg += f"💰 {amount} {currency} via {method}\n"
+        confirmation_msg += f"💰 {amount} MVR via {method}\n"
 
     confirmation_msg += f"🎮 ID: {pppoker_id}\n\n"
     confirmation_msg += f"Awaiting admin approval."
@@ -785,7 +796,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     # Combine warnings
     validation_warnings = name_validation_warning + account_validation_warning
 
-    # Currency and USDT display
+    # Currency and USDT/USD display
     if method == 'USDT' and usdt_amount:
         # USDT deposit - show both currencies
         amount_display = f"<b>{usdt_amount} USDT</b> (≈ {verified_amount:,.2f} MVR)"
@@ -793,9 +804,17 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
             amount_display += f"\n💱 Exchange Rate: 1 USDT = {float(usdt_rate):.2f} MVR"
         currency = 'MVR'  # Use MVR for bonus calculations
         ref_number = transaction_ref  # TXID
+    elif method == 'USD':
+        # USD deposit - show both currencies
+        usd_amount = extracted_details['amount'] if extracted_details and extracted_details['amount'] else 0
+        amount_display = f"<b>{usd_amount} USD</b> (≈ {verified_amount:,.2f} MVR)"
+        # Get the USD rate that was used for conversion
+        display_usd_rate = api.get_exchange_rate('USD', 'MVR') or 15.42
+        amount_display += f"\n💱 Exchange Rate: 1 USD = {float(display_usd_rate):.2f} MVR"
+        currency = 'MVR'  # Use MVR for bonus calculations
     else:
-        # Regular MVR/USD deposit
-        currency = 'MVR' if method not in ['USD', 'USDT'] else 'USD'
+        # Regular MVR deposit
+        currency = 'MVR'
         amount_display = f"<b>{currency} {verified_amount:,.2f}</b>"
 
     # Check for active promotion and user eligibility
