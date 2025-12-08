@@ -23,7 +23,10 @@ class SheetsCompatAPI(DjangoAPI):
 
             # Handle case where records is not a list of dicts
             if not records or not isinstance(records, list):
+                logger.info(f"No records to filter (got {type(records)})")
                 return []
+
+            logger.info(f"Filtering {len(records)} records between {start_date} and {end_date}")
 
             # Ensure start_date and end_date are timezone-aware
             if start_date.tzinfo is None:
@@ -55,6 +58,7 @@ class SheetsCompatAPI(DjangoAPI):
                     if record_date >= start_date and record_date <= end_date:
                         filtered.append(record)
 
+            logger.info(f"Filtered to {len(filtered)} records")
             return filtered
         except Exception as e:
             logger.error(f"Error filtering by date: {e}")
