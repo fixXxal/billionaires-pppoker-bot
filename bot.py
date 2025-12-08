@@ -747,8 +747,9 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         ref_number = extracted_details['reference_number']
 
     # Override with extracted values if available and valid
+    # BUT: Don't overwrite for USD/USDT since amount is already converted to MVR
     if extracted_details:
-        if extracted_details['amount'] and extracted_details['amount'] > 0:
+        if extracted_details['amount'] and extracted_details['amount'] > 0 and method not in ['USD', 'USDT']:
             verified_amount = extracted_details['amount']
         # NOTE: Don't overwrite verified_bank with OCR bank!
         # User-selected method is the RECEIVER's bank (where money goes TO)
