@@ -3057,8 +3057,8 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
     year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
     # Get data from sheets - ALL PERIODS
-    # For lifetime, use a very old start date (club inception)
-    lifetime_start = datetime(2020, 1, 1, tzinfo=tz)  # Assume club started no earlier than 2020
+    # For lifetime, start from club inception (December 2025)
+    lifetime_start = datetime(2025, 12, 1, tzinfo=tz)
 
     periods = {
         'TODAY': (today_start, today_end),
