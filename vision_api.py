@@ -308,7 +308,22 @@ def parse_payment_details(text):
                        'REFERENCE', 'AMOUNT', 'STATUS', 'MESSAGE', 'FROM', 'TO',
                        'MALDIVES ISLAMIC BANK', 'BANK OF MALDIVES', 'TRANSACTION DATE',
                        'THANK YOU', 'YOUR REQUEST', 'HAS BEEN', 'SUBMITTED', 'PROCESSING',
-                       'REMARKS', 'SUCCESS', 'TRANSACTION']
+                       'REMARKS', 'SUCCESS', 'TRANSACTION', 'MVR', 'USD', 'USDT']
+
+    # Helper function to check if a string looks like an amount (e.g., "MVR 100.00" or "100.00")
+    def looks_like_amount(text):
+        """Check if text appears to be a currency amount"""
+        text_check = text.upper().strip()
+        # Check for currency keywords
+        if any(curr in text_check for curr in ['MVR', 'USD', 'USDT', 'RF', 'RUFIYAA']):
+            return True
+        # Check if it's just a number with decimal (like "100.00" or "1,234.56")
+        if re.match(r'^[0-9,]+\.\d{2}$', text_check):
+            return True
+        # Check if it starts with a number
+        if re.match(r'^\d', text_check):
+            return True
+        return False
 
     # Pattern 1: "From" field - Enhanced for BML format
     from_patterns = [
@@ -324,6 +339,10 @@ def parse_payment_details(text):
             name = re.sub(r'\s+', ' ', name)
             # Remove trailing account numbers if any
             name = re.sub(r'\s*\d{10,}$', '', name)
+
+            # Skip if it looks like an amount
+            if looks_like_amount(name):
+                continue
 
             # Validate it looks like a name (letters/dots/numbers, not pure text labels)
             # BML names often have dots like AHMD.FIXAL
@@ -351,6 +370,10 @@ def parse_payment_details(text):
             for offset in range(1, min(11, len(lines) - from_index)):
                 potential_name = lines[from_index + offset].strip()
                 potential_name_upper = potential_name.upper()
+
+                # Skip if it looks like an amount
+                if looks_like_amount(potential_name):
+                    continue
 
                 # Check if it looks like a name (has letters, spaces/dots, not pure digits, not too long)
                 if (len(potential_name) >= 3 and
@@ -388,6 +411,10 @@ def parse_payment_details(text):
             # Remove trailing account numbers if any (BML has them on same line)
             name = re.sub(r'\s*\d{10,}$', '', name).strip()
 
+            # Skip if it looks like an amount
+            if looks_like_amount(name):
+                continue
+
             # Skip if it matches the sender name (avoid picking up sender as receiver)
             if details['sender_name'] and name.upper() == details['sender_name'].upper():
                 continue
@@ -421,6 +448,10 @@ def parse_payment_details(text):
 
                 # Skip if this matches the sender name exactly (avoid duplicate when sender name appears after "To")
                 if details['sender_name'] and potential_name.upper() == details['sender_name'].upper():
+                    continue
+
+                # Skip if it looks like an amount
+                if looks_like_amount(potential_name):
                     continue
 
                 # Check if it looks like a name (has letters, spaces/dots, not pure digits, not too long)
