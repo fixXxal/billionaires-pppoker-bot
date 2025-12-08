@@ -2892,7 +2892,7 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
 
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # Get data from sheets - ONLY TODAY and THIS MONTH
+    # Get data from Django - ONLY TODAY and THIS MONTH
     periods = {
         'TODAY': (today_start, today_end),
         'THIS MONTH': (month_start, today_end)
@@ -2908,7 +2908,7 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
     report += f"1 USDT = {float(usdt_rate):.2f} MVR\n\n"
     report += f"━━━━━━━━━━━━━━━━━━\n\n"
 
-    # Store data for saving to Google Sheets
+    # Store data for reporting
     report_data = {}
 
     for period_name, (start, end) in periods.items():
@@ -2917,99 +2917,127 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
         spins = api.get_spins_by_date_range(start, end)
         bonuses = api.get_bonuses_by_date_range(start, end)
         cashback = api.get_cashback_by_date_range(start, end)
+        investments = api.get_investments_by_date_range(start, end)
+        credits = api.get_credits_by_date_range(start, end)
 
-        # Get 50/50 investment stats for this period
-        start_date_str = start.strftime('%Y-%m-%d')
-        end_date_str = end.strftime('%Y-%m-%d')
-        investment_stats = api.get_investment_stats(start_date_str, end_date_str)
+        # Handle paginated responses from Django API
+        if isinstance(deposits, dict) and 'results' in deposits:
+            deposits = deposits['results']
+        if isinstance(withdrawals, dict) and 'results' in withdrawals:
+            withdrawals = withdrawals['results']
+        if isinstance(spins, dict) and 'results' in spins:
+            spins = spins['results']
+        if isinstance(bonuses, dict) and 'results' in bonuses:
+            bonuses = bonuses['results']
+        if isinstance(cashback, dict) and 'results' in cashback:
+            cashback = cashback['results']
+        if isinstance(investments, dict) and 'results' in investments:
+            investments = investments['results']
+        if isinstance(credits, dict) and 'results' in credits:
+            credits = credits['results']
 
         # Calculate chip costs (money given to users as chips)
-        total_spin_rewards = sum([s['amount'] for s in spins])
-        total_bonuses = sum([b['amount'] for b in bonuses])
-        total_cashback = sum([c['amount'] for c in cashback])
+        total_spin_rewards = sum([float(s.get('chips', 0)) for s in spins if s.get('chips')])
+        total_bonuses = sum([float(b.get('bonus_amount', 0)) for b in bonuses])
+        total_cashback = sum([float(c.get('cashback_amount', 0)) for c in cashback])
 
-        # Separate deposits by currency
-        mvr_deposits = sum([d['amount'] for d in deposits if d['method'] in ['BML', 'MIB']])
-        usd_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USD'])
-        usdt_deposits = sum([d['amount'] for d in deposits if d['method'] == 'USDT'])
+        # Calculate 50/50 profit/loss
+        fiftyfifty_completed = [inv for inv in investments if inv.get('status') == 'Completed']
+        fiftyfifty_lost = [inv for inv in investments if inv.get('status') == 'Lost']
 
-        # Separate withdrawals by currency
-        mvr_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] in ['BML', 'MIB']])
-        usd_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USD'])
-        usdt_withdrawals = sum([w['amount'] for w in withdrawals if w['method'] == 'USDT'])
+        fiftyfifty_profit = sum([
+            float(inv.get('profit_share', 0)) - float(inv.get('investment_amount', 0))
+            for inv in fiftyfifty_completed
+        ])
+        fiftyfifty_loss = sum([
+            float(inv.get('investment_amount', 0))
+            for inv in fiftyfifty_lost
+        ])
+        fiftyfifty_net = fiftyfifty_profit - fiftyfifty_loss
 
-        # Calculate 50/50 investment impact
-        investment_net = investment_stats['total_club_share'] - investment_stats['lost_amount']
+        # Calculate outstanding credits (money users owe to club)
+        total_credits = sum([float(c.get('amount', 0)) for c in credits])
+        credits_count = len(credits)
 
-        # Calculate COMPREHENSIVE profits per currency
-        # Real Profit = Deposits - (Withdrawals + Spins + Bonuses + Cashback) + 50/50 Net
-        # Note: Spins, bonuses, cashback are in MVR equivalent
-        mvr_profit = mvr_deposits - (mvr_withdrawals + total_spin_rewards + total_bonuses + total_cashback) + investment_net
-        usd_profit = usd_deposits - usd_withdrawals
-        usdt_profit = usdt_deposits - usdt_withdrawals
+        # All deposits/withdrawals are stored in MVR (USD/USDT are converted at deposit time)
+        total_deposits = sum([float(d.get('amount', 0)) for d in deposits])
+        total_withdrawals = sum([float(w.get('amount', 0)) for w in withdrawals])
 
-        # Calculate MVR equivalents
-        usd_mvr_equiv = usd_profit * usd_rate
-        usdt_mvr_equiv = usdt_profit * usdt_rate
-        total_mvr_profit = mvr_profit + usd_mvr_equiv + usdt_mvr_equiv
+        # Separate by method for display purposes
+        mvr_deposits = sum([float(d.get('amount', 0)) for d in deposits if d.get('method') in ['BML', 'MIB']])
+        usd_deposits_mvr = sum([float(d.get('amount', 0)) for d in deposits if d.get('method') == 'USD'])
+        usdt_deposits_mvr = sum([float(d.get('amount', 0)) for d in deposits if d.get('method') == 'USDT'])
 
-        # Save data for Google Sheets
+        mvr_withdrawals = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) in ['BML', 'MIB']])
+        usd_withdrawals_mvr = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) == 'USD'])
+        usdt_withdrawals_mvr = sum([float(w.get('amount', 0)) for w in withdrawals if w.get('payment_method', w.get('method')) == 'USDT'])
+
+        # Calculate profit for MVR only (for display)
+        mvr_profit = mvr_deposits - mvr_withdrawals - total_spin_rewards - total_bonuses - total_cashback
+
+        # Calculate total profit (everything is already in MVR)
+        total_mvr_profit = total_deposits + fiftyfifty_net - (total_withdrawals + total_spin_rewards + total_bonuses + total_cashback)
+
+        # Create investment stats dictionary for display
+        investment_stats = {
+            'active_count': len([inv for inv in investments if inv.get('status') == 'Active']),
+            'active_amount': sum([float(inv.get('investment_amount', 0)) for inv in investments if inv.get('status') == 'Active']),
+            'completed_count': len(fiftyfifty_completed),
+            'total_club_share': sum([float(inv.get('profit_share', 0)) for inv in fiftyfifty_completed]),
+            'lost_count': len(fiftyfifty_lost),
+            'lost_amount': fiftyfifty_loss
+        }
+        investment_net = fiftyfifty_net
+
+        # Save data for reporting
         prefix = 'today_' if period_name == 'TODAY' else 'month_'
-        report_data[f'{prefix}mvr_deposits'] = mvr_deposits
-        report_data[f'{prefix}mvr_withdrawals'] = mvr_withdrawals
+        report_data[f'{prefix}total_deposits'] = total_deposits
+        report_data[f'{prefix}total_withdrawals'] = total_withdrawals
         report_data[f'{prefix}spin_rewards'] = total_spin_rewards
         report_data[f'{prefix}bonuses'] = total_bonuses
         report_data[f'{prefix}cashback'] = total_cashback
-        report_data[f'{prefix}investment_profit'] = investment_stats['total_club_share']
-        report_data[f'{prefix}investment_loss'] = investment_stats['lost_amount']
-        report_data[f'{prefix}investment_net'] = investment_net
-        report_data[f'{prefix}mvr_profit'] = mvr_profit
-        report_data[f'{prefix}usd_deposits'] = usd_deposits
-        report_data[f'{prefix}usd_withdrawals'] = usd_withdrawals
-        report_data[f'{prefix}usd_profit'] = usd_profit
-        report_data[f'{prefix}usdt_deposits'] = usdt_deposits
-        report_data[f'{prefix}usdt_withdrawals'] = usdt_withdrawals
-        report_data[f'{prefix}usdt_profit'] = usdt_profit
+        report_data[f'{prefix}fiftyfifty_profit'] = fiftyfifty_profit
+        report_data[f'{prefix}fiftyfifty_loss'] = fiftyfifty_loss
+        report_data[f'{prefix}fiftyfifty_net'] = fiftyfifty_net
+        report_data[f'{prefix}credits'] = total_credits
         report_data[f'{prefix}total_profit'] = total_mvr_profit
 
         report += f"<b>{period_name}</b>\n"
 
-        # MVR Section
-        if mvr_deposits > 0 or mvr_withdrawals > 0 or total_spin_rewards > 0 or total_bonuses > 0 or total_cashback > 0:
-            mvr_emoji = "📈" if mvr_profit > 0 else "📉" if mvr_profit < 0 else "➖"
-            report += f"💰 MVR Deposits: {mvr_deposits:,.2f}\n"
-            report += f"💸 MVR Withdrawals: {mvr_withdrawals:,.2f}\n"
+        # Deposits and Withdrawals (all in MVR)
+        if total_deposits > 0 or total_withdrawals > 0:
+            report += f"💰 Total Deposits: {total_deposits:,.2f} MVR\n"
 
-            if total_spin_rewards > 0:
-                report += f"🎰 Spin Rewards: {total_spin_rewards:,.2f}\n"
-            if total_bonuses > 0:
-                report += f"🎁 Bonuses Given: {total_bonuses:,.2f}\n"
-            if total_cashback > 0:
-                report += f"💵 Cashback Given: {total_cashback:,.2f}\n"
+            # Show breakdown if there are multiple methods
+            if mvr_deposits > 0:
+                report += f"   • MVR: {mvr_deposits:,.2f}\n"
+            if usd_deposits_mvr > 0:
+                report += f"   • USD: {usd_deposits_mvr:,.2f} MVR\n"
+            if usdt_deposits_mvr > 0:
+                report += f"   • USDT: {usdt_deposits_mvr:,.2f} MVR\n"
 
-            report += f"{mvr_emoji} <b>MVR Real Profit: {mvr_profit:,.2f}</b>\n"
-            report += f"   (Deposits - Withdrawals - Spins - Bonuses - Cashback)\n\n"
+            report += f"💸 Total Withdrawals: {total_withdrawals:,.2f} MVR\n"
 
-        # USD Section
-        if usd_deposits > 0 or usd_withdrawals > 0:
-            usd_emoji = "📈" if usd_profit > 0 else "📉" if usd_profit < 0 else "➖"
-            report += f"💵 USD Deposits: {usd_deposits:,.2f}\n"
-            report += f"💵 USD Withdrawals: {usd_withdrawals:,.2f}\n"
-            report += f"{usd_emoji} USD Profit: {usd_profit:,.2f}\n"
-            report += f"   ≈ {usd_mvr_equiv:,.2f} MVR\n\n"
+            # Show breakdown if there are multiple methods
+            if mvr_withdrawals > 0:
+                report += f"   • MVR: {mvr_withdrawals:,.2f}\n"
+            if usd_withdrawals_mvr > 0:
+                report += f"   • USD: {usd_withdrawals_mvr:,.2f} MVR\n"
+            if usdt_withdrawals_mvr > 0:
+                report += f"   • USDT: {usdt_withdrawals_mvr:,.2f} MVR\n"
 
-        # USDT Section
-        if usdt_deposits > 0 or usdt_withdrawals > 0:
-            usdt_emoji = "📈" if usdt_profit > 0 else "📉" if usdt_profit < 0 else "➖"
-            report += f"💎 USDT Deposits: {usdt_deposits:,.2f}\n"
-            report += f"💎 USDT Withdrawals: {usdt_withdrawals:,.2f}\n"
-            report += f"{usdt_emoji} USDT Profit: {usdt_profit:,.2f}\n"
-            report += f"   ≈ {usdt_mvr_equiv:,.2f} MVR\n\n"
+        # Costs
+        if total_spin_rewards > 0:
+            report += f"🎰 Spin Rewards: {total_spin_rewards:,.2f} MVR\n"
+        if total_bonuses > 0:
+            report += f"🎁 Bonuses Given: {total_bonuses:,.2f} MVR\n"
+        if total_cashback > 0:
+            report += f"💵 Cashback Given: {total_cashback:,.2f} MVR\n"
 
         # 50/50 Investment Section
         if (investment_stats['completed_count'] > 0 or investment_stats['lost_count'] > 0 or
             investment_stats['active_count'] > 0):
-            report += f"💎 <b>50/50 Investments:</b>\n"
+            report += f"\n💎 <b>50/50 Investments:</b>\n"
 
             if investment_stats['active_count'] > 0:
                 report += f"🔄 Active: {investment_stats['active_count']} ({investment_stats['active_amount']:,.2f} MVR)\n"
@@ -3023,17 +3051,19 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
                 report += f"   Lost Amount: -{investment_stats['lost_amount']:,.2f} MVR\n"
 
             investment_emoji = "📈" if investment_net > 0 else "📉" if investment_net < 0 else "➖"
-            report += f"{investment_emoji} <b>50/50 Net:</b> {investment_net:,.2f} MVR\n\n"
+            report += f"{investment_emoji} <b>50/50 Net:</b> {investment_net:,.2f} MVR\n"
 
-        # Total in MVR
-        if (mvr_deposits > 0 or mvr_withdrawals > 0 or
-            usd_deposits > 0 or usd_withdrawals > 0 or
-            usdt_deposits > 0 or usdt_withdrawals > 0 or
-            investment_stats['completed_count'] > 0 or investment_stats['lost_count'] > 0):
+        # Credits (outstanding amounts users owe)
+        if credits_count > 0:
+            report += f"\n💳 <b>Outstanding Credits:</b> {credits_count} ({total_credits:,.2f} MVR)\n"
+
+        # Total Profit
+        if total_deposits > 0 or total_withdrawals > 0 or investment_stats['completed_count'] > 0 or investment_stats['lost_count'] > 0:
             total_emoji = "📈" if total_mvr_profit > 0 else "📉" if total_mvr_profit < 0 else "➖"
-            report += f"<b>{total_emoji} Total Profit (MVR):</b> {total_mvr_profit:,.2f}\n\n"
+            report += f"\n<b>{total_emoji} Total Profit:</b> {total_mvr_profit:,.2f} MVR\n"
+            report += f"   (Deposits + 50/50 Net - Withdrawals - Spins - Bonuses - Cashback)\n"
 
-        report += f"━━━━━━━━━━━━━━━━━━\n\n"
+        report += f"\n━━━━━━━━━━━━━━━━━━\n\n"
 
     return report, report_data
 
