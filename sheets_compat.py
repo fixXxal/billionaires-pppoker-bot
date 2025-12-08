@@ -152,6 +152,9 @@ class SheetsCompatAPI(DjangoAPI):
         """Get deposits within date range"""
         try:
             all_deposits = self.get_all_deposits()
+            # Handle paginated response
+            if isinstance(all_deposits, dict) and 'results' in all_deposits:
+                all_deposits = all_deposits['results']
             return self._filter_by_date_range(all_deposits, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting deposits by date: {e}")
@@ -208,6 +211,9 @@ class SheetsCompatAPI(DjangoAPI):
         """Get withdrawals within date range"""
         try:
             all_withdrawals = self.get_all_withdrawals()
+            # Handle paginated response
+            if isinstance(all_withdrawals, dict) and 'results' in all_withdrawals:
+                all_withdrawals = all_withdrawals['results']
             return self._filter_by_date_range(all_withdrawals, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting withdrawals by date: {e}")
@@ -354,6 +360,9 @@ class SheetsCompatAPI(DjangoAPI):
         """Get cashback requests by date range"""
         try:
             all_cashback = self.get_all_cashback_requests()
+            # Handle paginated response
+            if isinstance(all_cashback, dict) and 'results' in all_cashback:
+                all_cashback = all_cashback['results']
             return self._filter_by_date_range(all_cashback, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting cashback by date: {e}")
@@ -701,6 +710,9 @@ class SheetsCompatAPI(DjangoAPI):
         """Get spins by date range"""
         try:
             all_spins = self.get_all_spin_history()
+            # Handle paginated response
+            if isinstance(all_spins, dict) and 'results' in all_spins:
+                all_spins = all_spins['results']
             return self._filter_by_date_range(all_spins, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting spins by date: {e}")
@@ -710,6 +722,9 @@ class SheetsCompatAPI(DjangoAPI):
         """Get 50/50 investments by date range"""
         try:
             all_investments = self.get_all_investments()
+            # Handle paginated response
+            if isinstance(all_investments, dict) and 'results' in all_investments:
+                all_investments = all_investments['results']
             return self._filter_by_date_range(all_investments, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting investments by date: {e}")
@@ -719,6 +734,9 @@ class SheetsCompatAPI(DjangoAPI):
         """Get user credits by date range"""
         try:
             all_credits = self.get_all_user_credits()
+            # Handle paginated response
+            if isinstance(all_credits, dict) and 'results' in all_credits:
+                all_credits = all_credits['results']
             return self._filter_by_date_range(all_credits, start_date, end_date)
         except Exception as e:
             logger.error(f"Error getting credits by date: {e}")
