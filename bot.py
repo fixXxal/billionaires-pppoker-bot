@@ -587,7 +587,7 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
         # Show exchange rate for USDT
         usdt_rate = api.get_exchange_rate('USDT', 'MVR')
         if usdt_rate:
-            message += f"💱 <b>Current Rate:</b> 1 USDT = {usdt_rate:.2f} MVR\n\n"
+            message += f"💱 <b>Current Rate:</b> 1 USDT = {float(usdt_rate):.2f} MVR\n\n"
 
         message += f"<b>Wallet Address:</b> <a href='#'>(tap to copy)</a>\n"
         message += f"<code>{account}</code>\n\n"
@@ -601,7 +601,7 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
         # Show exchange rate for USD
         usd_rate = api.get_exchange_rate('USD', 'MVR')
         if usd_rate:
-            message += f"💱 <b>Current Rate:</b> 1 USD = {usd_rate:.2f} MVR\n\n"
+            message += f"💱 <b>Current Rate:</b> 1 USD = {float(usd_rate):.2f} MVR\n\n"
 
         message += f"<b>Account Number:</b> <a href='#'>(tap to copy)</a>\n<code>{account}</code>\n\n"
 
@@ -711,7 +711,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         confirmation_msg += f"💎 {usdt_amount} USDT (≈{amount:,.2f} MVR)\n"
         confirmation_msg += f"🔗 TXID: <code>{transaction_ref[:25]}...</code>\n"
         if usdt_rate:
-            confirmation_msg += f"💱 Rate: 1 USDT = {usdt_rate:.2f} MVR\n"
+            confirmation_msg += f"💱 Rate: 1 USDT = {float(usdt_rate):.2f} MVR\n"
     else:
         currency = 'MVR' if method not in ['USD', 'USDT'] else method
         confirmation_msg += f"💰 {amount} {currency} via {method}\n"
@@ -790,7 +790,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         # USDT deposit - show both currencies
         amount_display = f"<b>{usdt_amount} USDT</b> (≈ {verified_amount:,.2f} MVR)"
         if usdt_rate:
-            amount_display += f"\n💱 Exchange Rate: 1 USDT = {usdt_rate:.2f} MVR"
+            amount_display += f"\n💱 Exchange Rate: 1 USDT = {float(usdt_rate):.2f} MVR"
         currency = 'MVR'  # Use MVR for bonus calculations
         ref_number = transaction_ref  # TXID
     else:
@@ -1120,7 +1120,7 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
 
             # Ask for amount next
             usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.42  # Fallback to standard MVR rate
-            rate_msg = f"\n\n💱 Current Rate: 1 USDT = {usdt_rate:.2f} MVR"
+            rate_msg = f"\n\n💱 Current Rate: 1 USDT = {float(usdt_rate):.2f} MVR"
 
             await update.message.reply_text(
                 f"✅ Transaction ID received!\n{rate_msg}\n\n"
@@ -1173,7 +1173,7 @@ async def deposit_usdt_amount_received(update: Update, context: ContextTypes.DEF
         await update.message.reply_text(
             f"✅ Amount received!\n\n"
             f"💎 {usdt_amount} USDT\n"
-            f"💱 Rate: 1 USDT = {usdt_rate:.2f} MVR\n"
+            f"💱 Rate: 1 USDT = {float(usdt_rate):.2f} MVR\n"
             f"💰 Equivalent: **{mvr_amount:,.2f} MVR**\n\n"
             f"🎮 Please enter your **PPPoker ID**:",
             parse_mode='Markdown'
@@ -1282,11 +1282,11 @@ async def withdrawal_method_selected(update: Update, context: ContextTypes.DEFAU
     if method == 'USD':
         usd_rate = api.get_exchange_rate('USD', 'MVR')
         if usd_rate:
-            message += f"💱 <b>Current Rate:</b> 1 USD = {usd_rate:.2f} MVR\n\n"
+            message += f"💱 <b>Current Rate:</b> 1 USD = {float(usd_rate):.2f} MVR\n\n"
     elif method == 'USDT':
         usdt_rate = api.get_exchange_rate('USDT', 'MVR')
         if usdt_rate:
-            message += f"💱 <b>Current Rate:</b> 1 USDT = {usdt_rate:.2f} MVR\n\n"
+            message += f"💱 <b>Current Rate:</b> 1 USDT = {float(usdt_rate):.2f} MVR\n\n"
 
     message += f"Please enter the amount you want to withdraw (in {'USD' if method in ['USD', 'USDT'] else 'MVR'}):"
 
@@ -2883,8 +2883,8 @@ def generate_daily_stats_report(timezone_str='Indian/Maldives'):
 
     report = "📊 <b>PROFIT/LOSS REPORT</b>\n\n"
     report += f"💱 <b>Current Exchange Rates:</b>\n"
-    report += f"1 USD = {usd_rate:.2f} MVR\n"
-    report += f"1 USDT = {usdt_rate:.2f} MVR\n\n"
+    report += f"1 USD = {float(usd_rate):.2f} MVR\n"
+    report += f"1 USDT = {float(usdt_rate):.2f} MVR\n\n"
     report += f"━━━━━━━━━━━━━━━━━━\n\n"
 
     # Store data for saving to Google Sheets
@@ -3050,8 +3050,8 @@ def generate_stats_report(timezone_str='Indian/Maldives'):
 
     report = "📊 <b>PROFIT/LOSS REPORT</b>\n\n"
     report += f"💱 <b>Current Exchange Rates:</b>\n"
-    report += f"1 USD = {usd_rate:.2f} MVR\n"
-    report += f"1 USDT = {usdt_rate:.2f} MVR\n\n"
+    report += f"1 USD = {float(usd_rate):.2f} MVR\n"
+    report += f"1 USDT = {float(usdt_rate):.2f} MVR\n\n"
     report += f"━━━━━━━━━━━━━━━━━━\n\n"
 
     for period_name, (start, end) in periods.items():
