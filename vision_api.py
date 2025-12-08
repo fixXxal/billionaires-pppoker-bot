@@ -1,21 +1,105 @@
 """
-OCR.space API integration for receipt/slip OCR
+Google Vision API + OCR.space integration for receipt/slip OCR
 Extracts payment details from uploaded images
+Uses Google Vision as primary, OCR.space as fallback
 """
 
 import os
 import re
 import requests
 import base64
+import json
+import tempfile
+from google.cloud import vision
+from google.oauth2 import service_account
 
-# Load OCR.space API key from environment
+# Load API keys from environment
 OCR_API_KEY = os.getenv('OCR_API_KEY', 'K86220364088957')
 OCR_API_URL = 'https://api.ocr.space/parse/image'
 
+# Initialize Google Vision client (cached)
+_vision_client = None
 
-def extract_text_from_image(image_bytes):
+
+def get_vision_client():
     """
-    Extract text from image using OCR.space API
+    Initialize and return Google Vision client
+    Handles credentials from environment variable
+    """
+    global _vision_client
+
+    if _vision_client is not None:
+        return _vision_client
+
+    try:
+        # Check if credentials JSON is in environment variable
+        credentials_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
+
+        if credentials_json:
+            # Parse JSON from environment variable
+            credentials_dict = json.loads(credentials_json)
+
+            # Create credentials object
+            credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+
+            # Initialize client with credentials
+            _vision_client = vision.ImageAnnotatorClient(credentials=credentials)
+            print("✅ Google Vision client initialized from environment variable")
+            return _vision_client
+        else:
+            # Try default credentials (for local development with JSON file)
+            _vision_client = vision.ImageAnnotatorClient()
+            print("✅ Google Vision client initialized from default credentials")
+            return _vision_client
+
+    except Exception as e:
+        print(f"⚠️ Failed to initialize Google Vision client: {e}")
+        return None
+
+
+def extract_text_with_google_vision(image_bytes):
+    """
+    Extract text from image using Google Cloud Vision API
+
+    Args:
+        image_bytes: Image content as bytes
+
+    Returns:
+        str: Extracted text from the image, or None if failed
+    """
+    try:
+        client = get_vision_client()
+
+        if client is None:
+            return None
+
+        # Create image object
+        image = vision.Image(content=image_bytes)
+
+        # Perform text detection
+        response = client.text_detection(image=image)
+
+        # Check for errors
+        if response.error.message:
+            raise Exception(f'Google Vision API Error: {response.error.message}')
+
+        # Extract full text
+        if response.text_annotations:
+            # First annotation contains the full detected text
+            full_text = response.text_annotations[0].description
+            print(f"✅ Google Vision extracted {len(full_text)} characters")
+            return full_text
+
+        return ""
+
+    except Exception as e:
+        print(f"⚠️ Google Vision error: {e}")
+        return None
+
+
+def extract_text_with_ocr_space(image_bytes):
+    """
+    Extract text from image using OCR.space API (fallback)
 
     Args:
         image_bytes: Image content as bytes
@@ -50,12 +134,43 @@ def extract_text_from_image(image_bytes):
         # Extract text from response
         if result.get('ParsedResults'):
             parsed_text = result['ParsedResults'][0].get('ParsedText', '')
+            print(f"✅ OCR.space extracted {len(parsed_text)} characters")
             return parsed_text
 
         return ""
     except Exception as e:
-        print(f"Error extracting text from image: {e}")
+        print(f"⚠️ OCR.space error: {e}")
         return ""
+
+
+def extract_text_from_image(image_bytes):
+    """
+    Extract text from image using Google Vision (primary) with OCR.space fallback
+
+    Args:
+        image_bytes: Image content as bytes
+
+    Returns:
+        str: Extracted text from the image
+    """
+    # Try Google Vision first (better accuracy)
+    print("🔍 Attempting Google Vision OCR...")
+    text = extract_text_with_google_vision(image_bytes)
+
+    if text:
+        print("✅ Using Google Vision result")
+        return text
+
+    # Fall back to OCR.space
+    print("🔄 Falling back to OCR.space...")
+    text = extract_text_with_ocr_space(image_bytes)
+
+    if text:
+        print("✅ Using OCR.space result")
+        return text
+
+    print("❌ Both OCR methods failed")
+    return ""
 
 
 def parse_payment_details(text):
