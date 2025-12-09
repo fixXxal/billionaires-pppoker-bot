@@ -917,10 +917,7 @@ class SheetsCompatAPI(DjangoAPI):
     def get_credit_by_id(self, credit_id: int) -> Dict:
         """Get credit details by ID"""
         try:
-            logger.info(f"Fetching credit with ID: {credit_id}")
-            result = self._get(f'user-credits/{credit_id}/')
-            logger.info(f"Credit {credit_id} found: {result is not None}")
-            return result
+            return self._get(f'user-credits/{credit_id}/')
         except Exception as e:
             logger.error(f"Error getting credit {credit_id}: {e}")
             return None
@@ -928,9 +925,7 @@ class SheetsCompatAPI(DjangoAPI):
     def delete_credit(self, credit_id: int) -> bool:
         """Delete a credit by ID"""
         try:
-            logger.info(f"Deleting credit with ID: {credit_id}")
             self._delete(f'user-credits/{credit_id}/')
-            logger.info(f"Credit {credit_id} deleted successfully")
             return True
         except Exception as e:
             logger.error(f"Error deleting credit {credit_id}: {e}")
