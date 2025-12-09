@@ -6709,28 +6709,33 @@ async def show_seat_account_details(update: Update, context: ContextTypes.DEFAUL
     if account_type in payment_accounts:
         account = payment_accounts[account_type]
         account_number = account.get('account_number', 'N/A')
-        account_name = account.get('account_name', '')
+        account_holder = account.get('account_name', '')
 
-        # Default account names for crypto wallets
-        if not account_name:
-            if account_type == 'USDT':
-                account_name = 'Billionaires USDT Wallet (BEP20)'
-            elif account_type == 'USD':
-                account_name = 'Billionaires USD Account'
-            else:
-                account_name = account_type
+        # Method names
+        method_names = {'BML': 'Bank of Maldives', 'MIB': 'Maldives Islamic Bank', 'USD': 'USD Bank Transfer', 'USDT': 'USDT (BEP20)'}
+        method_name = method_names.get(account_type, account_type)
+
+        # Build message matching deposit format
+        message = f"✅ <b>Seat approved!</b>\n\n"
+        message += f"💰 <b>Pay via {method_name}</b>\n\n"
+
+        # USDT shows "Wallet Address", others show "Account Number"
+        if account_type == 'USDT':
+            message += f"<b>Wallet Address:</b> <a href='#'>(tap to copy)</a>\n"
+            message += f"<code>{account_number}</code>\n\n"
+        else:
+            message += f"<b>Account Number:</b> <a href='#'>(tap to copy)</a>\n"
+            message += f"<code>{account_number}</code>\n\n"
+
+            # Show account holder for bank accounts
+            if account_holder and account_holder.strip():
+                message += f"<b>Account Holder:</b>\n{account_holder}\n\n"
+
+        message += f"━━━━━━━━━━━━━━━━━━\n\n"
+        message += f"📸 Please send your payment slip photo showing the transfer to this account."
 
         # Show account details
-        await query.edit_message_text(
-            f"✅ <b>Seat approved!</b>\n\n"
-            f"💳 <b>{account_type} Account Details:</b>\n\n"
-            f"<b>Account Number:</b>\n<code>{account_number}</code>\n"
-            f"<i>(tap to copy)</i>\n\n"
-            f"<b>Account Name:</b>\n{account_name}\n\n"
-            f"━━━━━━━━━━━━━━━━━━\n\n"
-            f"📸 Please send your payment slip photo showing the transfer to this account.",
-            parse_mode='HTML'
-        )
+        await query.edit_message_text(message, parse_mode='HTML')
     else:
         await query.answer("❌ Account not found", show_alert=True)
 
