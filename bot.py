@@ -824,36 +824,29 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     active_promotion = api.get_active_promotion()
 
     if active_promotion and verified_amount > 0:
-        # Check if user is eligible (first deposit during promotion period)
+        # Calculate bonus for every deposit during promotion period
         # Use 'id' and 'percentage' fields from PromoCode serializer
         promo_id = active_promotion.get('id')
         promo_percentage = active_promotion.get('percentage', 0)
 
-        is_eligible = api.check_user_promotion_eligibility(
-            user.id,
-            pppoker_id,
-            promo_id
-        )
+        # Calculate bonus - users get bonus on EVERY deposit
+        promotion_bonus = verified_amount * (float(promo_percentage) / 100)
+        total_with_bonus = verified_amount + promotion_bonus
 
-        if is_eligible:
-            # Calculate bonus
-            promotion_bonus = verified_amount * (float(promo_percentage) / 100)
-            total_with_bonus = verified_amount + promotion_bonus
+        promotion_info = f"\n\n🎁 <b>PROMOTION BONUS</b>\n" \
+                       f"Bonus: {promo_percentage}% = <b>{currency} {promotion_bonus:,.2f}</b>\n" \
+                       f"Total with bonus: <b>{currency} {total_with_bonus:,.2f}</b>\n" \
+                       f"<i>Bonus applied on this deposit</i>"
 
-            promotion_info = f"\n\n🎁 <b>PROMOTION BONUS</b>\n" \
-                           f"Bonus: {promo_percentage}% = <b>{currency} {promotion_bonus:,.2f}</b>\n" \
-                           f"Total with bonus: <b>{currency} {total_with_bonus:,.2f}</b>\n" \
-                           f"<i>User's first deposit during promotion period</i>"
-
-            # Store promotion info in context for approval handler
-            context.bot_data[f'promo_{request_id}'] = {
-                'promotion_id': promo_id,
-                'bonus_amount': promotion_bonus,
-                'deposit_amount': verified_amount,
-                'pppoker_id': pppoker_id,
-                'user_id': user.id,
-                'currency': currency
-            }
+        # Store promotion info in context for approval handler
+        context.bot_data[f'promo_{request_id}'] = {
+            'promotion_id': promo_id,
+            'bonus_amount': promotion_bonus,
+            'deposit_amount': verified_amount,
+            'pppoker_id': pppoker_id,
+            'user_id': user.id,
+            'currency': currency
+        }
 
     # Build clean, organized notification
     if method == 'USDT':
@@ -1755,14 +1748,6 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         min_required = eligibility['min_required']
         deposits_exceed_withdrawals = eligibility['deposits_exceed_withdrawals']
         already_claimed = eligibility.get('already_claimed', False)
-
-        # Check if already claimed
-        if already_claimed:
-            message = f"❌ <b>Already Claimed</b>\n\n"
-            message += f"You have already received cashback from this promotion.\n\n"
-            message += f"💡 <i>You can only claim cashback once per promotion period.</i>"
-            await update.message.reply_text(message, parse_mode='HTML')
-            return ConversationHandler.END
 
         # Check if user is in profit (considering all chip sources)
         if not deposits_exceed_withdrawals:

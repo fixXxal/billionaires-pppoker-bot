@@ -859,13 +859,13 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
         club_profit = baseline - total_deposits
         user_loss = total_deposits - baseline
 
-        # Check eligibility
+        # Check eligibility - users can claim multiple times as long as they meet requirements
         eligible = (
             deposits_exceed_withdrawals and  # User must be at a loss
             effective_new_deposits >= min_deposit  # Must meet minimum new deposit requirement
         )
 
-        # Check if already claimed from this promotion
+        # Check if already claimed from this promotion (for info only, doesn't block eligibility)
         already_claimed = False
         if promotion_id:
             already_claimed = CashbackEligibility.objects.filter(
@@ -874,7 +874,7 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
             ).exists()
 
         return Response({
-            'eligible': eligible and not already_claimed,
+            'eligible': eligible,  # Allow unlimited claims as long as requirements are met
             'current_deposits': float(total_deposits),
             'current_withdrawals': float(total_withdrawals),
             'total_spin_rewards': float(total_spin_rewards),
