@@ -6709,7 +6709,16 @@ async def show_seat_account_details(update: Update, context: ContextTypes.DEFAUL
     if account_type in payment_accounts:
         account = payment_accounts[account_type]
         account_number = account.get('account_number', 'N/A')
-        account_name = account.get('account_name', account_type)
+        account_name = account.get('account_name', '')
+
+        # Default account names for crypto wallets
+        if not account_name:
+            if account_type == 'USDT':
+                account_name = 'Billionaires USDT Wallet (BEP20)'
+            elif account_type == 'USD':
+                account_name = 'Billionaires USD Account'
+            else:
+                account_name = account_type
 
         # Show account details
         await query.edit_message_text(
