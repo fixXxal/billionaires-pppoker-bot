@@ -1756,6 +1756,14 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         deposits_exceed_withdrawals = eligibility['deposits_exceed_withdrawals']
         already_claimed = eligibility.get('already_claimed', False)
 
+        # Check if already claimed
+        if already_claimed:
+            message = f"❌ <b>Already Claimed</b>\n\n"
+            message += f"You have already received cashback from this promotion.\n\n"
+            message += f"💡 <i>You can only claim cashback once per promotion period.</i>"
+            await update.message.reply_text(message, parse_mode='HTML')
+            return ConversationHandler.END
+
         # Check if user is in profit (considering all chip sources)
         if not deposits_exceed_withdrawals:
             message = f"❌ <b>Not Eligible for Cashback</b>\n\n"
@@ -1781,7 +1789,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message = f"❌ <b>Insufficient New Deposits</b>\n\n"
         message += f"New deposits required: <b>{min_required:.2f} MVR</b>\n"
         message += f"Your new deposits: <b>{effective_new_deposits:.2f} MVR</b>\n"
-        message += f"Deposit <b>{needed:.2f} MVR</b> more to qualify.\n\n"
+        message += f"Deposit <b>{abs(needed):.2f} MVR</b> more to qualify.\n\n"
         message += f"💡 <i>Minimum {min_required:.2f} MVR in new deposits required.</i>"
 
         await update.message.reply_text(message, parse_mode='HTML')
