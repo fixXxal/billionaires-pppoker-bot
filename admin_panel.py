@@ -1074,7 +1074,7 @@ async def cashback_admin_reject(update: Update, context: ContextTypes.DEFAULT_TY
 
 # ========== CREDITS VIEW ==========
 async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """View all active credits (users who owe money)"""
+    """View all active credits with clear buttons"""
     # Handle both callback query and text message
     if update.callback_query:
         query = update.callback_query
@@ -1086,18 +1086,17 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     try:
         # Get all active credits
-        active_credits = api.get_all_active_credits()
+        credits = api.get_all_active_credits()
 
         # Handle paginated response
-        if isinstance(active_credits, dict) and 'results' in active_credits:
-            active_credits = active_credits['results']
+        if isinstance(credits, dict) and 'results' in credits:
+            credits = credits['results']
 
-        if not active_credits:
+        if not credits:
             await edit_func(
                 "✅ <b>No Active Credits</b>\n\n"
                 "━━━━━━━━━━━━━━━━━━\n\n"
-                "All users have paid their debts!\n\n"
-                "No outstanding balances.",
+                "All users have settled their seat requests.",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("« Back", callback_data="admin_back")
                 ]]),
@@ -1106,50 +1105,58 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
 
         # Calculate totals
-        total_credits = len(active_credits)
-        total_amount = sum(float(credit.get('amount', 0)) for credit in active_credits)
+        total_amount = sum(float(credit.get('amount', 0)) for credit in credits)
 
-        # Build message
         message = f"💳 <b>ACTIVE CREDITS</b>\n\n"
-        message += f"━━━━━━━━━━━━━━━━━━\n\n"
-        message += f"👥 <b>Total Users:</b> {total_credits}\n"
-        message += f"💰 <b>Total Owed:</b> {total_amount:,.2f} MVR\n\n"
-        message += f"━━━━━━━━━━━━━━━━━━\n\n"
+        message += f"<i>Total: {len(credits)} user(s) - {total_amount:,.2f} MVR</i>\n\n"
 
-        # List each credit
-        for i, credit in enumerate(active_credits[:10], 1):  # Show max 10
+        # Create inline buttons for each user
+        keyboard = []
+
+        for credit in credits:
+            # Extract user details
             user_details = credit.get('user_details', {})
-            username = user_details.get('username', credit.get('username', 'Unknown'))
-            username_display = f"@{username}" if username and username != 'Unknown' else "No username"
+            username = user_details.get('username', credit.get('username'))
+            pppoker_id = user_details.get('pppoker_id', 'N/A')
+            telegram_id = user_details.get('telegram_id') or credit.get('user_id')
 
-            # Get PPPoker ID and Telegram ID from user_details
-            pppoker_id = user_details.get('pppoker_id') or credit.get('pppoker_id', 'N/A')
-            telegram_id = user_details.get('telegram_id', 'N/A')
-            created_at = credit.get('created_at', 'N/A')
+            user_display = f"User {telegram_id}"
+            if username:
+                user_display = f"@{username}"
 
-            # Format date
-            if created_at != 'N/A' and isinstance(created_at, str):
-                from datetime import datetime
+            message += "━━━━━━━━━━━━━━━━━━\n"
+            message += f"<b>User:</b> {user_display}\n"
+            message += f"<b>Telegram ID:</b> <code>{telegram_id}</code>\n"
+            # Only wrap in <code> if pppoker_id has a value
+            pppoker_display = f"<code>{pppoker_id}</code>" if pppoker_id and pppoker_id != 'N/A' else pppoker_id or 'N/A'
+            message += f"<b>PPPoker ID:</b> {pppoker_display}\n"
+            message += f"<b>Credit Amount:</b> <b>{float(credit['amount']):,.2f} MVR</b>\n"
+
+            # Extract request ID from description
+            request_id = 'N/A'
+            description = credit.get('description', '')
+            if 'Seat request' in description:
                 try:
-                    dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                    created_at = dt.strftime('%Y-%m-%d')
+                    request_id = description.split('Seat request ')[1].split(' ')[0]
                 except:
-                    pass
+                    request_id = 'N/A'
 
-            message += f"<b>{i}. {username_display}</b>\n"
-            message += f"   💰 Owes: <b>{float(credit.get('amount', 0)):,.2f} MVR</b>\n"
-            message += f"   🎮 PPPoker ID: {pppoker_id}\n"
-            message += f"   👤 Telegram ID: <code>{telegram_id}</code>\n"
-            message += f"   📅 Since: {created_at}\n\n"
+            message += f"<b>Request ID:</b> {request_id}\n"
+            message += f"<b>Created:</b> {credit.get('created_at', 'N/A')}\n"
+            message += f"<b>Reminders Sent:</b> {credit.get('reminder_count', 0)}\n\n"
 
-        if len(active_credits) > 10:
-            message += f"<i>... and {len(active_credits) - 10} more</i>\n\n"
+            # Add clear button for this user
+            button_text = f"✅ Clear Credit - {user_display} ({float(credit['amount']):,.2f} MVR)"
+            keyboard.append([InlineKeyboardButton(
+                button_text,
+                callback_data=f"clear_credit_{telegram_id}"
+            )])
 
-        message += f"━━━━━━━━━━━━━━━━━━\n\n"
-        message += f"💡 <i>Credits are unpaid debts from users</i>"
+        message += "━━━━━━━━━━━━━━━━━━\n\n"
+        message += "📝 <i>Click a button below to clear a user's credit after they've settled payment.</i>"
 
         # Add back button
-        keyboard = [[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]]
+        keyboard.append([InlineKeyboardButton("« Back to Panel", callback_data="admin_back")])
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await edit_func(
