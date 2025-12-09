@@ -1131,9 +1131,6 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
             amount = float(credit.get('amount', 0))
             created_at = credit.get('created_at', 'N/A')
 
-            # Debug log
-            logger.info(f"📊 Credit #{i}: id={credit_id}, user={username_display}, amount={amount}")
-
             # Format date
             if created_at != 'N/A' and isinstance(created_at, str):
                 from datetime import datetime
@@ -1191,22 +1188,19 @@ async def admin_clear_credit(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         # Extract credit ID from callback data
         credit_id = query.data.replace('clear_credit_', '')
-        logger.info(f"🔍 Clearing credit - callback_data: {query.data}, extracted credit_id: {credit_id}")
 
         # Delete the credit directly
         success = api.delete_credit(credit_id)
 
         if success:
-            logger.info(f"✅ Credit {credit_id} deleted successfully")
             await query.answer("✅ Credit cleared successfully!", show_alert=True)
             # Refresh the credits view
             await admin_view_credits(update, context)
         else:
-            logger.error(f"❌ Failed to delete credit {credit_id}")
             await query.answer("❌ Failed to clear credit. Please try again.", show_alert=True)
 
     except Exception as e:
-        logger.error(f"❌ Error clearing credit: {e}")
+        logger.error(f"Error clearing credit: {e}")
         await query.answer(f"❌ Error clearing credit", show_alert=True)
 
 
