@@ -917,10 +917,14 @@ class SheetsCompatAPI(DjangoAPI):
     def delete_credit(self, credit_id: int) -> bool:
         """Delete a credit by ID"""
         try:
-            self._delete(f'user-credits/{credit_id}/')
+            logger.info(f"🗑️ Attempting to delete credit ID: {credit_id} (type: {type(credit_id)})")
+            endpoint = f'user-credits/{credit_id}/'
+            logger.info(f"🌐 DELETE endpoint: {endpoint}")
+            self._delete(endpoint)
+            logger.info(f"✅ Successfully deleted credit {credit_id}")
             return True
         except Exception as e:
-            logger.error(f"Error deleting credit {credit_id}: {e}")
+            logger.error(f"❌ Error deleting credit {credit_id}: {type(e).__name__}: {e}")
             return False
 
     # ==================== LEGACY EXCHANGE RATE METHODS ====================
