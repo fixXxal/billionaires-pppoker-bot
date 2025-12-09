@@ -1183,56 +1183,25 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def admin_clear_credit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle clear credit button click"""
     query = update.callback_query
-    await query.answer()
+    await query.answer("Clearing credit...", show_alert=False)
 
     try:
         # Extract credit ID from callback data
         credit_id = query.data.replace('clear_credit_', '')
 
-        # Check if credit_id is valid
-        if credit_id == 'N/A' or not credit_id:
-            logger.error(f"Invalid credit ID: {credit_id}")
-            await query.answer("❌ Invalid credit ID", show_alert=True)
-            return
-
-        logger.info(f"Attempting to clear credit ID: {credit_id}")
-
-        # Get credit details before deleting
-        credit = api.get_credit_by_id(credit_id)
-
-        if not credit:
-            logger.error(f"Credit {credit_id} not found in database")
-            await query.answer(
-                "❌ Credit not found\n\n"
-                "This credit may have already been cleared.",
-                show_alert=True
-            )
-            return
-
-        # Get user info for confirmation
-        user_details = credit.get('user_details', {})
-        username = user_details.get('username', 'Unknown')
-        username_display = f"@{username}" if username != 'Unknown' else "No username"
-        amount = float(credit.get('amount', 0))
-
-        logger.info(f"Clearing credit {credit_id} for {username_display} ({amount} MVR)")
-
-        # Delete the credit
+        # Delete the credit directly
         success = api.delete_credit(credit_id)
 
         if success:
-            logger.info(f"✅ Successfully cleared credit {credit_id}")
-            await query.answer(f"✅ Credit cleared for {username_display}!", show_alert=True)
-
+            await query.answer("✅ Credit cleared successfully!", show_alert=True)
             # Refresh the credits view
             await admin_view_credits(update, context)
         else:
-            logger.error(f"Failed to delete credit {credit_id}")
-            await query.answer("❌ Failed to clear credit", show_alert=True)
+            await query.answer("❌ Failed to clear credit. Please try again.", show_alert=True)
 
     except Exception as e:
         logger.error(f"Error clearing credit: {e}")
-        await query.answer(f"❌ Error: {str(e)}", show_alert=True)
+        await query.answer(f"❌ Error clearing credit", show_alert=True)
 
 
 # Join requests
