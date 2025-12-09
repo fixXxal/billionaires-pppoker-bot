@@ -1186,12 +1186,14 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def admin_clear_credit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle clear credit button click"""
     query = update.callback_query
-    await query.answer("Clearing credit...", show_alert=False)
 
     try:
         # Extract credit ID from callback data
         credit_id = query.data.replace('clear_credit_', '')
         logger.info(f"🔍 Clearing credit - callback_data: {query.data}, extracted credit_id: {credit_id}")
+
+        # Show alert with credit ID for debugging
+        await query.answer(f"Clearing credit ID: {credit_id}...", show_alert=True)
 
         # Delete the credit directly
         success = api.delete_credit(credit_id)
