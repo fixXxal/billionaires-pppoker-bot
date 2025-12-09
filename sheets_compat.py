@@ -914,6 +914,23 @@ class SheetsCompatAPI(DjangoAPI):
         """Get daily credit summary - placeholder"""
         return {'total': 0, 'count': 0}
 
+    def get_credit_by_id(self, credit_id: int) -> Dict:
+        """Get credit details by ID"""
+        try:
+            return self._get(f'user-credits/{credit_id}/')
+        except Exception as e:
+            logger.error(f"Error getting credit {credit_id}: {e}")
+            return None
+
+    def delete_credit(self, credit_id: int) -> bool:
+        """Delete a credit by ID"""
+        try:
+            self._delete(f'user-credits/{credit_id}/')
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting credit {credit_id}: {e}")
+            return False
+
     # ==================== LEGACY EXCHANGE RATE METHODS ====================
 
     def get_exchange_rate(self, currency_from: str, currency_to: str) -> Optional[float]:

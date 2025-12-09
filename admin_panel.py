@@ -1116,7 +1116,9 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
         message += f"💰 <b>Total Owed:</b> {total_amount:,.2f} MVR\n\n"
         message += f"━━━━━━━━━━━━━━━━━━\n\n"
 
-        # List each credit
+        # List each credit with clear buttons
+        keyboard = []
+
         for i, credit in enumerate(active_credits[:10], 1):  # Show max 10
             user_details = credit.get('user_details', {})
             username = user_details.get('username', credit.get('username', 'Unknown'))
@@ -1125,6 +1127,8 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
             # Get PPPoker ID from user_details
             pppoker_id = user_details.get('pppoker_id') or credit.get('pppoker_id', 'N/A')
             user_id = credit.get('user') or credit.get('user_id', 'N/A')
+            credit_id = credit.get('id', 'N/A')
+            amount = float(credit.get('amount', 0))
             created_at = credit.get('created_at', 'N/A')
 
             # Format date
@@ -1137,10 +1141,16 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     pass
 
             message += f"<b>{i}. {username_display}</b>\n"
-            message += f"   💰 Owes: <b>{float(credit.get('amount', 0)):,.2f} MVR</b>\n"
+            message += f"   💰 Owes: <b>{amount:,.2f} MVR</b>\n"
             message += f"   🎮 PPPoker ID: {pppoker_id}\n"
             message += f"   👤 User ID: <code>{user_id}</code>\n"
             message += f"   📅 Since: {created_at}\n\n"
+
+            # Add clear button for this credit
+            keyboard.append([InlineKeyboardButton(
+                f"✅ Clear Credit - {username_display} ({amount:,.2f} MVR)",
+                callback_data=f"clear_credit_{credit_id}"
+            )])
 
         if len(active_credits) > 10:
             message += f"<i>... and {len(active_credits) - 10} more</i>\n\n"
@@ -1149,7 +1159,7 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
         message += f"💡 <i>Credits are unpaid debts from users</i>"
 
         # Add back button
-        keyboard = [[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]]
+        keyboard.append([InlineKeyboardButton("« Back to Panel", callback_data="admin_back")])
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await edit_func(
@@ -1168,6 +1178,44 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
             ]]),
             parse_mode='HTML'
         )
+
+
+async def admin_clear_credit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle clear credit button click"""
+    query = update.callback_query
+    await query.answer()
+
+    try:
+        # Extract credit ID from callback data
+        credit_id = query.data.replace('clear_credit_', '')
+
+        # Get credit details before deleting
+        credit = api.get_credit_by_id(credit_id)
+
+        if not credit:
+            await query.answer("❌ Credit not found", show_alert=True)
+            return
+
+        # Get user info for confirmation
+        user_details = credit.get('user_details', {})
+        username = user_details.get('username', 'Unknown')
+        username_display = f"@{username}" if username != 'Unknown' else "No username"
+        amount = float(credit.get('amount', 0))
+
+        # Delete the credit
+        success = api.delete_credit(credit_id)
+
+        if success:
+            await query.answer(f"✅ Credit cleared for {username_display}!", show_alert=True)
+
+            # Refresh the credits view
+            await admin_view_credits(update, context)
+        else:
+            await query.answer("❌ Failed to clear credit", show_alert=True)
+
+    except Exception as e:
+        logger.error(f"Error clearing credit: {e}")
+        await query.answer(f"❌ Error: {str(e)}", show_alert=True)
 
 
 # Join requests
@@ -2996,6 +3044,7 @@ def register_admin_handlers(application, notif_messages=None, spin_bot_instance=
     application.add_handler(CallbackQueryHandler(admin_view_withdrawals, pattern="^admin_view_withdrawals$"))
     application.add_handler(CallbackQueryHandler(admin_view_cashback, pattern="^admin_view_cashback$"))
     application.add_handler(CallbackQueryHandler(admin_view_credits, pattern="^admin_view_credits$"))
+    application.add_handler(CallbackQueryHandler(admin_clear_credit, pattern="^clear_credit_"))
     application.add_handler(CallbackQueryHandler(admin_view_joins, pattern="^admin_view_joins$"))
     application.add_handler(CallbackQueryHandler(admin_view_promotions, pattern="^admin_view_promotions$"))
     application.add_handler(CallbackQueryHandler(admin_view_all_promotions, pattern="^promo_view_all$"))
