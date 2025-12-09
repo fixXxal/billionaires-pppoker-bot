@@ -1122,9 +1122,9 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
             username = user_details.get('username', credit.get('username', 'Unknown'))
             username_display = f"@{username}" if username and username != 'Unknown' else "No username"
 
-            # Get PPPoker ID from user_details
+            # Get PPPoker ID and Telegram ID from user_details
             pppoker_id = user_details.get('pppoker_id') or credit.get('pppoker_id', 'N/A')
-            user_id = credit.get('user') or credit.get('user_id', 'N/A')
+            telegram_id = user_details.get('telegram_id', 'N/A')
             created_at = credit.get('created_at', 'N/A')
 
             # Format date
@@ -1139,7 +1139,7 @@ async def admin_view_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
             message += f"<b>{i}. {username_display}</b>\n"
             message += f"   💰 Owes: <b>{float(credit.get('amount', 0)):,.2f} MVR</b>\n"
             message += f"   🎮 PPPoker ID: {pppoker_id}\n"
-            message += f"   👤 User ID: <code>{user_id}</code>\n"
+            message += f"   👤 Telegram ID: <code>{telegram_id}</code>\n"
             message += f"   📅 Since: {created_at}\n\n"
 
         if len(active_credits) > 10:
