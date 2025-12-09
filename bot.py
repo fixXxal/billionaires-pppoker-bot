@@ -6717,13 +6717,22 @@ async def show_seat_account_details(update: Update, context: ContextTypes.DEFAUL
 
         # Build message matching deposit format
         message = f"✅ <b>Seat approved!</b>\n\n"
-        message += f"💰 <b>Pay via {method_name}</b>\n\n"
 
-        # USDT shows "Wallet Address", others show "Account Number"
+        # USDT shows exchange rate and TXID request
         if account_type == 'USDT':
+            message += f"💰 <b>Pay via {method_name}</b>\n\n"
+
+            # Show exchange rate for USDT
+            usdt_rate = api.get_exchange_rate('USDT', 'MVR')
+            if usdt_rate:
+                message += f"💱 <b>Current Rate:</b> 1 USDT = {float(usdt_rate):.2f} MVR\n\n"
+
             message += f"<b>Wallet Address:</b> <a href='#'>(tap to copy)</a>\n"
             message += f"<code>{account_number}</code>\n\n"
+            message += f"📝 Please send your <b>Transaction ID (TXID)</b> from the blockchain:"
         else:
+            # Bank accounts show account number and holder
+            message += f"💰 <b>Pay via {method_name}</b>\n\n"
             message += f"<b>Account Number:</b> <a href='#'>(tap to copy)</a>\n"
             message += f"<code>{account_number}</code>\n\n"
 
@@ -6731,8 +6740,8 @@ async def show_seat_account_details(update: Update, context: ContextTypes.DEFAUL
             if account_holder and account_holder.strip():
                 message += f"<b>Account Holder:</b>\n{account_holder}\n\n"
 
-        message += f"━━━━━━━━━━━━━━━━━━\n\n"
-        message += f"📸 Please send your payment slip photo showing the transfer to this account."
+            message += f"━━━━━━━━━━━━━━━━━━\n\n"
+            message += f"📸 Please send your payment slip photo showing the transfer to this account."
 
         # Show account details
         await query.edit_message_text(message, parse_mode='HTML')
