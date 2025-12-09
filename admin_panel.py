@@ -1189,11 +1189,24 @@ async def admin_clear_credit(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Extract credit ID from callback data
         credit_id = query.data.replace('clear_credit_', '')
 
+        # Check if credit_id is valid
+        if credit_id == 'N/A' or not credit_id:
+            logger.error(f"Invalid credit ID: {credit_id}")
+            await query.answer("❌ Invalid credit ID", show_alert=True)
+            return
+
+        logger.info(f"Attempting to clear credit ID: {credit_id}")
+
         # Get credit details before deleting
         credit = api.get_credit_by_id(credit_id)
 
         if not credit:
-            await query.answer("❌ Credit not found", show_alert=True)
+            logger.error(f"Credit {credit_id} not found in database")
+            await query.answer(
+                "❌ Credit not found\n\n"
+                "This credit may have already been cleared.",
+                show_alert=True
+            )
             return
 
         # Get user info for confirmation
@@ -1202,15 +1215,19 @@ async def admin_clear_credit(update: Update, context: ContextTypes.DEFAULT_TYPE)
         username_display = f"@{username}" if username != 'Unknown' else "No username"
         amount = float(credit.get('amount', 0))
 
+        logger.info(f"Clearing credit {credit_id} for {username_display} ({amount} MVR)")
+
         # Delete the credit
         success = api.delete_credit(credit_id)
 
         if success:
+            logger.info(f"✅ Successfully cleared credit {credit_id}")
             await query.answer(f"✅ Credit cleared for {username_display}!", show_alert=True)
 
             # Refresh the credits view
             await admin_view_credits(update, context)
         else:
+            logger.error(f"Failed to delete credit {credit_id}")
             await query.answer("❌ Failed to clear credit", show_alert=True)
 
     except Exception as e:
