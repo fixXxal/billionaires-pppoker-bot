@@ -1680,6 +1680,7 @@ def broadcast_message(request):
     import requests
     import os
     import json
+    import time
 
     # Get message from request
     message = request.data.get('message')
@@ -1739,8 +1740,13 @@ def broadcast_message(request):
             else:
                 failed_count += 1
 
+            # Rate limiting: 50ms delay = ~20 messages/second (safe for Telegram 30 msg/sec limit)
+            time.sleep(0.05)
+
         except Exception as e:
             failed_count += 1
+            # Also delay on error to avoid hammering the API
+            time.sleep(0.05)
             continue
 
     return Response({
