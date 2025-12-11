@@ -4090,7 +4090,116 @@ async def update_account_holder_received(update: Update, context: ContextTypes.D
     return ConversationHandler.END
 
 
-# Admin Broadcast System
+# ==================== SAFE BROADCAST HELPER ====================
+# Following Telegram Bot FAQ official guidelines: https://core.telegram.org/bots/faq
+
+async def safe_broadcast(context: ContextTypes.DEFAULT_TYPE, user_ids: list,
+                        message_type: str, content: dict) -> dict:
+    """
+    Safely broadcast messages to users following Telegram FAQ guidelines
+
+    Args:
+        context: Telegram bot context
+        user_ids: List of telegram user IDs
+        message_type: 'text' or 'photo'
+        content: Dict with message content:
+            - For text: {'text': str, 'parse_mode': str}
+            - For photo: {'photo': str, 'caption': str, 'parse_mode': str}
+
+    Returns:
+        Dict with results: {'success': int, 'blocked': int, 'failed': int}
+
+    Rate limits per Telegram FAQ:
+    - Free tier: ~30 messages/second max
+    - Uses 25 msg/sec for safety margin
+    - Batch pause every 1000 messages to avoid spam detection
+    - Proper FloodWait (429) and Forbidden error handling
+    """
+    success_count = 0
+    failed_count = 0
+    blocked_count = 0
+
+    # Telegram FAQ: ~30 msg/sec allowed, we use 25 for safety
+    DELAY_BETWEEN_MESSAGES = 0.04  # 1/25 = 0.04 seconds (25 msg/sec)
+    BATCH_SIZE = 1000  # Pause every 1000 messages
+    BATCH_PAUSE = 30  # 30 second pause between batches
+
+    total_users = len(user_ids)
+
+    for i, user_id in enumerate(user_ids):
+        retry_count = 0
+        max_retries = 2
+
+        while retry_count <= max_retries:
+            try:
+                # Send message based on type
+                if message_type == 'photo':
+                    await context.bot.send_photo(
+                        chat_id=user_id,
+                        photo=content['photo'],
+                        caption=content.get('caption'),
+                        parse_mode=content.get('parse_mode', 'HTML')
+                    )
+                elif message_type == 'text':
+                    await context.bot.send_message(
+                        chat_id=user_id,
+                        text=content['text'],
+                        parse_mode=content.get('parse_mode', 'HTML')
+                    )
+                else:
+                    failed_count += 1
+                    break
+
+                success_count += 1
+
+                # Rate limiting: 25 msg/sec per Telegram FAQ guidelines
+                await asyncio.sleep(DELAY_BETWEEN_MESSAGES)
+
+                # Batch pause every 1000 messages to avoid spam detection
+                if (i + 1) % BATCH_SIZE == 0 and (i + 1) < total_users:
+                    logger.info(f"Broadcast: Batch pause after {i + 1} messages (30s)")
+                    await asyncio.sleep(BATCH_PAUSE)
+
+                break  # Success, exit retry loop
+
+            except telegram.error.RetryAfter as e:
+                # FloodWait - Telegram told us to slow down (429 error)
+                wait_seconds = e.retry_after
+                logger.warning(f"FloodWait: Waiting {wait_seconds}s as requested by Telegram")
+                await asyncio.sleep(wait_seconds)
+                retry_count += 1
+
+                if retry_count > max_retries:
+                    logger.error(f"Failed to send to {user_id} after {max_retries} retries")
+                    failed_count += 1
+
+            except telegram.error.Forbidden:
+                # User blocked the bot
+                blocked_count += 1
+                logger.info(f"User {user_id} has blocked the bot")
+                break
+
+            except telegram.error.ChatNotFound:
+                # Chat doesn't exist anymore
+                failed_count += 1
+                logger.info(f"Chat {user_id} not found (deleted account?)")
+                break
+
+            except Exception as e:
+                logger.error(f"Failed to send broadcast to user {user_id}: {e}")
+                failed_count += 1
+                await asyncio.sleep(DELAY_BETWEEN_MESSAGES)
+                break
+
+    return {
+        'success': success_count,
+        'blocked': blocked_count,
+        'failed': failed_count
+    }
+
+
+# ==================== ADMIN BROADCAST SYSTEM ====================
+
 async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start broadcast - admin sends message to all users"""
     if not is_admin(update.effective_user.id):
@@ -4159,7 +4268,10 @@ async def broadcast_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def broadcast_message_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Receive broadcast message and send to all users"""
+    """
+    Receive broadcast message and send to all users
+    Uses safe_broadcast helper following Telegram FAQ guidelines
+    """
     if not is_admin(update.effective_user.id):
         return ConversationHandler.END
 
@@ -4180,60 +4292,53 @@ async def broadcast_message_received(update: Update, context: ContextTypes.DEFAU
         await update.message.reply_text("❌ No users found in database.")
         return ConversationHandler.END
 
+    total_users = len(user_ids)
+
     # Confirm before sending
     await update.message.reply_text(
-        f"📊 Found {len(user_ids)} users in database.\n\n"
-        f"🚀 Starting broadcast...",
+        f"📊 Found {total_users} users in database.\n\n"
+        f"🚀 Starting broadcast...\n"
+        f"⏱ Rate: 25 msg/sec (per Telegram FAQ)\n"
+        f"🔄 Batch pause: every 1000 messages",
         parse_mode='Markdown'
     )
 
-    # Send to all users with delay
-    success_count = 0
-    failed_count = 0
+    # Prepare content for safe_broadcast
+    if broadcast_msg.photo:
+        # Image with or without caption
+        photo = broadcast_msg.photo[-1]  # Get highest quality
+        content = {
+            'photo': photo.file_id,
+            'caption': broadcast_msg.caption,
+            'parse_mode': 'Markdown'
+        }
+        message_type = 'photo'
+    elif broadcast_msg.text:
+        # Text message
+        content = {
+            'text': broadcast_msg.text,
+            'parse_mode': 'Markdown'
+        }
+        message_type = 'text'
+    else:
+        await update.message.reply_text("❌ Unsupported message type.")
+        return ConversationHandler.END
 
-    for user_id in user_ids:
-        try:
-            # Send based on message type
-            if broadcast_msg.photo:
-                # Image with or without caption
-                photo = broadcast_msg.photo[-1]  # Get highest quality
-                await context.bot.send_photo(
-                    chat_id=user_id,
-                    photo=photo.file_id,
-                    caption=broadcast_msg.caption,
-                    parse_mode='Markdown' if broadcast_msg.caption else None
-                )
-            elif broadcast_msg.text:
-                # Text message
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text=broadcast_msg.text,
-                    parse_mode='Markdown'
-                )
-            else:
-                # Unsupported message type for this user
-                failed_count += 1
-                continue
-
-            success_count += 1
-
-            # 1-second delay to avoid rate limits
-            await asyncio.sleep(1)
-
-        except Exception as e:
-            logger.error(f"Failed to send broadcast to user {user_id}: {e}")
-            failed_count += 1
-            # Continue with next user even if one fails
-            await asyncio.sleep(1)
+    # Use safe broadcast helper
+    results = await safe_broadcast(context, user_ids, message_type, content)
 
     # Report results to admin
     result_msg = f"✅ **Broadcast completed!**\n\n"
-    result_msg += f"📤 Successfully sent: {success_count} users\n"
+    result_msg += f"📤 Successfully sent: {results['success']} users\n"
 
-    if failed_count > 0:
-        result_msg += f"❌ Failed: {failed_count} users\n"
+    if results['blocked'] > 0:
+        result_msg += f"🚫 Users blocked bot: {results['blocked']}\n"
 
-    result_msg += f"\n📊 Total users in database: {len(user_ids)}"
+    if results['failed'] > 0:
+        result_msg += f"❌ Other failures: {results['failed']}\n"
+
+    result_msg += f"\n📊 Total users in database: {total_users}"
+    result_msg += f"\n\n⚙️ Rate used: 25 msg/sec (Telegram FAQ safe limit)"
 
     await update.message.reply_text(result_msg, parse_mode='Markdown')
 
@@ -4977,7 +5082,7 @@ async def counter_close_new_poster(update: Update, context: ContextTypes.DEFAULT
 
 
 async def counter_close_saved_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Use saved poster for closing"""
+    """Use saved poster for closing - with safe broadcast"""
     query = update.callback_query
     await query.answer()
 
@@ -4996,32 +5101,23 @@ async def counter_close_saved_poster(update: Update, context: ContextTypes.DEFAU
     )
 
     user_ids = api.get_all_user_ids()
-    success_count = 0
-    failed_count = 0
 
-    admin_name = query.from_user.username or query.from_user.first_name
-
-    for user_id in user_ids:
-        try:
-            await context.bot.send_photo(
-                chat_id=user_id,
-                photo=saved_poster,
-                caption="🔴 <b>COUNTER CLOSED</b>\n\nWe'll notify you when we open again!",
-                parse_mode='HTML'
-            )
-            success_count += 1
-            await asyncio.sleep(0.05)  # Rate limit
-        except Exception as e:
-            failed_count += 1
-            logger.error(f"Failed to send closing announcement to {user_id}: {e}")
+    # Use safe broadcast helper
+    content = {
+        'photo': saved_poster,
+        'caption': "🔴 <b>COUNTER CLOSED</b>\n\nWe'll notify you when we open again!",
+        'parse_mode': 'HTML'
+    }
+    results = await safe_broadcast(context, user_ids, 'photo', content)
 
     # Update counter status
     api.set_counter_status('CLOSED', query.from_user.id, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter CLOSED</b>\n\n"
-        f"📤 Announcement sent to {success_count} users\n"
-        f"❌ Failed: {failed_count}",
+        f"📤 Announcement sent to {results['success']} users\n"
+        f"🚫 Users blocked bot: {results['blocked']}\n"
+        f"❌ Other failures: {results['failed']}",
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
     )
@@ -5029,7 +5125,7 @@ async def counter_close_saved_poster(update: Update, context: ContextTypes.DEFAU
 
 
 async def counter_close_poster_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Receive closing poster and broadcast"""
+    """Receive closing poster and broadcast - with safe broadcast"""
     if not update.message.photo:
         await update.message.reply_text(
             "❌ Please send an image file.",
@@ -5051,27 +5147,20 @@ async def counter_close_poster_received(update: Update, context: ContextTypes.DE
     )
 
     user_ids = api.get_all_user_ids()
-    success_count = 0
-    failed_count = 0
 
-    for user_id in user_ids:
-        try:
-            await context.bot.send_photo(
-                chat_id=user_id,
-                photo=file_id,
-                caption="🔴 <b>COUNTER CLOSED</b>\n\nWe'll notify you when we open again!",
-                parse_mode='HTML'
-            )
-            success_count += 1
-            await asyncio.sleep(0.05)  # Rate limit
-        except Exception as e:
-            failed_count += 1
-            logger.error(f"Failed to send closing announcement to {user_id}: {e}")
+    # Use safe broadcast helper
+    content = {
+        'photo': file_id,
+        'caption': "🔴 <b>COUNTER CLOSED</b>\n\nWe'll notify you when we open again!",
+        'parse_mode': 'HTML'
+    }
+    results = await safe_broadcast(context, user_ids, 'photo', content)
 
     await update.message.reply_text(
         f"✅ <b>Counter CLOSED</b>\n\n"
-        f"📤 Announcement sent to {success_count} users\n"
-        f"❌ Failed: {failed_count}\n\n"
+        f"📤 Announcement sent to {results['success']} users\n"
+        f"🚫 Users blocked bot: {results['blocked']}\n"
+        f"❌ Other failures: {results['failed']}\n\n"
         f"Poster saved for future use.",
         parse_mode='HTML'
     )
@@ -5079,7 +5168,7 @@ async def counter_close_poster_received(update: Update, context: ContextTypes.DE
 
 
 async def counter_close_text_only(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Close counter with text-only announcement"""
+    """Close counter with text-only announcement - with safe broadcast"""
     query = update.callback_query
     await query.answer()
 
@@ -5089,31 +5178,22 @@ async def counter_close_text_only(update: Update, context: ContextTypes.DEFAULT_
     )
 
     user_ids = api.get_all_user_ids()
-    success_count = 0
-    failed_count = 0
 
-    admin_name = query.from_user.username or query.from_user.first_name
-
-    for user_id in user_ids:
-        try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text="🔴 <b>COUNTER CLOSED</b>\n\nWe'll notify you when we open again!",
-                parse_mode='HTML'
-            )
-            success_count += 1
-            await asyncio.sleep(0.05)  # Rate limit
-        except Exception as e:
-            failed_count += 1
-            logger.error(f"Failed to send closing announcement to {user_id}: {e}")
+    # Use safe broadcast helper
+    content = {
+        'text': "🔴 <b>COUNTER CLOSED</b>\n\nWe'll notify you when we open again!",
+        'parse_mode': 'HTML'
+    }
+    results = await safe_broadcast(context, user_ids, 'text', content)
 
     # Update counter status
     api.set_counter_status('CLOSED', query.from_user.id, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter CLOSED</b>\n\n"
-        f"📤 Announcement sent to {success_count} users\n"
-        f"❌ Failed: {failed_count}",
+        f"📤 Announcement sent to {results['success']} users\n"
+        f"🚫 Users blocked bot: {results['blocked']}\n"
+        f"❌ Other failures: {results['failed']}",
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
     )
@@ -5179,7 +5259,7 @@ async def counter_open_new_poster(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def counter_open_saved_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Use saved poster for opening"""
+    """Use saved poster for opening - with safe broadcast"""
     query = update.callback_query
     await query.answer()
 
@@ -5198,32 +5278,23 @@ async def counter_open_saved_poster(update: Update, context: ContextTypes.DEFAUL
     )
 
     user_ids = api.get_all_user_ids()
-    success_count = 0
-    failed_count = 0
 
-    admin_name = query.from_user.username or query.from_user.first_name
-
-    for user_id in user_ids:
-        try:
-            await context.bot.send_photo(
-                chat_id=user_id,
-                photo=saved_poster,
-                caption="🟢 <b>COUNTER NOW OPEN!</b>\n\nYou can now make deposits, withdrawals, and all requests!",
-                parse_mode='HTML'
-            )
-            success_count += 1
-            await asyncio.sleep(0.05)  # Rate limit
-        except Exception as e:
-            failed_count += 1
-            logger.error(f"Failed to send opening announcement to {user_id}: {e}")
+    # Use safe broadcast helper
+    content = {
+        'photo': saved_poster,
+        'caption': "🟢 <b>COUNTER NOW OPEN!</b>\n\nYou can now make deposits, withdrawals, and all requests!",
+        'parse_mode': 'HTML'
+    }
+    results = await safe_broadcast(context, user_ids, 'photo', content)
 
     # Update counter status
     api.set_counter_status('OPEN', query.from_user.id, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter OPEN</b>\n\n"
-        f"📤 Announcement sent to {success_count} users\n"
-        f"❌ Failed: {failed_count}",
+        f"📤 Announcement sent to {results['success']} users\n"
+        f"🚫 Users blocked bot: {results['blocked']}\n"
+        f"❌ Other failures: {results['failed']}",
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
     )
@@ -5231,7 +5302,7 @@ async def counter_open_saved_poster(update: Update, context: ContextTypes.DEFAUL
 
 
 async def counter_open_poster_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Receive opening poster and broadcast"""
+    """Receive opening poster and broadcast - with safe broadcast"""
     if not update.message.photo:
         await update.message.reply_text(
             "❌ Please send an image file.",
@@ -5253,27 +5324,20 @@ async def counter_open_poster_received(update: Update, context: ContextTypes.DEF
     )
 
     user_ids = api.get_all_user_ids()
-    success_count = 0
-    failed_count = 0
 
-    for user_id in user_ids:
-        try:
-            await context.bot.send_photo(
-                chat_id=user_id,
-                photo=file_id,
-                caption="🟢 <b>COUNTER NOW OPEN!</b>\n\nYou can now make deposits, withdrawals, and all requests!",
-                parse_mode='HTML'
-            )
-            success_count += 1
-            await asyncio.sleep(0.05)  # Rate limit
-        except Exception as e:
-            failed_count += 1
-            logger.error(f"Failed to send opening announcement to {user_id}: {e}")
+    # Use safe broadcast helper
+    content = {
+        'photo': file_id,
+        'caption': "🟢 <b>COUNTER NOW OPEN!</b>\n\nYou can now make deposits, withdrawals, and all requests!",
+        'parse_mode': 'HTML'
+    }
+    results = await safe_broadcast(context, user_ids, 'photo', content)
 
     await update.message.reply_text(
         f"✅ <b>Counter OPEN</b>\n\n"
-        f"📤 Announcement sent to {success_count} users\n"
-        f"❌ Failed: {failed_count}\n\n"
+        f"📤 Announcement sent to {results['success']} users\n"
+        f"🚫 Users blocked bot: {results['blocked']}\n"
+        f"❌ Other failures: {results['failed']}\n\n"
         f"Poster saved for future use.",
         parse_mode='HTML'
     )
@@ -5281,7 +5345,7 @@ async def counter_open_poster_received(update: Update, context: ContextTypes.DEF
 
 
 async def counter_open_text_only(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Open counter with text-only announcement"""
+    """Open counter with text-only announcement - with safe broadcast"""
     query = update.callback_query
     await query.answer()
 
@@ -5291,31 +5355,22 @@ async def counter_open_text_only(update: Update, context: ContextTypes.DEFAULT_T
     )
 
     user_ids = api.get_all_user_ids()
-    success_count = 0
-    failed_count = 0
 
-    admin_name = query.from_user.username or query.from_user.first_name
-
-    for user_id in user_ids:
-        try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text="🟢 <b>COUNTER NOW OPEN!</b>\n\nYou can now make deposits, withdrawals, and all requests!",
-                parse_mode='HTML'
-            )
-            success_count += 1
-            await asyncio.sleep(0.05)  # Rate limit
-        except Exception as e:
-            failed_count += 1
-            logger.error(f"Failed to send opening announcement to {user_id}: {e}")
+    # Use safe broadcast helper
+    content = {
+        'text': "🟢 <b>COUNTER NOW OPEN!</b>\n\nYou can now make deposits, withdrawals, and all requests!",
+        'parse_mode': 'HTML'
+    }
+    results = await safe_broadcast(context, user_ids, 'text', content)
 
     # Update counter status
     api.set_counter_status('OPEN', query.from_user.id, announcement_sent=True)
 
     await query.edit_message_text(
         f"✅ <b>Counter OPEN</b>\n\n"
-        f"📤 Announcement sent to {success_count} users\n"
-        f"❌ Failed: {failed_count}",
+        f"📤 Announcement sent to {results['success']} users\n"
+        f"🚫 Users blocked bot: {results['blocked']}\n"
+        f"❌ Other failures: {results['failed']}",
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
     )
