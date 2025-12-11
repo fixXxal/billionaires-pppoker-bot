@@ -941,27 +941,6 @@ class DjangoAPI:
         """Get all inventory transactions"""
         return self._get('inventory-transactions/')
 
-    # ==================== BROADCAST METHODS ====================
-
-    def broadcast_message(self, message: str, photo_url: str = None) -> Dict:
-        """
-        Broadcast a message to all users
-
-        Args:
-            message: The message text to broadcast (supports Markdown)
-            photo_url: Optional URL to an image to send with the message
-
-        Returns:
-            Dict containing broadcast results (total_users, success_count, failed_count)
-        """
-        data = {
-            'message': message
-        }
-        if photo_url:
-            data['photo_url'] = photo_url
-
-        return self._post('broadcast/', data)
-
     # ==================== NOTIFICATION MESSAGE METHODS ====================
 
     def store_notification_message(self, notification_type: str, notification_key: str,

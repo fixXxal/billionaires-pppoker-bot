@@ -19,33 +19,6 @@ admin.site.site_title = "Billionaires Admin"
 admin.site.index_title = "Dashboard"
 
 
-# Add custom admin view for broadcast
-from django.urls import path
-from django.shortcuts import redirect
-
-
-def get_admin_urls(urls):
-    """Add broadcast link to admin panel"""
-    def custom_urls():
-        my_urls = [
-            path('broadcast/', lambda request: redirect('/api/admin/broadcast/'), name='broadcast'),
-        ]
-        return my_urls + urls
-
-    return custom_urls()
-
-
-# Override admin site URLs to add broadcast
-original_get_urls = admin.site.get_urls
-
-
-def get_urls():
-    return get_admin_urls(original_get_urls())
-
-
-admin.site.get_urls = get_urls
-
-
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
     list_display = ['telegram_id', 'username', 'pppoker_id', 'balance', 'club_balance', 'created_at']
