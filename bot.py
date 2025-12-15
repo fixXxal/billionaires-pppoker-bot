@@ -2510,10 +2510,17 @@ async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAU
 
     # Check if user still in support session
     if user_id not in support_mode_users:
-        await query.edit_message_text(
-            f"{query.message.text}\n\n⚠️ _User has ended the support session._",
-            parse_mode='Markdown'
-        )
+        # Check if it's a photo message or text message
+        if query.message.photo:
+            await query.edit_message_caption(
+                caption=f"{query.message.caption}\n\n⚠️ _User has ended the support session._",
+                parse_mode='Markdown'
+            )
+        else:
+            await query.edit_message_text(
+                f"{query.message.text}\n\n⚠️ _User has ended the support session._",
+                parse_mode='Markdown'
+            )
         return
 
     # Lock this session to this admin (first admin to reply gets the lock)
@@ -2549,10 +2556,20 @@ async def admin_reply_button_clicked(update: Update, context: ContextTypes.DEFAU
     # Store user_id for next message from admin
     admin_reply_context[query.from_user.id] = user_id
 
-    await query.edit_message_text(
-        f"{query.message.text}\n\n✏️ **Type your reply below:**\n_You are now handling this chat._",
-        parse_mode='Markdown'
-    )
+    # Edit message to show admin is now handling this chat
+    # Check if it's a photo message or text message
+    if query.message.photo:
+        # It's a photo message, edit caption
+        await query.edit_message_caption(
+            caption=f"{query.message.caption}\n\n✏️ **Type your reply below:**\n_You are now handling this chat._",
+            parse_mode='Markdown'
+        )
+    else:
+        # It's a text message, edit text
+        await query.edit_message_text(
+            f"{query.message.text}\n\n✏️ **Type your reply below:**\n_You are now handling this chat._",
+            parse_mode='Markdown'
+        )
 
     return ADMIN_REPLY_MESSAGE
 
@@ -2779,15 +2796,29 @@ async def admin_end_support_button(update: Update, context: ContextTypes.DEFAULT
             pass
 
         # Edit admin's message to remove button
-        await query.edit_message_text(
-            f"{query.message.text}\n\n✅ _Chat ended by admin._",
-            parse_mode='Markdown'
-        )
+        # Check if it's a photo message or text message
+        if query.message.photo:
+            await query.edit_message_caption(
+                caption=f"{query.message.caption}\n\n✅ _Chat ended by admin._",
+                parse_mode='Markdown'
+            )
+        else:
+            await query.edit_message_text(
+                f"{query.message.text}\n\n✅ _Chat ended by admin._",
+                parse_mode='Markdown'
+            )
     else:
-        await query.edit_message_text(
-            f"{query.message.text}\n\n⚠️ _User already ended the session._",
-            parse_mode='Markdown'
-        )
+        # Check if it's a photo message or text message
+        if query.message.photo:
+            await query.edit_message_caption(
+                caption=f"{query.message.caption}\n\n⚠️ _User already ended the session._",
+                parse_mode='Markdown'
+            )
+        else:
+            await query.edit_message_text(
+                f"{query.message.text}\n\n⚠️ _User already ended the session._",
+                parse_mode='Markdown'
+            )
 
 
 async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2838,10 +2869,17 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
             del user_support_message_ids[user.id]
 
         # Edit the clicked message to show session ended
-        await query.edit_message_text(
-            "✅ **Support session ended.**\n\nThank you! Feel free to start a new session anytime.",
-            parse_mode='Markdown'
-        )
+        # Check if it's a photo message or text message
+        if query.message.photo:
+            await query.edit_message_caption(
+                caption="✅ **Support session ended.**\n\nThank you! Feel free to start a new session anytime.",
+                parse_mode='Markdown'
+            )
+        else:
+            await query.edit_message_text(
+                "✅ **Support session ended.**\n\nThank you! Feel free to start a new session anytime.",
+                parse_mode='Markdown'
+            )
 
         # Notify ALL admins
         all_admins_response = api.get_all_admins()
@@ -2868,7 +2906,11 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
             except Exception as e:
                 logger.error(f"Failed to notify admin {admin_id}: {e}")
     else:
-        await query.edit_message_text("You're not in a support session.")
+        # Check if it's a photo message or text message
+        if query.message.photo:
+            await query.edit_message_caption(caption="You're not in a support session.")
+        else:
+            await query.edit_message_text("You're not in a support session.")
 
     return ConversationHandler.END
 
