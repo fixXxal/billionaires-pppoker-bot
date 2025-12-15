@@ -65,13 +65,13 @@ def extract_text_with_google_vision(image_bytes):
         image_bytes: Image content as bytes
 
     Returns:
-        str: Extracted text from the image, or None if failed
+        tuple: (text, confidence) where confidence is 0-100, or (None, 0) if failed
     """
     try:
         client = get_vision_client()
 
         if client is None:
-            return None
+            return None, 0
 
         # Create image object
         image = vision.Image(content=image_bytes)
@@ -83,18 +83,27 @@ def extract_text_with_google_vision(image_bytes):
         if response.error.message:
             raise Exception(f'Google Vision API Error: {response.error.message}')
 
-        # Extract full text
+        # Extract full text and calculate average confidence
         if response.text_annotations:
             # First annotation contains the full detected text
             full_text = response.text_annotations[0].description
-            print(f"✅ Google Vision extracted {len(full_text)} characters")
-            return full_text
 
-        return ""
+            # Calculate average confidence from individual words (skip first annotation as it's the full text)
+            if len(response.text_annotations) > 1:
+                confidences = [annotation.confidence for annotation in response.text_annotations[1:] if hasattr(annotation, 'confidence') and annotation.confidence]
+                avg_confidence = (sum(confidences) / len(confidences) * 100) if confidences else 85.0
+            else:
+                # If no word-level confidence, assume high confidence (Google Vision is usually good)
+                avg_confidence = 85.0
+
+            print(f"✅ Google Vision extracted {len(full_text)} characters (confidence: {avg_confidence:.1f}%)")
+            return full_text, avg_confidence
+
+        return "", 0
 
     except Exception as e:
         print(f"⚠️ Google Vision error: {e}")
-        return None
+        return None, 0
 
 
 def extract_text_with_ocr_space(image_bytes):
@@ -105,7 +114,7 @@ def extract_text_with_ocr_space(image_bytes):
         image_bytes: Image content as bytes
 
     Returns:
-        str: Extracted text from the image
+        tuple: (text, confidence) where confidence is 0-100, or ("", 0) if failed
     """
     try:
         # Encode image to base64
@@ -131,16 +140,18 @@ def extract_text_with_ocr_space(image_bytes):
             error_msg = result.get('ErrorMessage', ['Unknown error'])[0]
             raise Exception(f'OCR API Error: {error_msg}')
 
-        # Extract text from response
+        # Extract text and confidence from response
         if result.get('ParsedResults'):
             parsed_text = result['ParsedResults'][0].get('ParsedText', '')
-            print(f"✅ OCR.space extracted {len(parsed_text)} characters")
-            return parsed_text
+            # OCR.space doesn't provide confidence, assume medium-low (70%)
+            confidence = 70.0
+            print(f"✅ OCR.space extracted {len(parsed_text)} characters (confidence: {confidence:.1f}%)")
+            return parsed_text, confidence
 
-        return ""
+        return "", 0
     except Exception as e:
         print(f"⚠️ OCR.space error: {e}")
-        return ""
+        return "", 0
 
 
 def extract_text_from_image(image_bytes):
@@ -151,34 +162,35 @@ def extract_text_from_image(image_bytes):
         image_bytes: Image content as bytes
 
     Returns:
-        str: Extracted text from the image
+        tuple: (text, confidence) where confidence is 0-100
     """
     # Try Google Vision first (better accuracy)
     print("🔍 Attempting Google Vision OCR...")
-    text = extract_text_with_google_vision(image_bytes)
+    text, confidence = extract_text_with_google_vision(image_bytes)
 
     if text:
         print("✅ Using Google Vision result")
-        return text
+        return text, confidence
 
     # Fall back to OCR.space
     print("🔄 Falling back to OCR.space...")
-    text = extract_text_with_ocr_space(image_bytes)
+    text, confidence = extract_text_with_ocr_space(image_bytes)
 
     if text:
         print("✅ Using OCR.space result")
-        return text
+        return text, confidence
 
     print("❌ Both OCR methods failed")
-    return ""
+    return "", 0
 
 
-def parse_payment_details(text):
+def parse_payment_details(text, confidence=0):
     """
     Parse extracted text to identify payment details (optimized for MIB/BML receipts)
 
     Args:
         text: Extracted text from receipt/slip
+        confidence: OCR confidence score (0-100)
 
     Returns:
         dict: Parsed payment details with keys:
@@ -188,6 +200,7 @@ def parse_payment_details(text):
             - amount: Transaction amount
             - bank: Bank name (BML, MIB, etc.)
             - currency: Currency (MVR, USD, etc.)
+            - confidence: OCR confidence score
             - raw_text: Full extracted text for verification
     """
     details = {
@@ -198,6 +211,7 @@ def parse_payment_details(text):
         'amount': None,
         'bank': None,
         'currency': None,
+        'confidence': confidence,
         'raw_text': text
     }
 
@@ -539,6 +553,12 @@ def format_extracted_details(details, show_raw=False):
     if has_key_details:
         message += "\n⏳ *Status:* Processing\n"
         message += "_You'll receive an update once verification is complete._"
+
+        # Show low confidence warning if OCR confidence is below 75%
+        confidence = details.get('confidence', 0)
+        if confidence > 0 and confidence < 75:
+            message += "\n\n⚠️ _Some details may be inaccurate._\n"
+            message += "_Verification is in progress._"
     else:
         message += "⚠️ _Could not extract details automatically._\n"
         message += "_Please verify the image quality._\n"
@@ -558,12 +578,12 @@ async def process_receipt_image(file_bytes):
         file_bytes: Image file content as bytes
 
     Returns:
-        dict: Parsed payment details
+        dict: Parsed payment details with confidence score
     """
     # Extract text using Vision API
-    extracted_text = extract_text_from_image(file_bytes)
+    extracted_text, confidence = extract_text_from_image(file_bytes)
 
     # Parse the text for payment details
-    details = parse_payment_details(extracted_text)
+    details = parse_payment_details(extracted_text, confidence)
 
     return details
