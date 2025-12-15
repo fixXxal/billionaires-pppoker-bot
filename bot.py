@@ -336,8 +336,7 @@ Select an option to get started:
             [KeyboardButton("💰 Deposit"), KeyboardButton("💸 Withdrawal")],
             [KeyboardButton("🪑 Seat"), KeyboardButton("🎮 Join Club")],
             [KeyboardButton("🎲 Free Spins"), KeyboardButton("💸 Cashback")],
-            [KeyboardButton("💬 Live Support"), KeyboardButton("📊 My Info")],
-            [KeyboardButton("❓ Help")]
+            [KeyboardButton("💬 Live Support"), KeyboardButton("❓ Help")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -8651,8 +8650,6 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return await join_club_start(update, context)
     elif text == "🪑 Seat":
         return await seat_request_start(update, context)
-    elif text == "📊 My Info":
-        return await my_info(update, context)
     elif text == "💬 Live Support":
         return await live_support_start(update, context)
     elif text == "❓ Help":
