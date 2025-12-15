@@ -540,8 +540,8 @@ def format_extracted_details(details, show_raw=False):
         message += "\n⏳ *Status:* Processing\n"
         message += "_You'll receive an update once verification is complete._"
     else:
-        message += "⚠️ _Could not extract details automatically._\n"
-        message += "_Please verify the image quality._\n"
+        message += "⚠️ _Some details may be inaccurate._\n"
+        message += "_Verification is in progress._\n"
 
     # Show raw extracted text for debugging (admin only)
     if show_raw and details['raw_text']:
