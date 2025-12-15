@@ -518,14 +518,14 @@ def format_extracted_details(details, show_raw=False):
     Returns:
         str: Formatted message for display
     """
-    message = "📄 *Extracted Receipt Details:*\n\n"
-
-    if details['reference_number']:
-        message += f"🔢 *Reference:* `{details['reference_number']}`\n"
+    message = "✅ *Payment Slip Detected*\n\n"
 
     if details['amount']:
         currency = details['currency'] or ''
         message += f"💰 *Amount:* {currency} {details['amount']:,.2f}\n"
+
+    if details['reference_number']:
+        message += f"📋 *Reference:* `{details['reference_number']}`\n"
 
     if details['bank']:
         message += f"🏦 *Bank:* {details['bank']}\n"
@@ -533,15 +533,13 @@ def format_extracted_details(details, show_raw=False):
     if details['sender_name']:
         message += f"👤 *Sender:* {details['sender_name']}\n"
 
-    if details['receiver_name']:
-        message += f"👤 *Receiver:* {details['receiver_name']}\n"
-
-    if details['receiver_account_number']:
-        message += f"💳 *Receiver Account:* `{details['receiver_account_number']}`\n"
-
     # Check if any details were extracted
-    if not any([details['reference_number'], details['amount'], details['bank'],
-                details['sender_name'], details['receiver_name'], details['receiver_account_number']]):
+    has_key_details = any([details['amount'], details['reference_number'], details['bank'], details['sender_name']])
+
+    if has_key_details:
+        message += "\n⏳ *Status:* Processing\n"
+        message += "_You'll receive an update once verification is complete._"
+    else:
         message += "⚠️ _Could not extract details automatically._\n"
         message += "_Please verify the image quality._\n"
 

@@ -1033,7 +1033,7 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
 
             if has_details:
                 await update.message.reply_text(
-                    details_msg + "\n✅ _Details extracted successfully!_",
+                    details_msg,
                     parse_mode='Markdown'
                 )
                 logger.info(f"Vision API extracted details for user {user.id}")
@@ -1096,7 +1096,7 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
 
                 if has_details:
                     await update.message.reply_text(
-                        details_msg + "\n✅ _Details extracted successfully!_",
+                        details_msg,
                         parse_mode='Markdown'
                     )
                     logger.info(f"Vision API extracted details for user {user.id}")
