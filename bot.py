@@ -2328,6 +2328,107 @@ async def live_support_message(update: Update, context: ContextTypes.DEFAULT_TYP
     return SUPPORT_CHAT
 
 
+async def live_support_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle live support photo messages"""
+    user = update.effective_user
+
+    if user.id not in support_mode_users:
+        return ConversationHandler.END
+
+    # Cancel timeout job if user responds
+    if user.id in support_timeout_jobs:
+        support_timeout_jobs[user.id].schedule_removal()
+        del support_timeout_jobs[user.id]
+
+    # Get photo file_id (use the largest size)
+    photo = update.message.photo[-1]
+    caption = update.message.caption or ""
+
+    # Check if there's a handling admin (admin who clicked Reply)
+    if user.id in active_support_handlers:
+        # Only send to the handling admin
+        handling_admin_id = active_support_handlers[user.id]
+        caption_text = f"📸 **Photo from {user.first_name}** (@{user.username or 'No username'})"
+        if caption:
+            caption_text += f"\n\n_{caption}_"
+
+        # Create buttons for handling admin
+        keyboard = [
+            [
+                InlineKeyboardButton("💬 Reply", callback_data=f"support_reply_{user.id}"),
+                InlineKeyboardButton("❌ End Chat", callback_data=f"support_end_{user.id}")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Initialize tracking list if not exists
+        if user.id not in support_message_ids:
+            support_message_ids[user.id] = []
+
+        try:
+            msg = await context.bot.send_photo(
+                chat_id=handling_admin_id,
+                photo=photo.file_id,
+                caption=caption_text,
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+            # Track this message to remove buttons later
+            support_message_ids[user.id].append((handling_admin_id, msg.message_id))
+        except Exception as e:
+            logger.error(f"Failed to send support photo to handling admin {handling_admin_id}: {e}")
+    else:
+        # No handling admin yet, send to ALL admins
+        caption_text = f"📸 **Photo from {user.first_name}** (@{user.username or 'No username'})"
+        if caption:
+            caption_text += f"\n\n_{caption}_"
+
+        # Create buttons for admin
+        keyboard = [
+            [
+                InlineKeyboardButton("💬 Reply", callback_data=f"support_reply_{user.id}"),
+                InlineKeyboardButton("❌ End Chat", callback_data=f"support_end_{user.id}")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Send to all admins and track message IDs
+        all_admins_response = api.get_all_admins()
+
+        # Handle paginated response from Django API
+        if isinstance(all_admins_response, dict) and 'results' in all_admins_response:
+            all_admins = all_admins_response['results']
+        else:
+            all_admins = all_admins_response
+
+        admin_ids = [ADMIN_USER_ID]  # Start with super admin
+        for admin in all_admins:
+            if admin['telegram_id'] != ADMIN_USER_ID:
+                admin_ids.append(admin['telegram_id'])
+
+        # Initialize tracking list if not exists
+        if user.id not in support_message_ids:
+            support_message_ids[user.id] = []
+
+        for admin_id in admin_ids:
+            try:
+                msg = await context.bot.send_photo(
+                    chat_id=admin_id,
+                    photo=photo.file_id,
+                    caption=caption_text,
+                    reply_markup=reply_markup,
+                    parse_mode='Markdown'
+                )
+                # Track this message to remove buttons later
+                support_message_ids[user.id].append((admin_id, msg.message_id))
+            except Exception as e:
+                logger.error(f"Failed to send support photo to admin {admin_id}: {e}")
+
+    await update.message.reply_text("✅ Photo sent to admins.")
+
+    return SUPPORT_CHAT
+
+
 async def end_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """End live support session"""
     user = update.effective_user
@@ -2514,6 +2615,77 @@ async def admin_reply_message_received(update: Update, context: ContextTypes.DEF
 
     except Exception as e:
         await update.message.reply_text(f"❌ Failed to send: {e}")
+        if admin_id in admin_reply_context:
+            del admin_reply_context[admin_id]
+
+
+async def admin_reply_photo_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle admin's reply photo message"""
+    if not is_admin(update.effective_user.id):
+        return
+
+    admin_id = update.effective_user.id
+
+    if admin_id not in admin_reply_context:
+        return
+
+    user_id = admin_reply_context[admin_id]
+
+    # Get photo file_id (use the largest size)
+    photo = update.message.photo[-1]
+    caption = update.message.caption or ""
+
+    # Check if user still in support
+    if user_id not in support_mode_users:
+        await update.message.reply_text("⚠️ User has ended the support session.")
+        del admin_reply_context[admin_id]
+        return
+
+    try:
+        # Show End Support button to user with the reply
+        keyboard = [[InlineKeyboardButton("❌ End Support", callback_data="user_end_support")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Prepare caption
+        caption_text = "📸 **Admin:**"
+        if caption:
+            caption_text += f"\n\n{escape_markdown(caption)}"
+
+        # Send photo to user
+        msg = await context.bot.send_photo(
+            chat_id=user_id,
+            photo=photo.file_id,
+            caption=caption_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+        # Track this user message to remove button later
+        if user_id not in user_support_message_ids:
+            user_support_message_ids[user_id] = []
+        user_support_message_ids[user_id].append(msg.message_id)
+
+        # Cancel existing timeout job if any
+        if user_id in support_timeout_jobs:
+            support_timeout_jobs[user_id].schedule_removal()
+            del support_timeout_jobs[user_id]
+
+        # Schedule auto-close after 2 minutes of user inactivity
+        job = context.job_queue.run_once(
+            auto_close_support,
+            when=120,  # 2 minutes in seconds
+            data=user_id,
+            name=f"support_timeout_{user_id}"
+        )
+        support_timeout_jobs[user_id] = job
+
+        await update.message.reply_text("✅ Photo sent! Session will auto-close in 2 minutes if user doesn't respond.")
+
+        # Clear context
+        del admin_reply_context[admin_id]
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Failed to send photo: {e}")
         if admin_id in admin_reply_context:
             del admin_reply_context[admin_id]
 
@@ -8460,6 +8632,23 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
 
 
+async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Route photo messages to appropriate handlers"""
+    user_id = update.effective_user.id
+
+    # Check if user has pending seat request (seat slip upload)
+    if user_id in seat_request_data:
+        return await handle_seat_slip_upload(update, context)
+
+    # Check if admin is replying to a support message
+    if is_admin(user_id) and user_id in admin_reply_context:
+        return await admin_reply_photo_received(update, context)
+
+    # If user is in support mode, handle their photo
+    if user_id in support_mode_users:
+        return await live_support_photo(update, context)
+
+
 def main():
     """Start the bot"""
     # Generate unique instance ID to detect multiple running instances
@@ -8621,6 +8810,7 @@ def main():
         states={
             SUPPORT_CHAT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, live_support_message),
+                MessageHandler(filters.PHOTO, live_support_photo),
             ],
         },
         fallbacks=[CommandHandler("endsupport", end_support)],
@@ -8884,15 +9074,13 @@ def main():
     application.add_handler(CallbackQueryHandler(counter_open_silent, pattern="^counter_open_silent$"))
     application.add_handler(CallbackQueryHandler(counter_open_saved_poster, pattern="^counter_open_saved_poster$"))
 
-    # Photo handler for seat slip uploads
-    application.add_handler(MessageHandler(filters.PHOTO, handle_seat_slip_upload))
-
     # Register admin handlers and share notification_messages dict and spin_bot instance
     logger.info(f"🔧 Registering admin handlers with spin_bot: {spin_bot is not None}")
     admin_panel.register_admin_handlers(application, notification_messages, spin_bot)
 
-    # Add general text handler
+    # Add general message handlers
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
+    application.add_handler(MessageHandler(filters.PHOTO, handle_photo_message))
 
     # Set up scheduler for daily reports
     scheduler = AsyncIOScheduler(timezone=pytz.timezone('Indian/Maldives'))
