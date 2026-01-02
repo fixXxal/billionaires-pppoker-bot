@@ -205,12 +205,8 @@ class WithdrawalViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Check if user has enough balance
-        if withdrawal.user.balance < withdrawal.amount:
-            return Response(
-                {'error': 'Insufficient balance'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Admin verifies balance on PPPoker before approving
+        # Bot balance is just for tracking, not validation
 
         withdrawal.status = 'Approved'
         withdrawal.approved_at = timezone.now()
