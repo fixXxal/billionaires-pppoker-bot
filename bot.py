@@ -1753,19 +1753,19 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         needed = min_required - deposits_after_withdrawal
 
         message = f"🎯 <b>Cashback Status</b>\n"
-        message += f"❌ Not Eligible Yet\n\n"
+        message += f"❌ Not Eligible\n"
 
         if last_withdrawal_date:
             from datetime import datetime
             withdrawal_date = datetime.fromisoformat(last_withdrawal_date)
-            message += f"- 📅 Last withdrawal: {withdrawal_date.strftime('%Y-%m-%d %H:%M')} (<b>{last_withdrawal_amount:.2f} MVR</b>)\n"
+            message += f"📅 Last: {withdrawal_date.strftime('%Y-%m-%d')} ({last_withdrawal_amount:.0f} MVR)\n"
         else:
-            message += f"- 📅 Withdrawals: None so far\n"
+            message += f"📅 Withdrawals: None\n"
 
-        message += f"- 📊 Deposits since last withdrawal: <b>{deposits_after_withdrawal:.2f} MVR</b>\n"
-        message += f"- 📌 Minimum required: <b>{min_required:.2f} MVR</b>\n\n"
-        message += f"⚠️ <b>Action Needed:</b> Deposit <b>{abs(needed):.2f} MVR</b> more to unlock cashback eligibility.\n\n"
-        message += f"✨ <i>Tip: The more you deposit before withdrawing, the bigger your cashback boost!</i>"
+        message += f"📊 Deposits: {deposits_after_withdrawal:.0f} MVR\n"
+        message += f"📌 Required: {min_required:.0f} MVR\n"
+        message += f"⚠️ Deposit {abs(needed):.0f} MVR more to qualify.\n"
+        message += f"✨ Bigger deposits = bigger cashback!"
 
         await update.message.reply_text(message, parse_mode='HTML')
         return ConversationHandler.END
