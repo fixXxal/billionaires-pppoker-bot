@@ -798,74 +798,39 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Calculate total deposits (including all statuses for debugging)
-        all_deposits_count = Deposit.objects.filter(user=user).count()
-        approved_deposits_count = Deposit.objects.filter(user=user, status='Approved').count()
+        # SIMPLE CASHBACK LOGIC:
+        # 1. Find last withdrawal
+        # 2. Count deposits after that withdrawal
+        # 3. If deposits >= 500 MVR → Eligible
 
-        total_deposits = Deposit.objects.filter(
+        # Get last approved withdrawal
+        last_withdrawal = Withdrawal.objects.filter(
             user=user,
             status='Approved'
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        ).order_by('-created_at').first()
 
-        # Calculate total withdrawals
-        total_withdrawals = Withdrawal.objects.filter(
-            user=user,
-            status='Approved'
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-
-        # Calculate total spin rewards (from approved spin history)
-        total_spin_rewards = SpinHistory.objects.filter(
-            user=user,
-            status='Approved'
-        ).aggregate(total=Sum('chips'))['total'] or Decimal('0')
-
-        # Calculate total promotion bonuses
-        total_bonuses = PromotionEligibility.objects.filter(
-            user=user
-        ).aggregate(total=Sum('bonus_amount'))['total'] or Decimal('0')
-
-        # Calculate total cashback received
-        total_cashback = CashbackEligibility.objects.filter(
-            user=user
-        ).aggregate(total=Sum('cashback_amount'))['total'] or Decimal('0')
-
-        # Get last cashback claim for this promotion (if any)
-        last_claim = None
-        last_claim_deposits = Decimal('0')
-        if promotion_id:
-            last_claim = CashbackEligibility.objects.filter(
+        # Get deposits after last withdrawal (or all deposits if no withdrawal yet)
+        if last_withdrawal:
+            deposits_after_withdrawal = Deposit.objects.filter(
                 user=user,
-                promotion_id=promotion_id
-            ).order_by('-received_at').first()
+                status='Approved',
+                created_at__gt=last_withdrawal.created_at
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            last_withdrawal_date = last_withdrawal.created_at
+            last_withdrawal_amount = last_withdrawal.amount
+        else:
+            # No withdrawals yet, count all deposits
+            deposits_after_withdrawal = Deposit.objects.filter(
+                user=user,
+                status='Approved'
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            last_withdrawal_date = None
+            last_withdrawal_amount = Decimal('0')
 
-            if last_claim:
-                # Get total deposits at time of last claim
-                last_claim_deposits = Deposit.objects.filter(
-                    user=user,
-                    status='Approved',
-                    created_at__lte=last_claim.received_at
-                ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        # Check eligibility: deposits after last withdrawal >= 500 MVR
+        eligible = deposits_after_withdrawal >= min_deposit
 
-        # Calculate effective new deposits (deposits since last claim)
-        effective_new_deposits = total_deposits - last_claim_deposits
-
-        # Calculate baseline (withdrawals + spin rewards + bonuses + cashback)
-        baseline = total_withdrawals + total_spin_rewards + total_bonuses + total_cashback
-
-        # Check if deposits exceed withdrawals (user is at a loss)
-        deposits_exceed_withdrawals = total_deposits > baseline
-
-        # Calculate club profit (baseline - deposits) and user loss
-        club_profit = baseline - total_deposits
-        user_loss = total_deposits - baseline
-
-        # Check eligibility - users can claim multiple times as long as they meet requirements
-        eligible = (
-            deposits_exceed_withdrawals and  # User must be at a loss
-            effective_new_deposits >= min_deposit  # Must meet minimum new deposit requirement
-        )
-
-        # Check if already claimed from this promotion (for info only, doesn't block eligibility)
+        # Check if already claimed from this promotion
         already_claimed = False
         if promotion_id:
             already_claimed = CashbackEligibility.objects.filter(
@@ -874,26 +839,15 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
             ).exists()
 
         return Response({
-            'eligible': eligible,  # Allow unlimited claims as long as requirements are met
-            'current_deposits': float(total_deposits),
-            'current_withdrawals': float(total_withdrawals),
-            'total_spin_rewards': float(total_spin_rewards),
-            'total_bonuses': float(total_bonuses),
-            'total_cashback': float(total_cashback),
-            'club_profit': float(club_profit),
-            'user_loss': float(user_loss),
-            'effective_new_deposits': float(effective_new_deposits),
-            'last_claim_deposits': float(last_claim_deposits),
-            'baseline': float(baseline),
+            'eligible': eligible,
+            'deposits_after_last_withdrawal': float(deposits_after_withdrawal),
+            'last_withdrawal_date': last_withdrawal_date.isoformat() if last_withdrawal_date else None,
+            'last_withdrawal_amount': float(last_withdrawal_amount),
             'min_required': float(min_deposit),
-            'deposits_exceed_withdrawals': deposits_exceed_withdrawals,
             'already_claimed': already_claimed,
-            # Debug info
             'debug_info': {
                 'user_id': user.id,
                 'user_telegram_id': user.telegram_id,
-                'all_deposits_count': all_deposits_count,
-                'approved_deposits_count': approved_deposits_count
             }
         })
 
