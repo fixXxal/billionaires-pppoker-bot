@@ -1754,14 +1754,6 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         message = f"🎯 <b>Cashback Status</b>\n"
         message += f"❌ Not Eligible\n"
-
-        if last_withdrawal_date:
-            from datetime import datetime
-            withdrawal_date = datetime.fromisoformat(last_withdrawal_date)
-            message += f"📅 Last: {withdrawal_date.strftime('%Y-%m-%d')} ({last_withdrawal_amount:.0f} MVR)\n"
-        else:
-            message += f"📅 Withdrawals: None\n"
-
         message += f"📊 Deposits: {deposits_after_withdrawal:.0f} MVR\n"
         message += f"📌 Required: {min_required:.0f} MVR\n"
         message += f"⚠️ Deposit {abs(needed):.0f} MVR more to qualify.\n"
