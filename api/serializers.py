@@ -54,6 +54,15 @@ class WithdrawalSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'approved_at']
 
+    def validate_amount(self, value):
+        """Validate minimum withdrawal amount"""
+        MIN_WITHDRAWAL = 200
+        if value < MIN_WITHDRAWAL:
+            raise serializers.ValidationError(
+                f"Minimum withdrawal amount is {MIN_WITHDRAWAL} MVR. You entered {value} MVR."
+            )
+        return value
+
 
 class SpinUserSerializer(serializers.ModelSerializer):
     """Serializer for SpinUser model"""

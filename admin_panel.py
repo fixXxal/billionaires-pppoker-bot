@@ -735,7 +735,24 @@ async def withdrawal_approve(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
 
     # Update status
-    api.update_withdrawal_status(request_id, 'Completed', admin_id, 'Approved via admin panel')
+    try:
+        api.update_withdrawal_status(request_id, 'Completed', admin_id, 'Approved via admin panel')
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Failed to approve withdrawal {request_id}: {error_msg}")
+
+        # Check for common errors
+        if 'Insufficient balance' in error_msg or '400' in error_msg:
+            error_display = "❌ <b>Approval Failed</b>\n\n⚠️ <b>Insufficient Balance</b>\nThe user doesn't have enough balance to withdraw this amount."
+        else:
+            error_display = f"❌ <b>Approval Failed</b>\n\nError: {error_msg}"
+
+        await query.edit_message_text(
+            text=error_display,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Requests", callback_data="admin_withdrawals")]])
+        )
+        return ConversationHandler.END
 
     # Notify user with club link button
     user_details = withdrawal.get('user_details', {})

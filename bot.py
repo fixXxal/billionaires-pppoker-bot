@@ -1315,6 +1315,17 @@ async def withdrawal_amount_received(update: Update, context: ContextTypes.DEFAU
         if amount <= 0:
             raise ValueError("Amount must be positive")
 
+        # Check minimum withdrawal amount
+        MIN_WITHDRAWAL = 200
+        if amount < MIN_WITHDRAWAL:
+            await update.message.reply_text(
+                f"❌ <b>Minimum Withdrawal: {MIN_WITHDRAWAL} MVR</b>\n\n"
+                f"Your amount: <b>{amount:.2f} MVR</b>\n\n"
+                f"Please enter at least {MIN_WITHDRAWAL} MVR:",
+                parse_mode='HTML'
+            )
+            return WITHDRAWAL_AMOUNT
+
         context.user_data['withdrawal_amount'] = amount
 
         await update.message.reply_text(
@@ -6157,7 +6168,27 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
         return
 
     # Update status using Django API
-    api.approve_withdrawal(request_id, query.from_user.id)
+    try:
+        api.approve_withdrawal(request_id, query.from_user.id)
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Failed to approve withdrawal {request_id}: {error_msg}")
+
+        # Check for common errors
+        if 'Insufficient balance' in error_msg or '400' in error_msg:
+            error_display = "❌ <b>Approval Failed: Insufficient Balance</b>\n\nThe user doesn't have enough balance to withdraw this amount."
+        else:
+            error_display = f"❌ <b>Approval Failed</b>\n\nError: {error_msg}"
+
+        await query.edit_message_text(
+            f"{query.message.text}\n\n{error_display}",
+            parse_mode='HTML'
+        )
+
+        # Unlock the request
+        if request_id in processing_requests:
+            del processing_requests[request_id]
+        return
 
     # Notify user with club link button
     club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
