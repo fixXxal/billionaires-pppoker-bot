@@ -1752,20 +1752,20 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         needed = min_required - deposits_after_withdrawal
 
-        message = f"❌ <b>Not Eligible for Cashback</b>\n\n"
+        message = f"🎯 <b>Cashback Status</b>\n"
+        message += f"❌ Not Eligible Yet\n\n"
 
         if last_withdrawal_date:
             from datetime import datetime
             withdrawal_date = datetime.fromisoformat(last_withdrawal_date)
-            message += f"📅 Last withdrawal: {withdrawal_date.strftime('%Y-%m-%d %H:%M')}\n"
-            message += f"💸 Amount withdrawn: <b>{last_withdrawal_amount:.2f} MVR</b>\n\n"
+            message += f"- 📅 Last withdrawal: {withdrawal_date.strftime('%Y-%m-%d %H:%M')} (<b>{last_withdrawal_amount:.2f} MVR</b>)\n"
         else:
-            message += f"📅 No withdrawals yet\n\n"
+            message += f"- 📅 Withdrawals: None so far\n"
 
-        message += f"📊 Deposits since last withdrawal: <b>{deposits_after_withdrawal:.2f} MVR</b>\n"
-        message += f"📌 Minimum required: <b>{min_required:.2f} MVR</b>\n\n"
-        message += f"⚠️ Deposit <b>{abs(needed):.2f} MVR</b> more to qualify.\n\n"
-        message += f"💡 <i>Cashback counter resets after every withdrawal.</i>"
+        message += f"- 📊 Deposits since last withdrawal: <b>{deposits_after_withdrawal:.2f} MVR</b>\n"
+        message += f"- 📌 Minimum required: <b>{min_required:.2f} MVR</b>\n\n"
+        message += f"⚠️ <b>Action Needed:</b> Deposit <b>{abs(needed):.2f} MVR</b> more to unlock cashback eligibility.\n\n"
+        message += f"✨ <i>Tip: The more you deposit before withdrawing, the bigger your cashback boost!</i>"
 
         await update.message.reply_text(message, parse_mode='HTML')
         return ConversationHandler.END
