@@ -805,17 +805,41 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
             status='Approved'
         ).order_by('-created_at').first()
 
-        # Get deposits after last withdrawal (or all deposits if no withdrawal yet)
-        if last_withdrawal:
+        # Get last cashback claim (counter should reset after cashback too)
+        last_cashback = CashbackEligibility.objects.filter(
+            user=user
+        ).order_by('-received_at').first()
+
+        # Find the most recent reset point (withdrawal OR cashback)
+        reset_date = None
+        reset_type = None
+
+        if last_withdrawal and last_cashback:
+            # Both exist, use the most recent one
+            if last_withdrawal.created_at > last_cashback.received_at:
+                reset_date = last_withdrawal.created_at
+                reset_type = 'withdrawal'
+            else:
+                reset_date = last_cashback.received_at
+                reset_type = 'cashback'
+        elif last_withdrawal:
+            reset_date = last_withdrawal.created_at
+            reset_type = 'withdrawal'
+        elif last_cashback:
+            reset_date = last_cashback.received_at
+            reset_type = 'cashback'
+
+        # Get deposits after last reset (withdrawal or cashback, whichever is more recent)
+        if reset_date:
             deposits_after_withdrawal = Deposit.objects.filter(
                 user=user,
                 status='Approved',
-                created_at__gt=last_withdrawal.created_at
+                created_at__gt=reset_date
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-            last_withdrawal_date = last_withdrawal.created_at
-            last_withdrawal_amount = last_withdrawal.amount
+            last_withdrawal_date = reset_date
+            last_withdrawal_amount = last_withdrawal.amount if last_withdrawal and reset_type == 'withdrawal' else Decimal('0')
         else:
-            # No withdrawals yet, count all deposits
+            # No withdrawals or cashback yet, count all deposits
             deposits_after_withdrawal = Deposit.objects.filter(
                 user=user,
                 status='Approved'
@@ -823,7 +847,7 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
             last_withdrawal_date = None
             last_withdrawal_amount = Decimal('0')
 
-        # Check eligibility: deposits after last withdrawal >= 500 MVR
+        # Check eligibility: deposits after last reset >= 500 MVR
         eligible = deposits_after_withdrawal >= min_deposit
 
         # Check if already claimed from this promotion
