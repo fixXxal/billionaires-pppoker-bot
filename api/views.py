@@ -858,11 +858,18 @@ class CashbackRequestViewSet(viewsets.ModelViewSet):
                 promotion_id=promotion_id
             ).exists()
 
+        # Get last cashback amount if cashback was the reset
+        last_cashback_amount = Decimal('0')
+        if reset_type == 'cashback' and last_cashback:
+            last_cashback_amount = last_cashback.cashback_amount
+
         return Response({
             'eligible': eligible,
             'deposits_after_last_withdrawal': float(deposits_after_withdrawal),
             'last_withdrawal_date': last_withdrawal_date.isoformat() if last_withdrawal_date else None,
             'last_withdrawal_amount': float(last_withdrawal_amount),
+            'last_cashback_amount': float(last_cashback_amount),
+            'reset_type': reset_type,  # 'withdrawal', 'cashback', or None
             'min_required': float(min_deposit),
             'already_claimed': already_claimed,
             'debug_info': {

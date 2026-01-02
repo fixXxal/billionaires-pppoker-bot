@@ -1746,14 +1746,22 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not eligibility['eligible']:
         deposits_after_withdrawal = eligibility['deposits_after_last_withdrawal']
-        last_withdrawal_date = eligibility.get('last_withdrawal_date')
+        reset_type = eligibility.get('reset_type')
         last_withdrawal_amount = eligibility.get('last_withdrawal_amount', 0)
+        last_cashback_amount = eligibility.get('last_cashback_amount', 0)
         min_required = eligibility['min_required']
 
         needed = min_required - deposits_after_withdrawal
 
         message = f"🎯 <b>Cashback Status</b>\n"
         message += f"❌ Not Eligible\n"
+
+        # Show which reset happened last
+        if reset_type == 'withdrawal':
+            message += f"📅 Last withdrawal: {last_withdrawal_amount:.0f} MVR\n"
+        elif reset_type == 'cashback':
+            message += f"📅 Last cashback: {last_cashback_amount:.0f} MVR\n"
+
         message += f"📊 Deposits: {deposits_after_withdrawal:.0f} MVR\n"
         message += f"📌 Required: {min_required:.0f} MVR\n"
         message += f"⚠️ Deposit {abs(needed):.0f} MVR more to qualify.\n"
