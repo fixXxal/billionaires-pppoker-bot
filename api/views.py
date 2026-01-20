@@ -101,6 +101,24 @@ class UserViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
+    @action(detail=True, methods=['patch'], url_path='update_language')
+    def update_language(self, request, pk=None):
+        """Update user's language preference"""
+        user = self.get_object()
+        language = request.data.get('language')
+
+        if language not in ['en', 'dv']:
+            return Response(
+                {'error': 'Invalid language. Must be "en" or "dv"'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.language = language
+        user.save()
+
+        serializer = self.get_serializer(user)
+        return Response(serializer.data)
+
 
 class DepositViewSet(viewsets.ModelViewSet):
     """

@@ -14,6 +14,7 @@ class User(models.Model):
     pppoker_id = models.CharField(max_length=50, blank=True, default='')
     balance = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     club_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    language = models.CharField(max_length=5, default='en', choices=[('en', 'English'), ('dv', 'Dhivehi')])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     synced_to_sheets = models.BooleanField(default=False)

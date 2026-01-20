@@ -101,6 +101,48 @@ api = SheetsCompatAPI(DJANGO_API_URL)
 spin_bot = SpinBot(api, ADMIN_USER_ID, pytz.timezone(TIMEZONE))
 logger.info(f"✅ SpinBot initialized successfully - Minimum deposit for spins: 200 MVR")
 
+# Button labels in multiple languages
+BUTTON_LABELS = {
+    'en': {
+        'deposit': '💰 Deposit',
+        'withdrawal': '💸 Withdrawal',
+        'seat': '🪑 Seat',
+        'join_club': '🎮 Join Club',
+        'free_spins': '🎲 Free Spins',
+        'cashback': '💸 Cashback',
+        'live_support': '💬 Live Support',
+        'help': '❓ Help',
+        'language': '🌐 Language / ބަސް'  # Always bilingual
+    },
+    'dv': {
+        'deposit': '💰 ޑިޕޮޒިޓް',  # PLACEHOLDER - User will fill
+        'withdrawal': '💸 ވިތްޑްރޯ',  # PLACEHOLDER
+        'seat': '🪑 ސީޓް',  # PLACEHOLDER
+        'join_club': '🎮 ކްލަބަށް ވަނުން',  # PLACEHOLDER
+        'free_spins': '🎲 ފްރީ ސްޕިންސް',  # PLACEHOLDER
+        'cashback': '💸 ކޭޝްބޭކް',  # PLACEHOLDER
+        'live_support': '💬 ސަޕޯޓް',  # PLACEHOLDER
+        'help': '❓ އެހީ',  # PLACEHOLDER
+        'language': '🌐 Language / ބަސް'  # Same in both languages
+    }
+}
+
+def get_button_text(button_name: str, lang: str = 'en') -> str:
+    """Get button label in specified language. Fallback to English if empty."""
+    text = BUTTON_LABELS.get(lang, {}).get(button_name, '')
+    if not text:  # If Dhivehi is empty, use English
+        text = BUTTON_LABELS['en'].get(button_name, '')
+    return text
+
+def get_user_language(user_id: int) -> str:
+    """Get user's language preference. Returns 'en' as default."""
+    try:
+        user_data = api.get_user(user_id)
+        return user_data.get('language', 'en') if user_data else 'en'
+    except Exception as e:
+        logger.error(f"Failed to get language for user {user_id}: {e}")
+        return 'en'
+
 # Conversation states
 (DEPOSIT_METHOD, DEPOSIT_AMOUNT, DEPOSIT_PPPOKER_ID, DEPOSIT_ACCOUNT_NAME,
  DEPOSIT_PROOF, DEPOSIT_USDT_AMOUNT, WITHDRAWAL_METHOD, WITHDRAWAL_AMOUNT, WITHDRAWAL_PPPOKER_ID,
@@ -288,7 +330,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Create or update user in database
     try:
         logger.info(f"Creating/updating user: {user.id} ({user.username})")
-        api.create_or_update_user(
+        user_data = api.create_or_update_user(
             user.id,
             user.username,
             user.first_name,
@@ -305,66 +347,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Check if user is admin - show admin menu
-    if is_admin(user.id):
-        keyboard = [
-            [KeyboardButton("📋 Admin Panel"), KeyboardButton("🎰 Spin Management")],
-            [KeyboardButton("📊 View Deposits"), KeyboardButton("💸 View Withdrawals")],
-            [KeyboardButton("🎮 View Join Requests"), KeyboardButton("💳 Payment Accounts")]
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    # Check if user has language preference set
+    user_lang = user_data.get('language') if user_data else None
 
-        welcome_message = f"""
-🔐 <b>ADMIN PANEL</b>
-
-Welcome back, Admin {user.first_name}! 👨‍💼
-
-<b>Quick Access:</b>
-📋 <b>Admin Panel</b> - Full admin dashboard
-🎰 <b>Spin Management</b> - Manage spin rewards
-📊 <b>View Deposits</b> - Manage deposit requests
-💸 <b>View Withdrawals</b> - Manage withdrawal requests
-🎮 <b>View Join Requests</b> - Approve/reject club joins
-💳 <b>Payment Accounts</b> - Update payment details
-
-Select an option to get started:
-"""
-        await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode='HTML')
+    if not user_lang or user_lang == '':
+        # New user - show language selection first
+        await language_selection_start(update, context)
     else:
-        # Regular user menu
-        keyboard = [
-            [KeyboardButton("💰 Deposit"), KeyboardButton("💸 Withdrawal")],
-            [KeyboardButton("🪑 Seat"), KeyboardButton("🎮 Join Club")],
-            [KeyboardButton("🎲 Free Spins"), KeyboardButton("💸 Cashback")],
-            [KeyboardButton("💬 Live Support"), KeyboardButton("❓ Help")]
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-        welcome_message = f"""
-🎰 <b>Welcome to Billionaires PPPoker Club!</b> 🎰
-
-Hello {user.first_name}! 👋
-
-I'm here to help you with:
-💰 <b>Deposits</b> - Add funds to your account
-💸 <b>Withdrawals</b> - Cash out your winnings
-🎲 <b>Free Spins</b> - Win chips by spinning!
-🎮 <b>Club Access</b> - Join our exclusive club
-💬 <b>Live Support</b> - Chat with our admin
-
-Please select an option from the menu below:
-"""
-        # Add channel link button
-        channel_keyboard = [[InlineKeyboardButton("📢 Join Our Channel", url="https://t.me/Billionairesmv")]]
-        channel_markup = InlineKeyboardMarkup(channel_keyboard)
-
-        await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode='HTML')
-        await update.message.reply_text(
-            "📢 <b>Stay Updated!</b>\n\n"
-            "Join our official Telegram channel for latest news, promotions, and exclusive offers! 🎁",
-            reply_markup=channel_markup,
-            parse_mode='HTML'
-        )
+        # Existing user - show main menu directly
+        await show_main_menu(user, context, user_lang)
 
 
 # Help Command
@@ -505,6 +496,131 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         help_text += admin_help
 
     await update.message.reply_text(help_text, parse_mode='Markdown')
+
+
+# Language Selection Functions
+async def language_selection_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show language selection menu"""
+    keyboard = [
+        [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
+        [InlineKeyboardButton("🇲🇻 ދިވެހި", callback_data="lang_dv")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    message = """🌐 <b>Select Your Language / ބަހެއް ހޮވާ</b>
+
+Please choose your preferred language:
+ބަހެއް ހޮވާލައްވާ:"""
+
+    if update.message:
+        await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='HTML')
+    elif update.callback_query:
+        await update.callback_query.edit_message_text(message, reply_markup=reply_markup, parse_mode='HTML')
+
+
+async def language_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle language selection"""
+    query = update.callback_query
+    await query.answer()
+
+    lang_code = query.data.replace('lang_', '')  # 'en' or 'dv'
+    user_id = update.effective_user.id
+
+    # Update user's language in database
+    try:
+        api.update_user_language(user_id, lang_code)
+        logger.info(f"User {user_id} changed language to {lang_code}")
+    except Exception as e:
+        logger.error(f"Failed to update language: {e}")
+
+    # Show confirmation and then menu
+    confirmation = "✅ Language changed to English" if lang_code == 'en' else "✅ ބަސް ބަދަލުކުރެވުނު"
+    await query.edit_message_text(confirmation, parse_mode='HTML')
+    await asyncio.sleep(1)
+
+    # Show main menu with updated language
+    await show_main_menu(update.effective_user, context, lang_code)
+
+
+async def show_main_menu(user, context: ContextTypes.DEFAULT_TYPE, lang: str = None):
+    """Show main menu with buttons in user's language"""
+    if lang is None:
+        user_data = api.get_user(user.id)
+        lang = user_data.get('language', 'en') if user_data else 'en'
+
+    if is_admin(user.id):
+        # Admin menu - stays in English
+        keyboard = [
+            [KeyboardButton("📋 Admin Panel"), KeyboardButton("🎰 Spin Management")],
+            [KeyboardButton("📊 View Deposits"), KeyboardButton("💸 View Withdrawals")],
+            [KeyboardButton("🎮 View Join Requests"), KeyboardButton("💳 Payment Accounts")]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+        welcome_message = f"""🔐 <b>ADMIN PANEL</b>
+
+Welcome back, Admin {user.first_name}! 👨‍💼
+
+<b>Quick Access:</b>
+📋 <b>Admin Panel</b> - Full admin dashboard
+🎰 <b>Spin Management</b> - Manage spin rewards
+📊 <b>View Deposits</b> - Manage deposit requests
+💸 <b>View Withdrawals</b> - Manage withdrawal requests
+🎮 <b>View Join Requests</b> - Approve/reject club joins
+💳 <b>Payment Accounts</b> - Update payment details
+
+Select an option to get started:"""
+
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=welcome_message,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+    else:
+        # User menu with translated buttons
+        keyboard = [
+            [KeyboardButton(get_button_text('deposit', lang)), KeyboardButton(get_button_text('withdrawal', lang))],
+            [KeyboardButton(get_button_text('seat', lang)), KeyboardButton(get_button_text('join_club', lang))],
+            [KeyboardButton(get_button_text('free_spins', lang)), KeyboardButton(get_button_text('cashback', lang))],
+            [KeyboardButton(get_button_text('live_support', lang)), KeyboardButton(get_button_text('help', lang))],
+            [KeyboardButton(get_button_text('language', lang))]  # Language switcher
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+        # Welcome message stays in English
+        welcome_message = f"""🎰 <b>WELCOME TO BILLIONAIRES PPOKER CLUB!</b> 🎰
+
+Hello {user.first_name}! 👋
+
+I'm here to help you with:
+💰 <b>Deposits</b> - Add funds to your account
+💸 <b>Withdrawals</b> - Cash out your winnings
+🎲 <b>Free Spins</b> - Win chips by spinning!
+🎮 <b>Club Access</b> - Join our exclusive club
+💬 <b>Live Support</b> - Chat with our admin
+
+Please select an option from the menu below:"""
+
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=welcome_message,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+
+        # Channel promo
+        channel_keyboard = [[InlineKeyboardButton("📢 Join Our Channel", url="https://t.me/Billionairesmv")]]
+        channel_markup = InlineKeyboardMarkup(channel_keyboard)
+
+        await context.bot.send_message(
+            chat_id=user.id,
+            text="""📢 <b>Stay Updated!</b>
+
+Join our official Telegram channel for latest news, promotions, and exclusive offers! 🎁""",
+            reply_markup=channel_markup,
+            parse_mode='HTML'
+        )
 
 
 # Deposit Flow
@@ -8670,21 +8786,26 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return await admin_panel.admin_view_joins(update, context)
     elif text == "💳 Payment Accounts" and is_admin(user_id):
         return await admin_panel.admin_view_accounts(update, context)
-    # Regular user menu buttons
-    elif text == "💰 Deposit":
+    # Language button (same in all languages)
+    elif text == "🌐 Language / ބަސް":
+        return await language_selection_start(update, context)
+    # Regular user menu buttons (check both languages)
+    elif text in [BUTTON_LABELS['en']['deposit'], BUTTON_LABELS['dv']['deposit']]:
         return await deposit_start(update, context)
-    elif text == "💸 Withdrawal":
+    elif text in [BUTTON_LABELS['en']['withdrawal'], BUTTON_LABELS['dv']['withdrawal']]:
         return await withdrawal_start(update, context)
-    elif text == "🎮 Join Club":
+    elif text in [BUTTON_LABELS['en']['join_club'], BUTTON_LABELS['dv']['join_club']]:
         return await join_club_start(update, context)
-    elif text == "🪑 Seat":
+    elif text in [BUTTON_LABELS['en']['seat'], BUTTON_LABELS['dv']['seat']]:
         return await seat_request_start(update, context)
-    elif text == "💬 Live Support":
+    elif text in [BUTTON_LABELS['en']['live_support'], BUTTON_LABELS['dv']['live_support']]:
         return await live_support_start(update, context)
-    elif text == "❓ Help":
+    elif text in [BUTTON_LABELS['en']['help'], BUTTON_LABELS['dv']['help']]:
         return await help_command(update, context)
-    elif text == "🎲 Free Spins":
+    elif text in [BUTTON_LABELS['en']['free_spins'], BUTTON_LABELS['dv']['free_spins']]:
         return await freespins_command(update, context)
+    elif text in [BUTTON_LABELS['en']['cashback'], BUTTON_LABELS['dv']['cashback']]:
+        return await cashback_command(update, context)
     elif text == "🎰 Spin Management":
         if is_admin(user_id):
             return await spin_management_panel(update, context)
@@ -8760,6 +8881,9 @@ def main():
 
     # Test button handlers
     application.add_handler(CallbackQueryHandler(test_button_handler, pattern="^test_"))
+
+    # Language selection callback handler
+    application.add_handler(CallbackQueryHandler(language_selected, pattern="^lang_"))
 
     # Spin bot callback handlers
     # IMPORTANT: Register more specific patterns FIRST before generic ones

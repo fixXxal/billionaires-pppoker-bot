@@ -20,7 +20,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'telegram_id', 'username', 'pppoker_id',
-            'balance', 'club_balance', 'created_at', 'updated_at'
+            'balance', 'club_balance', 'language', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 

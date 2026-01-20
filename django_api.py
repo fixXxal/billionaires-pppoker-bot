@@ -127,6 +127,21 @@ class DjangoAPI:
         data = {'pppoker_id': pppoker_id}
         return self._patch(f'users/{user_id}/', data)
 
+    def update_user_language(self, telegram_id: int, language: str) -> Dict:
+        """Update user's language preference"""
+        try:
+            response = requests.patch(
+                f'{self.base_url}/users/{telegram_id}/update_language/',
+                json={'language': language},
+                headers=self.headers,
+                timeout=30
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Failed to update language for user {telegram_id}: {e}")
+            raise
+
     def get_all_users(self) -> List[Dict]:
         """Get all users"""
         return self._get('users/')
