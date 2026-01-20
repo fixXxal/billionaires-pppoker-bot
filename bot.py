@@ -1227,11 +1227,29 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_data = api.get_user(user_id)
 
-    # Check if user has balance to withdraw
-    if not user_data or float(user_data.get('balance', 0)) <= 0:
+    # Check if user has ever made a deposit
+    try:
+        deposits = api.get_user_deposits(user_id)
+        # Handle paginated response
+        if isinstance(deposits, dict) and 'results' in deposits:
+            deposits = deposits['results']
+
+        # Filter only approved deposits
+        approved_deposits = [d for d in deposits if d.get('status') == 'Approved']
+
+        if not approved_deposits or len(approved_deposits) == 0:
+            await update.message.reply_text(
+                "⚠️ <b>No Deposit History Found</b>\n\n"
+                "You need to make at least one deposit before you can request withdrawals.\n\n"
+                "💰 Tap <b>Deposit</b> to get started!",
+                parse_mode='HTML'
+            )
+            return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error checking user deposits: {e}")
         await update.message.reply_text(
-            "⚠️ You don't have any balance to withdraw.\n"
-            "Please make a deposit first."
+            "⚠️ Unable to verify deposit history. Please try again or contact admin.",
+            parse_mode='HTML'
         )
         return ConversationHandler.END
 
