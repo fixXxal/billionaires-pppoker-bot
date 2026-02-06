@@ -1526,6 +1526,7 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
     """Handle deposit proof upload with Vision API OCR - extracts details and asks for PPPoker ID"""
     user = update.effective_user
     method = context.user_data['deposit_method']
+    lang = context.user_data.get('lang', get_user_language(user.id))
 
     # Variables for extracted details
     extracted_details = None
@@ -1539,7 +1540,7 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
         transaction_ref = f"Photo: {photo_file_id}"  # Default to file ID
 
         # Send processing message
-        processing_msg = await update.message.reply_text("🔍 Processing receipt... Please wait...")
+        processing_msg = await update.message.reply_text(get_message('deposit_processing', lang))
 
         try:
             # Download photo
@@ -1702,6 +1703,7 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
 
 async def deposit_usdt_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle USDT amount input"""
+    lang = context.user_data.get('lang', get_user_language(update.effective_user.id))
     try:
         usdt_amount = float(update.message.text.replace(',', '').strip())
         if usdt_amount <= 0:
@@ -1718,11 +1720,10 @@ async def deposit_usdt_amount_received(update: Update, context: ContextTypes.DEF
         context.user_data['usdt_exchange_rate'] = usdt_rate
 
         await update.message.reply_text(
-            f"✅ Amount received!\n\n"
-            f"💎 {usdt_amount} USDT\n"
+            f"✅ {usdt_amount} USDT\n"
             f"💱 Rate: 1 USDT = {float(usdt_rate):.2f} MVR\n"
-            f"💰 Equivalent: **{mvr_amount:,.2f} MVR**\n\n"
-            f"🎮 Please enter your **PPPoker ID**:",
+            f"💰 = **{mvr_amount:,.2f} MVR**\n\n" +
+            get_message('deposit_enter_pppoker_id', lang),
             parse_mode='Markdown'
         )
 
@@ -1730,8 +1731,7 @@ async def deposit_usdt_amount_received(update: Update, context: ContextTypes.DEF
 
     except ValueError:
         await update.message.reply_text(
-            "❌ Invalid amount. Please enter a valid number.\n\n"
-            "Example: 100 or 100.5"
+            get_message('deposit_invalid_usdt', lang)
         )
         return DEPOSIT_USDT_AMOUNT
 
@@ -1832,21 +1832,30 @@ async def withdrawal_method_selected(update: Update, context: ContextTypes.DEFAU
     method = query.data.replace('withdrawal_', '').upper()
     context.user_data['withdrawal_method'] = method
 
+    # Get user language
+    lang = get_user_language(update.effective_user.id)
+    context.user_data['lang'] = lang
+
     method_names = {'BML': 'Bank of Maldives', 'MIB': 'Maldives Islamic Bank', 'USD': 'USD Bank Transfer', 'USDT': 'USDT (BEP20)'}
 
-    message = f"💸 <b>Withdrawal via {method_names[method]}</b>\n\n"
+    message = get_message('deposit_via', lang, method=method_names[method]).replace('ޑިޕޮޒިޓް', 'ވިތްޑްރޯ').replace('Deposit', 'Withdrawal') + "\n\n"
 
     # Show exchange rate for USD/USDT
     if method == 'USD':
         usd_rate = api.get_exchange_rate('USD', 'MVR')
         if usd_rate:
-            message += f"💱 <b>Current Rate:</b> 1 USD = {float(usd_rate):.2f} MVR\n\n"
+            message += get_message('deposit_rate', lang, currency='USD', rate=float(usd_rate)) + "\n\n"
     elif method == 'USDT':
         usdt_rate = api.get_exchange_rate('USDT', 'MVR')
         if usdt_rate:
-            message += f"💱 <b>Current Rate:</b> 1 USDT = {float(usdt_rate):.2f} MVR\n\n"
+            message += get_message('deposit_rate', lang, currency='USDT', rate=float(usdt_rate)) + "\n\n"
 
-    message += f"Please enter the amount you want to withdraw (in {'USD' if method in ['USD', 'USDT'] else 'MVR'}):"
+    if method == 'USD':
+        message += get_message('withdrawal_enter_amount_usd', lang)
+    elif method == 'USDT':
+        message += get_message('withdrawal_enter_amount_usdt', lang)
+    else:
+        message += get_message('withdrawal_enter_amount_mvr', lang)
 
     await query.edit_message_text(message, parse_mode='HTML')
 
@@ -1855,6 +1864,7 @@ async def withdrawal_method_selected(update: Update, context: ContextTypes.DEFAU
 
 async def withdrawal_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle withdrawal amount input"""
+    lang = context.user_data.get('lang', get_user_language(update.effective_user.id))
     try:
         amount = float(update.message.text.replace(',', ''))
         if amount <= 0:
@@ -1864,9 +1874,7 @@ async def withdrawal_amount_received(update: Update, context: ContextTypes.DEFAU
         MIN_WITHDRAWAL = 200
         if amount < MIN_WITHDRAWAL:
             await update.message.reply_text(
-                f"❌ <b>Minimum Withdrawal: {MIN_WITHDRAWAL} MVR</b>\n\n"
-                f"Your amount: <b>{amount:.2f} MVR</b>\n\n"
-                f"Please enter at least {MIN_WITHDRAWAL} MVR:",
+                get_message('withdrawal_invalid_amount', lang),
                 parse_mode='HTML'
             )
             return WITHDRAWAL_AMOUNT
@@ -1874,7 +1882,7 @@ async def withdrawal_amount_received(update: Update, context: ContextTypes.DEFAU
         context.user_data['withdrawal_amount'] = amount
 
         await update.message.reply_text(
-            "🎮 Please enter your **PPPoker ID**:",
+            get_message('deposit_enter_pppoker_id', lang),
             parse_mode='Markdown'
         )
 
@@ -1882,7 +1890,7 @@ async def withdrawal_amount_received(update: Update, context: ContextTypes.DEFAU
 
     except ValueError:
         await update.message.reply_text(
-            "❌ Invalid amount. Please enter a valid number (e.g., 1000 or 1000.50):"
+            get_message('withdrawal_invalid_amount', lang)
         )
         return WITHDRAWAL_AMOUNT
 
@@ -1890,6 +1898,7 @@ async def withdrawal_amount_received(update: Update, context: ContextTypes.DEFAU
 async def withdrawal_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle PPPoker ID input for withdrawal"""
     raw_input = update.message.text.strip()
+    lang = context.user_data.get('lang', get_user_language(update.effective_user.id))
 
     # Clean PPPoker ID (remove spaces, letters, special characters)
     pppoker_id = clean_pppoker_id(raw_input)
@@ -1897,7 +1906,7 @@ async def withdrawal_pppoker_id_received(update: Update, context: ContextTypes.D
     # Validate that we have a valid number
     if not pppoker_id or len(pppoker_id) < 3:
         await update.message.reply_text(
-            "❌ Invalid PPPoker ID. Please enter only numbers (at least 3 digits):",
+            get_message('deposit_invalid_pppoker_id', lang),
             parse_mode='HTML'
         )
         return WITHDRAWAL_PPPOKER_ID
@@ -1908,15 +1917,23 @@ async def withdrawal_pppoker_id_received(update: Update, context: ContextTypes.D
 
     if method == 'USDT':
         await update.message.reply_text(
-            "💎 Please enter your **USDT wallet address** (BEP20):\n\n"
-            "⚠️ Make sure the address is correct! Transactions cannot be reversed.",
-            parse_mode='Markdown'
+            get_message('withdrawal_enter_wallet_usdt', lang),
+            parse_mode='HTML'
+        )
+    elif method == 'BML':
+        await update.message.reply_text(
+            get_message('withdrawal_enter_account_bml', lang),
+            parse_mode='HTML'
+        )
+    elif method == 'MIB':
+        await update.message.reply_text(
+            get_message('withdrawal_enter_account_mib', lang),
+            parse_mode='HTML'
         )
     else:
         await update.message.reply_text(
-            f"🏦 Please enter your **{method} account number**:\n\n"
-            "⚠️ Make sure the account number is correct!",
-            parse_mode='Markdown'
+            get_message('withdrawal_enter_account', lang, method=method),
+            parse_mode='HTML'
         )
 
     return WITHDRAWAL_ACCOUNT_NUMBER
@@ -1925,6 +1942,7 @@ async def withdrawal_pppoker_id_received(update: Update, context: ContextTypes.D
 async def withdrawal_account_number_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle withdrawal account number input"""
     user = update.effective_user
+    lang = context.user_data.get('lang', get_user_language(user.id))
     user_data = api.get_user(user.id)
 
     account_number = update.message.text.strip()
@@ -1962,11 +1980,7 @@ async def withdrawal_account_number_received(update: Update, context: ContextTyp
     # Send confirmation to user
     currency = 'MVR' if method != 'USDT' else 'USD'
     await update.message.reply_text(
-        f"✅ <b>Withdrawal sent!</b>\n\n"
-        f"💸 {amount} {currency} to {method}\n"
-        f"👤 Account Name: {account_name}\n"
-        f"🏦 Account Number: {account_number}\n\n"
-        f"Processing now.",
+        get_message('withdrawal_confirm', lang, amount=f"{amount} {currency}", method=method, pppoker_id=pppoker_id),
         parse_mode='HTML'
     )
 
@@ -9007,6 +9021,9 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
     except:
         pass
 
+    # Get user language
+    lang = get_user_language(update.effective_user.id)
+
     # Get user data
     user_data = api.get_user(update.effective_user.id)
 
@@ -9031,8 +9048,7 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
     if len(keyboard) == 1:  # Only cancel button
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text="⚠️ No payment methods are currently available.\n\n"
-                "Please contact admin for assistance.",
+            text=get_message('deposit_no_methods', lang),
             parse_mode='Markdown'
         )
         return ConversationHandler.END
@@ -9041,8 +9057,7 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
 
     await context.bot.send_message(
         chat_id=query.message.chat_id,
-        text="💰 **Deposit to Billionaires Club**\n\n"
-            "Please select your payment method:",
+        text=get_message('deposit_title', lang),
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
