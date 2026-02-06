@@ -80,10 +80,9 @@ async def send_counter_closed_message(update: Update) -> bool:
     Returns True if counter is closed, False if open.
     """
     if is_counter_closed():
+        lang = get_user_language(update.effective_user.id)
         await update.message.reply_text(
-            "🔴 <b>COUNTER IS CLOSED</b>\n\n"
-            "We are currently not accepting requests.\n"
-            "Please try again later when we reopen!",
+            get_message('counter_closed', lang),
             parse_mode='HTML'
         )
         return True
@@ -144,6 +143,278 @@ def get_user_language(user_id: int) -> str:
         logger.error(f"Failed to get language for user {user_id}: {e}")
         return 'en'
 
+# Message translations for bot responses
+MESSAGES = {
+    'en': {
+        # Counter status
+        'counter_closed': "🔴 <b>COUNTER IS CLOSED</b>\n\nWe are currently not accepting requests.\nPlease try again later when we reopen!",
+        'counter_closed_spins': "🔒 *COUNTER IS CLOSED*\n\nThe spin wheel is currently unavailable\\.\nPlease try again when the counter reopens\\!\n\nThank you for your patience\\! 🙏",
+
+        # Welcome messages
+        'welcome_title': "🎰 <b>WELCOME TO BILLIONAIRES PPOKER CLUB!</b> 🎰",
+        'welcome_greeting': "Hello {name}! 👋",
+        'welcome_help': """I'm here to help you with:
+💰 <b>Deposits</b> - Add funds to your account
+💸 <b>Withdrawals</b> - Cash out your winnings
+🎲 <b>Free Spins</b> - Win chips by spinning!
+🎮 <b>Club Access</b> - Join our exclusive club
+💬 <b>Live Support</b> - Chat with our admin
+
+Please select an option from the menu below:""",
+
+        # Language selection
+        'language_select': "🌐 <b>Select Your Language / ބަހެއް ހޮވާ</b>\n\nPlease choose your preferred language:\nބަހެއް ހޮވާލައްވާ:",
+        'language_changed': "✅ Language changed to English",
+
+        # Deposit messages
+        'deposit_title': "💰 **Deposit to Billionaires Club**\n\nPlease select your payment method:",
+        'deposit_no_methods': "⚠️ No payment methods are currently available.\n\nPlease contact admin for assistance.",
+        'deposit_account_not_configured': "❌ Payment account not configured. Please contact admin.",
+        'deposit_via': "💰 <b>Deposit via {method}</b>",
+        'deposit_rate': "💱 <b>Current Rate:</b> 1 {currency} = {rate:.2f} MVR",
+        'deposit_account_number': "<b>Account Number:</b> <a href='#'>(tap to copy)</a>\n<code>{account}</code>",
+        'deposit_wallet_address': "<b>Wallet Address:</b> <a href='#'>(tap to copy)</a>\n<code>{account}</code>",
+        'deposit_account_holder': "<b>Account Holder:</b>\n{holder}",
+        'deposit_upload_slip': "📸 Please upload your <b>payment slip/receipt</b> (screenshot or photo):",
+        'deposit_send_txid': "📝 Please send your <b>Transaction ID (TXID)</b> from the blockchain:",
+        'deposit_enter_pppoker_id': "🎮 Please enter your **PPPoker ID**:",
+        'deposit_invalid_amount': "❌ Invalid amount. Please enter a valid number (e.g., 1000 or 1000.50):",
+        'deposit_invalid_pppoker_id': "❌ Invalid PPPoker ID. Please enter only numbers (at least 3 digits):",
+        'deposit_sent': "✅ <b>Deposit sent!</b>",
+        'deposit_awaiting_approval': "Awaiting admin approval.",
+        'deposit_enter_usdt_amount': "💎 Please enter the <b>USDT amount</b> you sent:",
+        'deposit_invalid_usdt': "❌ Invalid USDT amount. Please enter a valid number (e.g., 50 or 100.5):",
+        'deposit_processing': "🔍 Analyzing your payment slip...",
+
+        # Withdrawal messages
+        'withdrawal_title': "💸 **Withdrawal from Billionaires Club**\n\nPlease select your withdrawal method:",
+        'withdrawal_enter_amount': "💰 Please enter the **amount** you want to withdraw (in MVR):",
+        'withdrawal_enter_usd_amount': "💵 Please enter the **amount** in USD:",
+        'withdrawal_enter_usdt_amount': "💎 Please enter the **amount** in USDT:",
+        'withdrawal_invalid_amount': "❌ Invalid amount. Please enter a valid number:",
+        'withdrawal_enter_pppoker_id': "🎮 Please enter your **PPPoker ID**:",
+        'withdrawal_enter_account': "🏦 Please enter your **{method} account number**:",
+        'withdrawal_enter_wallet': "🔗 Please enter your **USDT wallet address** (BEP20):",
+        'withdrawal_sent': "✅ <b>Withdrawal request submitted!</b>",
+        'withdrawal_awaiting': "Your withdrawal is being processed. Please wait for admin approval.",
+
+        # Join club messages
+        'join_title': "🎮 **Join Billionaires Club**\n\nPlease enter your PPPoker ID to join our club:",
+        'join_sent': "✅ <b>Join request submitted!</b>\n\nYour request is being processed. You'll receive a notification once approved.",
+        'join_club_info': """🎰 <b>JOIN BILLIONAIRES CLUB</b> 🎰
+
+<b>Club ID:</b> <a href='#'>(tap to copy)</a>
+<code>370625</code>
+
+<b>Club Name:</b> βILLIONAIRES
+
+━━━━━━━━━━━━━━━━━━
+
+<b>📋 How to Join:</b>
+
+1️⃣ Tap the button below to open the club
+2️⃣ Or manually search club ID: <code>370625</code>
+3️⃣ Request to join the club
+4️⃣ Enter your PPPoker ID here
+
+━━━━━━━━━━━━━━━━━━
+
+Please enter your <b>PPPoker ID</b> to complete your join request:""",
+        'join_open_club': "🎮 Open BILLIONAIRES Club",
+        'join_request_sent': "✅ <b>Join request sent!</b>\n\n🎮 ID: {pppoker_id}\n\nAdmin will review shortly.",
+
+        # Seat request messages
+        'seat_title': "🪑 **Seat Request**\n\nPlease enter the amount you want to play with:",
+        'seat_sent': "✅ <b>Seat request submitted!</b>\n\nPlease wait for admin approval.",
+
+        # Live support messages
+        'support_started': "💬 <b>Live Support</b>\n\nYou are now connected to live support.\nType your message and an admin will respond shortly.\n\nTo end the chat, type /endsupport or tap the button below.",
+        'support_ended': "✅ Support session ended. Thank you for contacting us!",
+        'support_message_sent': "✉️ Message sent to admin. Please wait for a response.",
+
+        # Free spins messages
+        'spins_title': "🎰 *FREE SPINS* 🎰",
+        'spins_no_spins': "💫 *No spins available right now\\!*\n\n💰 Make a deposit to unlock free spins\\!\n🔥 More deposit → More spins → More prizes\\!",
+        'spins_available': "🎯 You have *{count}* spins available\\!\n\nClick the button below to open the spinning wheel\\!",
+        'spins_make_deposit': "💰 Make Deposit",
+        'spins_open_wheel': "🎰 Open Spin Wheel 🎰",
+
+        # Cashback messages
+        'cashback_title': "💸 <b>CASHBACK</b>",
+        'cashback_no_promo': "❌ No active cashback promotion at this time.\n\nCheck back later for cashback offers!",
+
+        # Help messages
+        'help_title': "📖 **How to Use Billionaires Bot**",
+
+        # Error messages
+        'error_generic': "❌ An error occurred. Please try again.",
+        'error_service_unavailable': "⚠️ <b>Service Temporarily Unavailable</b>\n\nWe're experiencing technical difficulties. Please try again in a few moments.",
+        'error_admin_only': "❌ Admin only command.",
+
+        # Confirmations
+        'cancel_operation': "❌ Operation cancelled.",
+        'please_use_menu': "Please use the menu buttons or /help for available commands.",
+
+        # Channel promo
+        'channel_promo': "📢 <b>Stay Updated!</b>\n\nJoin our official Telegram channel for latest news, promotions, and exclusive offers! 🎁",
+        'channel_button': "📢 Join Our Channel",
+
+        # Withdrawal additional messages
+        'withdrawal_outstanding_credit': "❌ <b>Cannot Withdraw - Outstanding Credit</b>\n\nYou have an unpaid credit:\n💳 <b>Amount Owed:</b> {amount} MVR\n📅 <b>Since:</b> {date}\n\nPlease pay your credit before requesting withdrawal.\nContact admin for payment details.",
+        'withdrawal_no_deposits': "⚠️ <b>No Deposit History Found</b>\n\nYou need to make at least one deposit before you can request withdrawals.\n\n💰 Tap <b>Deposit</b> to get started!",
+        'withdrawal_verify_error': "⚠️ Unable to verify deposit history. Please try again or contact admin.",
+        'withdrawal_registered_account': "**Registered Account Name:** {name}\n\n⚠️ Withdrawals will only be sent to accounts with this name.\n\n",
+    },
+    'dv': {
+        # Counter status
+        'counter_closed': "🔴 <b>ކައުންޓަރު ބަންދު</b>\n\nމިވަގުތު ރިކުއެސްޓް ބަލައިނުގަނެވެއެވެ.\nފަހުން އަލުން މަސައްކަތް ކުރައްވާ!",
+        'counter_closed_spins': "🔒 *ކައުންޓަރު ބަންދު*\n\nސްޕިން ވީލް މިވަގުތު ލިބެން ނެތެވެ\\.\nކައުންޓަރު ހުޅުވުމުން އަލުން މަސައްކަތް ކުރައްވާ\\!\n\nޝުކުރިއްޔާ\\! 🙏",
+
+        # Welcome messages
+        'welcome_title': "🎰 <b>ބިލިއަނެއާޒް ޕީޕީޕޯކަރ ކްލަބަށް މަރުޙަބާ!</b> 🎰",
+        'welcome_greeting': "ހެލޯ {name}! 👋",
+        'welcome_help': """އަޅުގަނޑު އެހީވެދެވޭނީ:
+💰 <b>ޑިޕޮޒިޓް</b> - އެކައުންޓަށް ފައިސާ އެޅުން
+💸 <b>ވިތްޑްރޯ</b> - ފައިސާ ނެގުން
+🎲 <b>ފްރީ ސްޕިންސް</b> - ޗިޕްސް ހޯދުން!
+🎮 <b>ކްލަބަށް ވަނުން</b> - ކްލަބާ ގުޅުން
+💬 <b>ސަޕޯޓް</b> - އެޑްމިން އާ ވާހަކަ ދެއްކުން
+
+ތިރީގައިވާ މެނޫއިން އިޚްތިޔާރު ކުރައްވާ:""",
+
+        # Language selection
+        'language_select': "🌐 <b>Select Your Language / ބަހެއް ހޮވާ</b>\n\nPlease choose your preferred language:\nބަހެއް ހޮވާލައްވާ:",
+        'language_changed': "✅ ބަސް ބަދަލުކުރެވުނު",
+
+        # Deposit messages
+        'deposit_title': "💰 **ބިލިއަނެއާޒް ކްލަބަށް ޑިޕޮޒިޓް**\n\nޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ:",
+        'deposit_no_methods': "⚠️ މިވަގުތު ޕޭމަންޓް މެތަޑެއް ލިބެން ނެތެވެ.\n\nއެޑްމިން އާ ގުޅުއްވާ.",
+        'deposit_account_not_configured': "❌ ޕޭމަންޓް އެކައުންޓް ސެޓަޕް ކޮށްފައި ނެތެވެ. އެޑްމިން އާ ގުޅުއްވާ.",
+        'deposit_via': "💰 <b>{method} އިން ޑިޕޮޒިޓް</b>",
+        'deposit_rate': "💱 <b>ރޭޓް:</b> 1 {currency} = {rate:.2f} MVR",
+        'deposit_account_number': "<b>އެކައުންޓް ނަންބަރު:</b> <a href='#'>(ކޮޕީ ކުރައްވާ)</a>\n<code>{account}</code>",
+        'deposit_wallet_address': "<b>ވޮލެޓް އެޑްރެސް:</b> <a href='#'>(ކޮޕީ ކުރައްވާ)</a>\n<code>{account}</code>",
+        'deposit_account_holder': "<b>އެކައުންޓް ވެރިފަރާތް:</b>\n{holder}",
+        'deposit_upload_slip': "📸 ޕޭމަންޓް ސްލިޕް/ރެސީޕްޓް އަޕްލޯޑް ކުރައްވާ:",
+        'deposit_send_txid': "📝 ބްލޮކްޗެއިން އިން <b>ޓްރާންސެކްޝަން އައިޑީ (TXID)</b> ފޮނުއްވާ:",
+        'deposit_enter_pppoker_id': "🎮 ތިބާގެ **PPPoker ID** ޖައްސަވާ:",
+        'deposit_invalid_amount': "❌ ރަނގަޅު އަދަދެއް ނޫން. ރަނގަޅު އަދަދެއް ޖައްސަވާ (މިސާލު: 1000):",
+        'deposit_invalid_pppoker_id': "❌ ރަނގަޅު PPPoker ID އެއް ނޫން. ނަންބަރު އެކަނި ޖައްސަވާ (މަދުވެގެން 3 ޑިޖިޓް):",
+        'deposit_sent': "✅ <b>ޑިޕޮޒިޓް ފޮނުވިއްޖެ!</b>",
+        'deposit_awaiting_approval': "އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
+        'deposit_enter_usdt_amount': "💎 ފޮނުއްވި <b>USDT އަދަދު</b> ޖައްސަވާ:",
+        'deposit_invalid_usdt': "❌ ރަނގަޅު USDT އަދަދެއް ނޫން. ރަނގަޅު އަދަދެއް ޖައްސަވާ:",
+        'deposit_processing': "🔍 ޕޭމަންޓް ސްލިޕް ބަލަނީ...",
+
+        # Withdrawal messages
+        'withdrawal_title': "💸 **ބިލިއަނެއާޒް ކްލަބުން ވިތްޑްރޯ**\n\nވިތްޑްރޯ މެތަޑް އިޚްތިޔާރު ކުރައްވާ:",
+        'withdrawal_enter_amount': "💰 ނަންގަވަން ބޭނުންފުޅުވާ **އަދަދު** ޖައްސަވާ (MVR):",
+        'withdrawal_enter_usd_amount': "💵 **USD އަދަދު** ޖައްސަވާ:",
+        'withdrawal_enter_usdt_amount': "💎 **USDT އަދަދު** ޖައްސަވާ:",
+        'withdrawal_invalid_amount': "❌ ރަނގަޅު އަދަދެއް ނޫން. ރަނގަޅު އަދަދެއް ޖައްސަވާ:",
+        'withdrawal_enter_pppoker_id': "🎮 ތިބާގެ **PPPoker ID** ޖައްސަވާ:",
+        'withdrawal_enter_account': "🏦 ތިބާގެ **{method} އެކައުންޓް ނަންބަރު** ޖައްސަވާ:",
+        'withdrawal_enter_wallet': "🔗 ތިބާގެ **USDT ވޮލެޓް އެޑްރެސް** ޖައްސަވާ (BEP20):",
+        'withdrawal_sent': "✅ <b>ވިތްޑްރޯ ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>",
+        'withdrawal_awaiting': "ތިބާގެ ވިތްޑްރޯ ޕްރޮސެސް ކުރަނީ. އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
+
+        # Join club messages
+        'join_title': "🎮 **ބިލިއަނެއާޒް ކްލަބާ ގުޅުން**\n\nކްލަބާ ގުޅުމަށް ތިބާގެ PPPoker ID ޖައްސަވާ:",
+        'join_sent': "✅ <b>ޖޮއިން ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>\n\nތިބާގެ ރިކުއެސްޓް ޕްރޮސެސް ކުރަނީ. އެޕްރޫވް ވުމުން ނޮޓިފިކޭޝަން ލިބޭނެ.",
+        'join_club_info': """🎰 <b>ބިލިއަނެއާޒް ކްލަބާ ގުޅިލައްވާ</b> 🎰
+
+<b>ކްލަބް އައިޑީ:</b> <a href='#'>(ކޮޕީ ކުރައްވާ)</a>
+<code>370625</code>
+
+<b>ކްލަބް ނަން:</b> βILLIONAIRES
+
+━━━━━━━━━━━━━━━━━━
+
+<b>📋 ގުޅޭނެ ގޮތް:</b>
+
+1️⃣ ތިރީގައިވާ ބަޓަން އަށް ފިއްތާލައްވާ
+2️⃣ ނުވަތަ ކްލަބް އައިޑީ ސާޗް ކުރައްވާ: <code>370625</code>
+3️⃣ ކްލަބާ ގުޅެން ރިކުއެސްޓް ކުރައްވާ
+4️⃣ ތިބާގެ PPPoker ID މިތާ ޖައްސަވާ
+
+━━━━━━━━━━━━━━━━━━
+
+ޖޮއިން ރިކުއެސްޓް ފުރިހަމަ ކުރަން ތިބާގެ <b>PPPoker ID</b> ޖައްސަވާ:""",
+        'join_open_club': "🎮 ބިލިއަނެއާޒް ކްލަބް ހުޅުވާ",
+        'join_request_sent': "✅ <b>ޖޮއިން ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>\n\n🎮 އައިޑީ: {pppoker_id}\n\nއެޑްމިން ރިވިއު ކުރާނެ.",
+
+        # Seat request messages
+        'seat_title': "🪑 **ސީޓް ރިކުއެސްޓް**\n\nކުޅެން ބޭނުންފުޅުވާ އަދަދު ޖައްސަވާ:",
+        'seat_sent': "✅ <b>ސީޓް ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>\n\nއެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
+
+        # Live support messages
+        'support_started': "💬 <b>ލައިވް ސަޕޯޓް</b>\n\nތިބާ މިހާރު ލައިވް ސަޕޯޓާ ގުޅިއްޖެ.\nމެސެޖް ލިޔުއްވާ، އެޑްމިން ޖަވާބު ދެއްވާނެ.\n\nޗެޓް ނިންމާލަން /endsupport ޖައްސަވާ.",
+        'support_ended': "✅ ސަޕޯޓް ސެޝަން ނިމުނީ. ގުޅުއްވީތީ ޝުކުރިއްޔާ!",
+        'support_message_sent': "✉️ މެސެޖް އެޑްމިން އަށް ފޮނުވިއްޖެ. ޖަވާބަކަށް މަޑުކުރައްވާ.",
+
+        # Free spins messages
+        'spins_title': "🎰 *ފްރީ ސްޕިންސް* 🎰",
+        'spins_no_spins': "💫 *މިވަގުތު ސްޕިން ނެތް\\!*\n\n💰 ފްރީ ސްޕިން ހޯދަން ޑިޕޮޒިޓް ކުރައްވާ\\!\n🔥 ގިނައިން ޑިޕޮޒިޓް → ގިނަ ސްޕިން → ގިނަ އިނާމު\\!",
+        'spins_available': "🎯 ތިބާއަށް *{count}* ސްޕިން އެބަހުރި\\!\n\nސްޕިން ވީލް ހުޅުވަން ތިރީގައިވާ ބަޓަން އަށް ފިއްތާލައްވާ\\!",
+        'spins_make_deposit': "💰 ޑިޕޮޒިޓް ކުރައްވާ",
+        'spins_open_wheel': "🎰 ސްޕިން ވީލް ހުޅުވާ 🎰",
+
+        # Cashback messages
+        'cashback_title': "💸 <b>ކޭޝްބެކް</b>",
+        'cashback_no_promo': "❌ މިވަގުތު ކޭޝްބެކް ޕްރޮމޯޝަން ނެތެވެ.\n\nފަހުން ޗެކް ކުރައްވާ!",
+
+        # Help messages
+        'help_title': "📖 **ބިލިއަނެއާޒް ބޮޓް ބޭނުންކުރާނެ ގޮތް**",
+
+        # Error messages
+        'error_generic': "❌ މައްސަލައެއް ދިމާވީ. އަލުން މަސައްކަތް ކުރައްވާ.",
+        'error_service_unavailable': "⚠️ <b>ސާވިސް ވަގުތީ ގޮތުން ލިބެން ނެތް</b>\n\nޓެކްނިކަލް މައްސަލައެއް ދިމާވެއްޖެ. އިރުކޮޅަކުން އަލުން މަސައްކަތް ކުރައްވާ.",
+        'error_admin_only': "❌ އެޑްމިން އެކަނި ކޮމާންޑް.",
+
+        # Confirmations
+        'cancel_operation': "❌ ކެންސަލް ކުރެވިއްޖެ.",
+        'please_use_menu': "މެނޫ ބަޓަންތައް ބޭނުންކުރައްވާ ނުވަތަ /help ޖައްސަވާ.",
+
+        # Channel promo
+        'channel_promo': "📢 <b>އަޕްޑޭޓް ވެލައްވާ!</b>\n\nއާ ޚަބަރު، ޕްރޮމޯޝަން، އަދި ޚާއްޞަ އޮފާތައް ހޯދަން އޮފިޝަލް ޗެނެލާ ގުޅިލައްވާ! 🎁",
+        'channel_button': "📢 ޗެނެލާ ގުޅިލައްވާ",
+
+        # Withdrawal additional messages
+        'withdrawal_outstanding_credit': "❌ <b>ވިތްޑްރޯ ނުކުރެވޭ - ކްރެޑިޓް އެބައޮތް</b>\n\nތިބާގެ ނުދައްކާ ކްރެޑިޓް:\n💳 <b>ދައްކަންޖެހޭ:</b> {amount} MVR\n📅 <b>ތާރީޚް:</b> {date}\n\nވިތްޑްރޯ ކުރުމުގެ ކުރިން ކްރެޑިޓް ދައްކަވާ.\nއެޑްމިން އާ ގުޅުއްވާ.",
+        'withdrawal_no_deposits': "⚠️ <b>ޑިޕޮޒިޓް ހިސްޓްރީ ނެތް</b>\n\nވިތްޑްރޯ ކުރެވޭނީ އެއް ޑިޕޮޒިޓް ކުރުމަށްފަހު.\n\n💰 <b>ޑިޕޮޒިޓް</b> އަށް ފިއްތާލައްވާ!",
+        'withdrawal_verify_error': "⚠️ ޑިޕޮޒިޓް ހިސްޓްރީ ޗެކް ނުކުރެވުނު. އަލުން މަސައްކަތް ކުރައްވާ ނުވަތަ އެޑްމިން އާ ގުޅުއްވާ.",
+        'withdrawal_registered_account': "**ރެޖިސްޓާޑް އެކައުންޓް ނަން:** {name}\n\n⚠️ ވިތްޑްރޯ ފޮނުވޭނީ މި ނަމުގެ އެކައުންޓަށް އެކަނި.\n\n",
+    }
+}
+
+def get_message(key: str, lang: str = 'en', **kwargs) -> str:
+    """Get message in specified language with optional formatting.
+
+    Args:
+        key: Message key from MESSAGES dictionary
+        lang: Language code ('en' or 'dv')
+        **kwargs: Format arguments to substitute in the message
+
+    Returns:
+        Formatted message string, falls back to English if key not found in language
+    """
+    # Get message from language, fallback to English
+    message = MESSAGES.get(lang, {}).get(key, '')
+    if not message:
+        message = MESSAGES['en'].get(key, '')
+    if not message:
+        logger.warning(f"Message key not found: {key}")
+        return key  # Return key as fallback
+
+    # Format message with provided arguments
+    if kwargs:
+        try:
+            message = message.format(**kwargs)
+        except KeyError as e:
+            logger.warning(f"Missing format key {e} for message {key}")
+
+    return message
+
 # Conversation states
 (DEPOSIT_METHOD, DEPOSIT_AMOUNT, DEPOSIT_PPPOKER_ID, DEPOSIT_ACCOUNT_NAME,
  DEPOSIT_PROOF, DEPOSIT_USDT_AMOUNT, WITHDRAWAL_METHOD, WITHDRAWAL_AMOUNT, WITHDRAWAL_PPPOKER_ID,
@@ -184,16 +455,14 @@ def is_admin(user_id: int) -> bool:
 async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Open Mini App for spinning wheel"""
     user = update.effective_user
+    lang = get_user_language(user.id)
 
     try:
         # Check if counter is open
         counter_status = api.get_counter_status()
         if not counter_status.get('is_open', True):
             await update.message.reply_text(
-                "🔒 *COUNTER IS CLOSED*\n\n"
-                "The spin wheel is currently unavailable\\.\n"
-                "Please try again when the counter reopens\\!\n\n"
-                "Thank you for your patience\\! 🙏",
+                get_message('counter_closed_spins', lang),
                 parse_mode='MarkdownV2'
             )
             return
@@ -203,19 +472,17 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not user_data or user_data.get('available_spins', 0) == 0:
             # Create deposit button
-            keyboard = [[InlineKeyboardButton("💰 Make Deposit", callback_data="deposit_start")]]
+            keyboard = [[InlineKeyboardButton(get_message('spins_make_deposit', lang), callback_data="deposit_start")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await update.message.reply_text(
-                "━━━━━━━━━━━━━━━━━━\n"
-                "🎰 *FREE SPINS* 🎰\n"
-                "━━━━━━━━━━━━━━━━━━\n\n"
-                "💫 *No spins available right now\\!*\n\n"
-                "💰 Make a deposit to unlock free spins\\!\n"
-                "🔥 More deposit → More spins → More prizes\\!\n\n"
-                "━━━━━━━━━━━━━━━━━━\n"
-                "👉 Click button below to get started\\!\n"
-                "━━━━━━━━━━━━━━━━━━",
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"{get_message('spins_title', lang)}\n"
+                f"━━━━━━━━━━━━━━━━━━\n\n"
+                f"{get_message('spins_no_spins', lang)}\n\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"👉 Click button below to get started\\!\n"
+                f"━━━━━━━━━━━━━━━━━━",
                 parse_mode='MarkdownV2',
                 reply_markup=reply_markup
             )
@@ -229,7 +496,7 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Create button to open Mini App
         keyboard = [[
             InlineKeyboardButton(
-                "🎰 Open Spin Wheel 🎰",
+                get_message('spins_open_wheel', lang),
                 web_app=WebAppInfo(url=mini_app_url)
             )
         ]]
@@ -237,10 +504,9 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(
             f"━━━━━━━━━━━━━━━━━━\n"
-            f"🎰 *FREE SPINS* 🎰\n"
+            f"{get_message('spins_title', lang)}\n"
             f"━━━━━━━━━━━━━━━━━━\n\n"
-            f"🎯 You have *{available}* spins available\\!\n\n"
-            f"Click the button below to open the spinning wheel\\!\n\n"
+            f"{get_message('spins_available', lang, count=available)}\n\n"
             f"━━━━━━━━━━━━━━━━━━",
             parse_mode='MarkdownV2',
             reply_markup=reply_markup
@@ -248,7 +514,7 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.error(f"Error in freespins command: {e}")
-        await update.message.reply_text("❌ Error loading spin wheel\\. Please try again\\.", parse_mode='MarkdownV2')
+        await update.message.reply_text(get_message('error_generic', lang), parse_mode='HTML')
 
 # DISABLED: Spinning is now done in Mini App only
 # async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -535,7 +801,7 @@ async def language_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Failed to update language: {e}")
 
     # Show confirmation and then menu
-    confirmation = "✅ Language changed to English" if lang_code == 'en' else "✅ ބަސް ބަދަލުކުރެވުނު"
+    confirmation = get_message('language_changed', lang_code)
     await query.edit_message_text(confirmation, parse_mode='HTML')
     await asyncio.sleep(1)
 
@@ -589,19 +855,11 @@ Select an option to get started:"""
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-        # Welcome message stays in English
-        welcome_message = f"""🎰 <b>WELCOME TO BILLIONAIRES PPOKER CLUB!</b> 🎰
-
-Hello {user.first_name}! 👋
-
-I'm here to help you with:
-💰 <b>Deposits</b> - Add funds to your account
-💸 <b>Withdrawals</b> - Cash out your winnings
-🎲 <b>Free Spins</b> - Win chips by spinning!
-🎮 <b>Club Access</b> - Join our exclusive club
-💬 <b>Live Support</b> - Chat with our admin
-
-Please select an option from the menu below:"""
+        # Welcome message in user's language
+        welcome_title = get_message('welcome_title', lang)
+        welcome_greeting = get_message('welcome_greeting', lang, name=user.first_name)
+        welcome_help = get_message('welcome_help', lang)
+        welcome_message = f"{welcome_title}\n\n{welcome_greeting}\n\n{welcome_help}"
 
         await context.bot.send_message(
             chat_id=user.id,
@@ -610,15 +868,14 @@ Please select an option from the menu below:"""
             parse_mode='HTML'
         )
 
-        # Channel promo
-        channel_keyboard = [[InlineKeyboardButton("📢 Join Our Channel", url="https://t.me/Billionairesmv")]]
+        # Channel promo in user's language
+        channel_button_text = get_message('channel_button', lang)
+        channel_keyboard = [[InlineKeyboardButton(channel_button_text, url="https://t.me/Billionairesmv")]]
         channel_markup = InlineKeyboardMarkup(channel_keyboard)
 
         await context.bot.send_message(
             chat_id=user.id,
-            text="""📢 <b>Stay Updated!</b>
-
-Join our official Telegram channel for latest news, promotions, and exclusive offers! 🎁""",
+            text=get_message('channel_promo', lang),
             reply_markup=channel_markup,
             parse_mode='HTML'
         )
@@ -656,10 +913,10 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
 
     # Check if any payment methods are configured
+    lang = get_user_language(update.effective_user.id)
     if len(keyboard) == 1:  # Only cancel button
         await update.message.reply_text(
-            "⚠️ No payment methods are currently available.\n\n"
-            "Please contact admin for assistance.",
+            get_message('deposit_no_methods', lang),
             parse_mode='Markdown'
         )
         return ConversationHandler.END
@@ -667,8 +924,7 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        "💰 **Deposit to Billionaires Club**\n\n"
-        "Please select your payment method:",
+        get_message('deposit_title', lang),
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
@@ -684,13 +940,17 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
     method = query.data.replace('deposit_', '').upper()
     context.user_data['deposit_method'] = method
 
+    # Get user language
+    lang = get_user_language(update.effective_user.id)
+    context.user_data['lang'] = lang
+
     # Get payment account details
     account = api.get_payment_account_details(method)
     account_holder = api.get_payment_account_holder(method)
 
     if not account:
         await query.edit_message_text(
-            "❌ Payment account not configured. Please contact admin."
+            get_message('deposit_account_not_configured', lang)
         )
         return ConversationHandler.END
 
@@ -698,46 +958,45 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
 
     # Ask for receipt/slip directly after showing account details
     if method == 'USDT':
-        message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
+        message = get_message('deposit_via', lang, method=method_names[method]) + "\n\n"
 
         # Show exchange rate for USDT
         usdt_rate = api.get_exchange_rate('USDT', 'MVR')
         if usdt_rate:
-            message += f"💱 <b>Current Rate:</b> 1 USDT = {float(usdt_rate):.2f} MVR\n\n"
+            message += get_message('deposit_rate', lang, currency='USDT', rate=float(usdt_rate)) + "\n\n"
 
-        message += f"<b>Wallet Address:</b> <a href='#'>(tap to copy)</a>\n"
-        message += f"<code>{account}</code>\n\n"
-        message += f"📝 Please send your <b>Transaction ID (TXID)</b> from the blockchain:"
+        message += get_message('deposit_wallet_address', lang, account=account) + "\n\n"
+        message += get_message('deposit_send_txid', lang)
 
         await query.edit_message_text(message, parse_mode='HTML')
     elif method == 'USD':
         # Build message with exchange rate and account details
-        message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
+        message = get_message('deposit_via', lang, method=method_names[method]) + "\n\n"
 
         # Show exchange rate for USD
         usd_rate = api.get_exchange_rate('USD', 'MVR')
         if usd_rate:
-            message += f"💱 <b>Current Rate:</b> 1 USD = {float(usd_rate):.2f} MVR\n\n"
+            message += get_message('deposit_rate', lang, currency='USD', rate=float(usd_rate)) + "\n\n"
 
-        message += f"<b>Account Number:</b> <a href='#'>(tap to copy)</a>\n<code>{account}</code>\n\n"
+        message += get_message('deposit_account_number', lang, account=account) + "\n\n"
 
         if account_holder and account_holder.strip():
-            message += f"<b>Account Holder:</b>\n{account_holder}\n\n"
+            message += get_message('deposit_account_holder', lang, holder=account_holder) + "\n\n"
 
         message += f"━━━━━━━━━━━━━━━━━━\n"
-        message += f"📸 Please upload your <b>payment slip/receipt</b> (screenshot or photo):"
+        message += get_message('deposit_upload_slip', lang)
 
         await query.edit_message_text(message, parse_mode='HTML')
     else:
         # Build message with account holder name if available (BML/MIB)
-        message = f"💰 <b>Deposit via {method_names[method]}</b>\n\n"
-        message += f"<b>Account Number:</b> <a href='#'>(tap to copy)</a>\n<code>{account}</code>\n\n"
+        message = get_message('deposit_via', lang, method=method_names[method]) + "\n\n"
+        message += get_message('deposit_account_number', lang, account=account) + "\n\n"
 
         if account_holder and account_holder.strip():
-            message += f"<b>Account Holder:</b>\n{account_holder}\n\n"
+            message += get_message('deposit_account_holder', lang, holder=account_holder) + "\n\n"
 
         message += f"━━━━━━━━━━━━━━━━━━\n"
-        message += f"📸 Please upload your <b>payment slip/receipt</b> (screenshot or photo):"
+        message += get_message('deposit_upload_slip', lang)
 
         await query.edit_message_text(message, parse_mode='HTML')
 
@@ -746,6 +1005,7 @@ async def deposit_method_selected(update: Update, context: ContextTypes.DEFAULT_
 
 async def deposit_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle deposit amount input"""
+    lang = context.user_data.get('lang', get_user_language(update.effective_user.id))
     try:
         amount = float(update.message.text.replace(',', ''))
         if amount <= 0:
@@ -754,7 +1014,7 @@ async def deposit_amount_received(update: Update, context: ContextTypes.DEFAULT_
         context.user_data['deposit_amount'] = amount
 
         await update.message.reply_text(
-            "🎮 Please enter your **PPPoker ID**:",
+            get_message('deposit_enter_pppoker_id', lang),
             parse_mode='Markdown'
         )
 
@@ -762,7 +1022,7 @@ async def deposit_amount_received(update: Update, context: ContextTypes.DEFAULT_
 
     except ValueError:
         await update.message.reply_text(
-            "❌ Invalid amount. Please enter a valid number (e.g., 1000 or 1000.50):"
+            get_message('deposit_invalid_amount', lang)
         )
         return DEPOSIT_AMOUNT
 
@@ -771,6 +1031,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     """Handle PPPoker ID input - final step, creates deposit request and sends to admin"""
     user = update.effective_user
     raw_input = update.message.text.strip()
+    lang = context.user_data.get('lang', get_user_language(user.id))
 
     # Clean PPPoker ID (remove spaces, letters, special characters)
     pppoker_id = clean_pppoker_id(raw_input)
@@ -778,7 +1039,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     # Validate that we have a valid number
     if not pppoker_id or len(pppoker_id) < 3:
         await update.message.reply_text(
-            "❌ Invalid PPPoker ID. Please enter only numbers (at least 3 digits):",
+            get_message('deposit_invalid_pppoker_id', lang),
             parse_mode='HTML'
         )
         return DEPOSIT_PPPOKER_ID
@@ -827,7 +1088,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
     request_id = deposit_response.get('id') if isinstance(deposit_response, dict) else deposit_response
 
     # Send confirmation to user
-    confirmation_msg = f"✅ <b>Deposit sent!</b>\n\n"
+    confirmation_msg = get_message('deposit_sent', lang) + "\n\n"
 
     if method == 'USDT' and usdt_amount:
         # Show both USDT and MVR amounts
@@ -844,7 +1105,7 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         confirmation_msg += f"💰 {amount} MVR via {method}\n"
 
     confirmation_msg += f"🎮 ID: {pppoker_id}\n\n"
-    confirmation_msg += f"Awaiting admin approval."
+    confirmation_msg += get_message('deposit_awaiting_approval', lang)
 
     await update.message.reply_text(confirmation_msg, parse_mode='HTML')
 
@@ -1327,17 +1588,15 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     user_id = update.effective_user.id
+    lang = get_user_language(user_id)
 
     # Check if user has outstanding credit
     user_credit = api.get_user_credit(user_id)
     if user_credit and float(user_credit.get('amount', 0)) > 0:
         await update.message.reply_text(
-            f"❌ <b>Cannot Withdraw - Outstanding Credit</b>\n\n"
-            f"You have an unpaid credit:\n"
-            f"💳 <b>Amount Owed:</b> {user_credit['amount']:,.2f} MVR\n"
-            f"📅 <b>Since:</b> {user_credit['created_at']}\n\n"
-            f"Please pay your credit before requesting withdrawal.\n"
-            f"Contact admin for payment details.",
+            get_message('withdrawal_outstanding_credit', lang,
+                       amount=f"{user_credit['amount']:,.2f}",
+                       date=user_credit['created_at']),
             parse_mode='HTML'
         )
         return ConversationHandler.END
@@ -1356,16 +1615,14 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not approved_deposits or len(approved_deposits) == 0:
             await update.message.reply_text(
-                "⚠️ <b>No Deposit History Found</b>\n\n"
-                "You need to make at least one deposit before you can request withdrawals.\n\n"
-                "💰 Tap <b>Deposit</b> to get started!",
+                get_message('withdrawal_no_deposits', lang),
                 parse_mode='HTML'
             )
             return ConversationHandler.END
     except Exception as e:
         logger.error(f"Error checking user deposits: {e}")
         await update.message.reply_text(
-            "⚠️ Unable to verify deposit history. Please try again or contact admin.",
+            get_message('withdrawal_verify_error', lang),
             parse_mode='HTML'
         )
         return ConversationHandler.END
@@ -1390,8 +1647,7 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if any payment methods are configured
     if len(keyboard) == 1:  # Only cancel button
         await update.message.reply_text(
-            "⚠️ No payment methods are currently available.\n\n"
-            "Please contact admin for assistance.",
+            get_message('deposit_no_methods', lang),
             parse_mode='Markdown'
         )
         return ConversationHandler.END
@@ -1401,12 +1657,10 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Show account name if available (from regular deposits)
     account_name_text = ""
     if user_data.get('account_name'):
-        account_name_text = f"**Registered Account Name:** {user_data['account_name']}\n\n⚠️ Withdrawals will only be sent to accounts with this name.\n\n"
+        account_name_text = get_message('withdrawal_registered_account', lang, name=user_data['account_name'])
 
     await update.message.reply_text(
-        f"💸 **Withdrawal from Billionaires Club**\n\n"
-        f"{account_name_text}"
-        f"Please select your payment method:",
+        get_message('withdrawal_title', lang) + "\n\n" + account_name_text,
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
@@ -1642,34 +1896,17 @@ async def join_club_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await send_counter_closed_message(update):
         return ConversationHandler.END
 
+    lang = get_user_language(update.effective_user.id)
+    context.user_data['lang'] = lang
+
     club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
 
     # Create button to open club directly
-    keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
+    keyboard = [[InlineKeyboardButton(get_message('join_open_club', lang), url=club_link)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    message = """🎰 <b>JOIN BILLIONAIRES CLUB</b> 🎰
-
-<b>Club ID:</b> <a href='#'>(tap to copy)</a>
-<code>370625</code>
-
-<b>Club Name:</b> βILLIONAIRES
-
-━━━━━━━━━━━━━━━━━━
-
-<b>📋 How to Join:</b>
-
-1️⃣ Tap the button below to open the club
-2️⃣ Or manually search club ID: <code>370625</code>
-3️⃣ Request to join the club
-4️⃣ Enter your PPPoker ID here
-
-━━━━━━━━━━━━━━━━━━
-
-Please enter your <b>PPPoker ID</b> to complete your join request:"""
-
     await update.message.reply_text(
-        message,
+        get_message('join_club_info', lang),
         reply_markup=reply_markup,
         parse_mode='HTML'
     )
@@ -1681,6 +1918,7 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
     """Handle PPPoker ID input for join request"""
     user = update.effective_user
     raw_input = update.message.text.strip()
+    lang = context.user_data.get('lang', get_user_language(user.id))
 
     # Clean PPPoker ID (remove spaces, letters, special characters)
     pppoker_id = clean_pppoker_id(raw_input)
@@ -1688,7 +1926,7 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
     # Validate that we have a valid number
     if not pppoker_id or len(pppoker_id) < 3:
         await update.message.reply_text(
-            "❌ Invalid PPPoker ID. Please enter only numbers (at least 3 digits):",
+            get_message('deposit_invalid_pppoker_id', lang),
             parse_mode='HTML'
         )
         return JOIN_PPPOKER_ID
@@ -1709,9 +1947,7 @@ async def join_pppoker_id_received(update: Update, context: ContextTypes.DEFAULT
 
     # Send confirmation to user
     await update.message.reply_text(
-        f"✅ <b>Join request sent!</b>\n\n"
-        f"🎮 ID: {pppoker_id}\n\n"
-        f"Admin will review shortly.",
+        get_message('join_request_sent', lang, pppoker_id=pppoker_id),
         parse_mode='HTML'
     )
 
@@ -2282,16 +2518,14 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
 async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start live support session"""
     user = update.effective_user
+    lang = get_user_language(user.id)
 
     # Check if counter is open
     counter_status = api.get_counter_status()
     if not counter_status.get('is_open', True):
         await update.message.reply_text(
-            "🔒 *COUNTER IS CLOSED*\n\n"
-            "Live support is currently unavailable\\.\n"
-            "Please try again when the counter reopens\\!\n\n"
-            "Thank you for your patience\\! 🙏",
-            parse_mode='MarkdownV2'
+            get_message('counter_closed', lang),
+            parse_mode='HTML'
         )
         return ConversationHandler.END
 
@@ -2301,10 +2535,9 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         msg = await update.message.reply_text(
-            "💬 You're already in a support session!\n\n"
-            "Type your message and it will be sent to our admin.\n"
-            "Click the button below to end the session.",
-            reply_markup=reply_markup
+            get_message('support_started', lang),
+            reply_markup=reply_markup,
+            parse_mode='HTML'
         )
 
         # Track this message to remove button later
@@ -2322,11 +2555,9 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     msg = await update.message.reply_text(
-        "💬 **Live Support Session Started**\n\n"
-        "You're now connected to our admin. Type your message below.\n\n"
-        "Click the button below when you're done.",
+        get_message('support_started', lang),
         reply_markup=reply_markup,
-        parse_mode='Markdown'
+        parse_mode='HTML'
     )
 
     # Initialize tracking and store this message
@@ -6565,11 +6796,12 @@ async def quick_reject_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Cancel handler
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel current operation"""
+    lang = context.user_data.get('lang', get_user_language(update.effective_user.id))
     if update.callback_query:
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text("❌ Operation cancelled.")
+        await update.callback_query.edit_message_text(get_message('cancel_operation', lang))
     else:
-        await update.message.reply_text("❌ Operation cancelled. Use /start to see the main menu.")
+        await update.message.reply_text(get_message('cancel_operation', lang))
 
     context.user_data.clear()
 
@@ -6586,10 +6818,11 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cancel_keyword_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle cancel keywords like 'cancel', 'exit', 'stop'"""
     text = update.message.text.lower().strip()
+    lang = get_user_language(update.effective_user.id)
 
     if text in ['cancel', 'exit', 'stop', 'quit', 'close']:
         await update.message.reply_text(
-            "❌ Operation cancelled. Use /start to see the main menu."
+            get_message('cancel_operation', lang)
         )
 
         context.user_data.clear()
@@ -8817,8 +9050,9 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         if user_id in support_mode_users:
             return await live_support_message(update, context)
         else:
+            lang = get_user_language(user_id)
             await update.message.reply_text(
-                "Please use the menu buttons or /help for available commands."
+                get_message('please_use_menu', lang)
             )
 
 
