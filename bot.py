@@ -264,6 +264,106 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'withdrawal_no_deposits': "⚠️ <b>No Deposit History Found</b>\n\nYou need to make at least one deposit before you can request withdrawals.\n\n💰 Tap <b>Deposit</b> to get started!",
         'withdrawal_verify_error': "⚠️ Unable to verify deposit history. Please try again or contact admin.",
         'withdrawal_registered_account': "**Registered Account Name:** {name}\n\n⚠️ Withdrawals will only be sent to accounts with this name.\n\n",
+        'withdrawal_enter_amount_mvr': "💰 Enter the **amount** you want to withdraw (in MVR):",
+        'withdrawal_enter_amount_usd': "💵 Enter the **amount** in USD you want to withdraw:",
+        'withdrawal_enter_amount_usdt': "💎 Enter the **amount** in USDT you want to withdraw:",
+        'withdrawal_enter_account_bml': "🏦 Enter your **BML account number**:",
+        'withdrawal_enter_account_mib': "🏦 Enter your **MIB account number**:",
+        'withdrawal_enter_wallet_usdt': "🔗 Enter your **USDT wallet address** (BEP20):",
+        'withdrawal_confirm': "✅ <b>Withdrawal Request Submitted!</b>\n\n💸 Amount: {amount}\n🏦 Method: {method}\n🎮 PPPoker ID: {pppoker_id}\n\nYour request is being processed. You'll be notified once completed.",
+
+        # Help text - full content
+        'help_text': """📖 <b>ބިލިއަނެއާޒް ބޮޓް ބޭނުންކުރާނެ ގޮތް</b>
+
+<b>💰 ޑިޕޮޒިޓް</b>
+
+• 💰 ޑިޕޮޒިޓް އަށް ފިއްތާލައްވާ
+• ޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ — BML, MIB, USD, ނުވަތަ USDT
+• ޕޭމަންޓް ސްލިޕް އަޕްލޯޑް ކުރައްވާ
+• PPPoker ID ޖައްސަވާ
+• އެޕްރޫވަލް އަށް މަޑުކުރައްވާ
+• އެޕްރޫވް ވުމުން ކޮންފަމޭޝަން ލިބޭނެ
+
+<b>💸 ވިތްޑްރޯ</b>
+
+• 💸 ވިތްޑްރޯ އަށް ފިއްތާލައްވާ
+• ޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ
+• ނަންގަވާ އަދަދު ޖައްސަވާ
+• PPPoker ID ޖައްސަވާ
+• ބޭންކް އެކައުންޓް ނަންބަރު ޖައްސަވާ
+• ޕްރޮސެސް ވަންދެން މަޑުކުރައްވާ
+• ނިމުމުން ނޮޓިފިކޭޝަން ލިބޭނެ
+
+<b>🎮 ކްލަބާ ގުޅުން</b>
+
+• 🎮 ކްލަބަށް ވަނުން އަށް ފިއްތާލައްވާ
+• PPPoker ID ޖައްސަވާ
+• އެޕްރޫވަލް އަށް މަޑުކުރައްވާ
+• ގުޅުމުން ނޮޓިފިކޭޝަން ލިބޭނެ
+
+<b>💬 ލައިވް ސަޕޯޓް</b>
+
+• 💬 ސަޕޯޓް އަށް ފިއްތާލައްވާ
+• އެޑްމިން އާ ސީދާ ވާހަކަ ދައްކާލެވޭނެ
+• ނިންމާލަން /endsupport ޖައްސަވާ""",
+
+        'help_text_en': """📖 <b>How to Use Billionaires Bot</b>
+
+<b>💰 Deposit</b>
+
+• Tap 💰 Deposit
+• Choose your payment method — BML, MIB, USD, or USDT
+• Upload your payment slip
+• Enter your PPPoker ID
+• Wait for approval
+• Receive an instant confirmation once approved
+
+<b>💸 Withdrawal</b>
+
+• Tap 💸 Withdrawal
+• Select your preferred payment method — BML, MIB, USD, or USDT
+• Enter the amount you wish to withdraw
+• Provide your PPPoker ID
+• Enter your bank account number
+• Wait while your request is processed
+• Get an instant notification when completed
+
+<b>🎮 Join Club</b>
+
+• Tap 🎮 Join Club
+• Enter your PPPoker ID
+• Wait for approval
+• You'll receive an instant notification once you're in!
+
+<b>💬 Live Support</b>
+
+• Tap 💬 Live Support to chat directly with an admin
+• Type /endsupport anytime to end the conversation""",
+
+        # Cashback messages
+        'cashback_status': "🎯 <b>Cashback Status</b>\n{status}\n📊 Deposits: {deposits} MVR\n📌 Required: {required} MVR\n{message}",
+        'cashback_eligible': "✅ Eligible",
+        'cashback_not_eligible': "❌ Not Eligible",
+        'cashback_deposit_more': "⚠️ Deposit {amount} MVR more to qualify.\n✨ Bigger deposits = bigger cashback!",
+        'cashback_claim': "🎉 You're eligible for cashback!\nTap below to claim.",
+        'cashback_no_active': "❌ No active cashback promotion at this time.\n\nCheck back later for cashback offers!",
+
+        # Seat request messages
+        'seat_title': "🪑 <b>SEAT REQUEST</b>",
+        'seat_enter_amount': "💰 Enter the amount you want to play with:",
+        'seat_no_pppoker': "❌ <b>No PPPoker ID found!</b>\n\nPlease make a deposit first to register your PPPoker ID.\nUse /start and select 💰 Deposit.",
+        'seat_confirm': "✅ <b>Seat request submitted!</b>\n\n💰 Amount: {amount} MVR\n🎮 PPPoker ID: {pppoker_id}\n\nPlease wait for admin approval.",
+        'seat_approved': "✅ <b>Seat Request Approved!</b>\n\n💰 Amount: {amount} MVR\n🎮 PPPoker ID: {pppoker_id}\n\nYou can now join the table!",
+        'seat_select_payment': "💳 Select payment method to pay for your seat:",
+
+        # Support messages
+        'support_end_confirm': "✅ <b>Support session ended.</b>\n\nThank you! Feel free to start a new session anytime.",
+        'support_already_active': "💬 You're already in a support session!\n\nType your message and it will be sent to our admin.\nClick the button below to end the session.",
+
+        # General messages
+        'click_button_start': "👉 Click button below to get started!",
+        'admin_review': "Admin will review shortly.",
+        'processing': "🔍 Processing...",
     },
     'dv': {
         # Counter status
@@ -384,6 +484,106 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'withdrawal_no_deposits': "⚠️ <b>ޑިޕޮޒިޓް ހިސްޓްރީ ނެތް</b>\n\nވިތްޑްރޯ ކުރެވޭނީ އެއް ޑިޕޮޒިޓް ކުރުމަށްފަހު.\n\n💰 <b>ޑިޕޮޒިޓް</b> އަށް ފިއްތާލައްވާ!",
         'withdrawal_verify_error': "⚠️ ޑިޕޮޒިޓް ހިސްޓްރީ ޗެކް ނުކުރެވުނު. އަލުން މަސައްކަތް ކުރައްވާ ނުވަތަ އެޑްމިން އާ ގުޅުއްވާ.",
         'withdrawal_registered_account': "**ރެޖިސްޓާޑް އެކައުންޓް ނަން:** {name}\n\n⚠️ ވިތްޑްރޯ ފޮނުވޭނީ މި ނަމުގެ އެކައުންޓަށް އެކަނި.\n\n",
+        'withdrawal_enter_amount_mvr': "💰 ނަންގަވަން ބޭނުންފުޅުވާ **އަދަދު** ޖައްސަވާ (MVR):",
+        'withdrawal_enter_amount_usd': "💵 ނަންގަވަން ބޭނުންފުޅުވާ **USD އަދަދު** ޖައްސަވާ:",
+        'withdrawal_enter_amount_usdt': "💎 ނަންގަވަން ބޭނުންފުޅުވާ **USDT އަދަދު** ޖައްސަވާ:",
+        'withdrawal_enter_account_bml': "🏦 ތިބާގެ **BML އެކައުންޓް ނަންބަރު** ޖައްސަވާ:",
+        'withdrawal_enter_account_mib': "🏦 ތިބާގެ **MIB އެކައުންޓް ނަންބަރު** ޖައްސަވާ:",
+        'withdrawal_enter_wallet_usdt': "🔗 ތިބާގެ **USDT ވޮލެޓް އެޑްރެސް** ޖައްސަވާ (BEP20):",
+        'withdrawal_confirm': "✅ <b>ވިތްޑްރޯ ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>\n\n💸 އަދަދު: {amount}\n🏦 މެތަޑް: {method}\n🎮 PPPoker ID: {pppoker_id}\n\nޕްރޮސެސް ކުރަނީ. ނިމުމުން ނޮޓިފިކޭޝަން ލިބޭނެ.",
+
+        # Help text - full content (same as English help_text key - the dv version is stored there)
+        'help_text': """📖 <b>ބިލިއަނެއާޒް ބޮޓް ބޭނުންކުރާނެ ގޮތް</b>
+
+<b>💰 ޑިޕޮޒިޓް</b>
+
+• 💰 ޑިޕޮޒިޓް އަށް ފިއްތާލައްވާ
+• ޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ — BML, MIB, USD, ނުވަތަ USDT
+• ޕޭމަންޓް ސްލިޕް އަޕްލޯޑް ކުރައްވާ
+• PPPoker ID ޖައްސަވާ
+• އެޕްރޫވަލް އަށް މަޑުކުރައްވާ
+• އެޕްރޫވް ވުމުން ކޮންފަމޭޝަން ލިބޭނެ
+
+<b>💸 ވިތްޑްރޯ</b>
+
+• 💸 ވިތްޑްރޯ އަށް ފިއްތާލައްވާ
+• ޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ
+• ނަންގަވާ އަދަދު ޖައްސަވާ
+• PPPoker ID ޖައްސަވާ
+• ބޭންކް އެކައުންޓް ނަންބަރު ޖައްސަވާ
+• ޕްރޮސެސް ވަންދެން މަޑުކުރައްވާ
+• ނިމުމުން ނޮޓިފިކޭޝަން ލިބޭނެ
+
+<b>🎮 ކްލަބާ ގުޅުން</b>
+
+• 🎮 ކްލަބަށް ވަނުން އަށް ފިއްތާލައްވާ
+• PPPoker ID ޖައްސަވާ
+• އެޕްރޫވަލް އަށް މަޑުކުރައްވާ
+• ގުޅުމުން ނޮޓިފިކޭޝަން ލިބޭނެ
+
+<b>💬 ލައިވް ސަޕޯޓް</b>
+
+• 💬 ސަޕޯޓް އަށް ފިއްތާލައްވާ
+• އެޑްމިން އާ ސީދާ ވާހަކަ ދައްކާލެވޭނެ
+• ނިންމާލަން /endsupport ޖައްސަވާ""",
+
+        'help_text_en': """📖 <b>How to Use Billionaires Bot</b>
+
+<b>💰 Deposit</b>
+
+• Tap 💰 Deposit
+• Choose your payment method — BML, MIB, USD, or USDT
+• Upload your payment slip
+• Enter your PPPoker ID
+• Wait for approval
+• Receive an instant confirmation once approved
+
+<b>💸 Withdrawal</b>
+
+• Tap 💸 Withdrawal
+• Select your preferred payment method — BML, MIB, USD, or USDT
+• Enter the amount you wish to withdraw
+• Provide your PPPoker ID
+• Enter your bank account number
+• Wait while your request is processed
+• Get an instant notification when completed
+
+<b>🎮 Join Club</b>
+
+• Tap 🎮 Join Club
+• Enter your PPPoker ID
+• Wait for approval
+• You'll receive an instant notification once you're in!
+
+<b>💬 Live Support</b>
+
+• Tap 💬 Live Support to chat directly with an admin
+• Type /endsupport anytime to end the conversation""",
+
+        # Cashback messages
+        'cashback_status': "🎯 <b>ކޭޝްބެކް ސްޓެޓަސް</b>\n{status}\n📊 ޑިޕޮޒިޓް: {deposits} MVR\n📌 ބޭނުންވާ: {required} MVR\n{message}",
+        'cashback_eligible': "✅ ޝަރުތު ހަމަވޭ",
+        'cashback_not_eligible': "❌ ޝަރުތު ހަމަނުވޭ",
+        'cashback_deposit_more': "⚠️ ޝަރުތު ހަމަވާން {amount} MVR އިތުރަށް ޑިޕޮޒިޓް ކުރައްވާ.\n✨ ގިނައިން ޑިޕޮޒިޓް = ގިނަ ކޭޝްބެކް!",
+        'cashback_claim': "🎉 ކޭޝްބެކް ލިބޭ!\nކްލެއިމް ކުރަން ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ.",
+        'cashback_no_active': "❌ މިވަގުތު ކޭޝްބެކް ޕްރޮމޯޝަން ނެތެވެ.\n\nފަހުން ޗެކް ކުރައްވާ!",
+
+        # Seat request messages
+        'seat_title': "🪑 <b>ސީޓް ރިކުއެސްޓް</b>",
+        'seat_enter_amount': "💰 ކުޅެން ބޭނުންފުޅުވާ އަދަދު ޖައްސަވާ:",
+        'seat_no_pppoker': "❌ <b>PPPoker ID ނެތް!</b>\n\nފުރަތަމަ ޑިޕޮޒިޓެއް ކުރައްވާ PPPoker ID ރެޖިސްޓާ ކުރަން.\n/start ޖައްސަވާ 💰 ޑިޕޮޒިޓް އިޚްތިޔާރު ކުރައްވާ.",
+        'seat_confirm': "✅ <b>ސީޓް ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>\n\n💰 އަދަދު: {amount} MVR\n🎮 PPPoker ID: {pppoker_id}\n\nއެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
+        'seat_approved': "✅ <b>ސީޓް ރިކުއެސްޓް އެޕްރޫވް ވެއްޖެ!</b>\n\n💰 އަދަދު: {amount} MVR\n🎮 PPPoker ID: {pppoker_id}\n\nމޭޒަށް ވަދެވޭނެ!",
+        'seat_select_payment': "💳 ސީޓް އަށް ފައިސާ ދައްކަން ޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ:",
+
+        # Support messages
+        'support_end_confirm': "✅ <b>ސަޕޯޓް ސެޝަން ނިމުނީ.</b>\n\nޝުކުރިއްޔާ! ކޮންމެ ވަގުތެއްގައިވެސް އާ ސެޝަނެއް ފެށިދާނެ.",
+        'support_already_active': "💬 ތިބާ މިހާރުވެސް ސަޕޯޓް ސެޝަނެއްގައި!\n\nމެސެޖް ލިޔުއްވާ، އެޑްމިން އަށް ފޮނުވޭނެ.\nނިންމާލަން ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ.",
+
+        # General messages
+        'click_button_start': "👉 ފެށުމަށް ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ!",
+        'admin_review': "އެޑްމިން ރިވިއު ކުރާނެ.",
+        'processing': "🔍 ޕްރޮސެސް ކުރަނީ...",
     }
 }
 
@@ -671,98 +871,54 @@ async def test_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command and Help button"""
+    lang = get_user_language(update.effective_user.id)
 
-    # Basic help for regular users
-    help_text = """
-📖 **How to Use Billionaires Bot**
+    # Get help text in user's language
+    help_text = get_message('help_text', lang)
 
-**💰 Deposit**
-
-• Tap 💰 Deposit
-• Choose your payment method — BML, MIB, USD, or USDT
-• Upload your payment slip
-• Enter your PPPoker ID
-• Wait for approval
-• Receive an instant confirmation once approved
-
-**💸 Withdrawal**
-
-• Tap 💸 Withdrawal
-• Select your preferred payment method — BML, MIB, USD, or USDT
-• Enter the amount you wish to withdraw
-• Provide your PPPoker ID
-• Enter your bank account number
-• Wait while your request is processed
-• Get an instant notification when completed
-
-**🎮 Join Club**
-
-• Tap 🎮 Join Club
-• Enter your PPPoker ID
-• Wait for approval
-• You'll receive an instant notification once you're in!
-
-**💬 Live Support**
-
-• Tap 💬 Live Support to chat directly with an admin
-• Type /endsupport anytime to end the conversation
-"""
-
-    # Add admin commands only if user is admin
+    # Add admin commands only if user is admin (admin section stays in English)
     if is_admin(update.effective_user.id):
         admin_help = """
 ━━━━━━━━━━━━━━━━━━
 
-🔐 **ADMIN COMMANDS**
+🔐 <b>ADMIN COMMANDS</b>
 
-**💼 Admin Panel:**
-• `/admin` - Open admin panel
+<b>💼 Admin Panel:</b>
+• /admin - Open admin panel
 
-**💳 Payment Account Management:**
-• `/update_bml` - Update BML account
-• `/update_mib` - Update MIB account
-• `/update_usd` - Update USD account
-• `/update_usdt` - Update USDT wallet
-• `/clear_bml` - Remove BML account
-• `/clear_mib` - Remove MIB account
-• `/clear_usd` - Remove USD account
-• `/clear_usdt` - Remove USDT wallet
+<b>💳 Payment Account Management:</b>
+• /update_bml - Update BML account
+• /update_mib - Update MIB account
+• /update_usd - Update USD account
+• /update_usdt - Update USDT wallet
+• /clear_bml - Remove BML account
+• /clear_mib - Remove MIB account
+• /clear_usd - Remove USD account
+• /clear_usdt - Remove USDT wallet
 
-**💱 Exchange Rate Management:**
-• `/set_usd_rate <rate>` - Set USD to MVR rate
-  Example: `/set_usd_rate 17.50`
-• `/set_usdt_rate <rate>` - Set USDT to MVR rate
-  Example: `/set_usdt_rate 18.50`
+<b>💱 Exchange Rate Management:</b>
+• /set_usd_rate - Set USD to MVR rate
+• /set_usdt_rate - Set USDT to MVR rate
 
-**📊 Reports & Broadcasting:**
-• `/stats` - View profit/loss statistics
-• `/broadcast` - Send message to all users
-
-**📋 Admin Panel Features:**
-• Approve/reject deposits instantly
-• Approve/reject withdrawals
-• Manage join requests
-• Manage promotions (create, view, deactivate)
-• View payment accounts
-• Live support (reply via buttons)
+<b>📊 Reports & Broadcasting:</b>
+• /stats - View profit/loss statistics
+• /broadcast - Send message to all users
 """
         # Super admin only commands
         if update.effective_user.id == ADMIN_USER_ID:
             admin_help += """
 ━━━━━━━━━━━━━━━━━━
 
-🔱 **SUPER ADMIN ONLY**
+🔱 <b>SUPER ADMIN ONLY</b>
 
-**👥 Admin Management:**
-• `/addadmin <user_id>` - Add new admin
-  Example: `/addadmin 123456789`
-• `/removeadmin <user_id>` - Remove admin
-  Example: `/removeadmin 123456789`
-• `/listadmins` - View all admins
+<b>👥 Admin Management:</b>
+• /addadmin - Add new admin
+• /removeadmin - Remove admin
+• /listadmins - View all admins
 """
         help_text += admin_help
 
-    await update.message.reply_text(help_text, parse_mode='Markdown')
+    await update.message.reply_text(help_text, parse_mode='HTML')
 
 
 # Language Selection Functions
@@ -2028,6 +2184,8 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     user = update.effective_user
+    lang = get_user_language(user.id)
+    context.user_data['lang'] = lang
     logger.info(f"Cashback button clicked by user {user.id} ({user.username or user.first_name})")
 
     # Check if user has outstanding credit
@@ -2036,12 +2194,9 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_credit and float(user_credit.get('amount', 0)) > 0:
             credit_amount = float(user_credit['amount'])
             await update.message.reply_text(
-                f"❌ <b>Cannot Request Cashback - Outstanding Credit</b>\n\n"
-                f"You have an unpaid credit:\n"
-                f"💳 <b>Amount Owed:</b> {credit_amount:,.2f} MVR\n"
-                f"📅 <b>Since:</b> {user_credit['created_at']}\n\n"
-                f"Please pay your credit before requesting cashback.\n"
-                f"Contact admin for payment details.",
+                get_message('withdrawal_outstanding_credit', lang,
+                           amount=f"{credit_amount:,.2f}",
+                           date=user_credit['created_at']),
                 parse_mode='HTML'
             )
             return ConversationHandler.END
@@ -2063,9 +2218,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not cashback_promo:
         await update.message.reply_text(
-            "❌ <b>Cashback Not Available</b>\n\n"
-            "Sorry, there is no active cashback promotion at the moment.\n"
-            "Please check back later!",
+            get_message('cashback_no_active', lang),
             parse_mode='HTML'
         )
         return ConversationHandler.END
@@ -2337,17 +2490,17 @@ async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
 
     user = update.effective_user
+    lang = get_user_language(user.id)
+    context.user_data['lang'] = lang
 
     # Check if user has active credit
     existing_credit = api.get_user_credit(user.id)
     if existing_credit:
         await update.message.reply_text(
-            f"⚠️ **You already have an active credit!**\n\n"
-            f"💰 Credit Amount: {existing_credit['amount']} chips/MVR\n"
-            f"📅 Created: {existing_credit['created_at']}\n\n"
-            f"Please settle your existing credit before requesting a new seat.\n"
-            f"Contact Live Support.",
-            parse_mode='Markdown'
+            get_message('withdrawal_outstanding_credit', lang,
+                       amount=f"{existing_credit['amount']}",
+                       date=existing_credit['created_at']),
+            parse_mode='HTML'
         )
         return ConversationHandler.END
 
@@ -2369,10 +2522,8 @@ async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if not pppoker_id:
         await update.message.reply_text(
-            "❌ **No PPPoker ID found!**\n\n"
-            "Please make a deposit first to register your PPPoker ID.\n"
-            "Use /start and select 💰 Deposit.",
-            parse_mode='Markdown'
+            get_message('seat_no_pppoker', lang),
+            parse_mode='HTML'
         )
         return ConversationHandler.END
 
@@ -2380,9 +2531,8 @@ async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data['seat_pppoker_id'] = pppoker_id
 
     await update.message.reply_text(
-        "🪑 **Seat Request**\n\n"
-        "Please enter the amount of chips you want:",
-        parse_mode='Markdown'
+        get_message('seat_title', lang) + "\n\n" + get_message('seat_enter_amount', lang),
+        parse_mode='HTML'
     )
 
     return SEAT_AMOUNT
@@ -2788,6 +2938,7 @@ async def live_support_photo(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def end_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """End live support session"""
     user = update.effective_user
+    lang = get_user_language(user.id)
 
     if user.id in support_mode_users:
         support_mode_users.remove(user.id)
@@ -2796,7 +2947,7 @@ async def end_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user.id in active_support_handlers:
             del active_support_handlers[user.id]
 
-        await update.message.reply_text("✅ Support session ended. Thank you!")
+        await update.message.reply_text(get_message('support_ended', lang))
 
         # Notify ALL admins
         all_admins_response = api.get_all_admins()
@@ -2821,7 +2972,7 @@ async def end_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.error(f"Failed to notify admin {admin_id}: {e}")
     else:
-        await update.message.reply_text("You're not in a support session.")
+        await update.message.reply_text(get_message('please_use_menu', lang))
 
     return ConversationHandler.END
 
@@ -3225,16 +3376,17 @@ async def user_end_support_button(update: Update, context: ContextTypes.DEFAULT_
             del user_support_message_ids[user.id]
 
         # Edit the clicked message to show session ended
+        lang = get_user_language(user.id)
         # Check if it's a photo message or text message
         if query.message.photo:
             await query.edit_message_caption(
-                caption="✅ **Support session ended.**\n\nThank you! Feel free to start a new session anytime.",
-                parse_mode='Markdown'
+                caption=get_message('support_end_confirm', lang),
+                parse_mode='HTML'
             )
         else:
             await query.edit_message_text(
-                "✅ **Support session ended.**\n\nThank you! Feel free to start a new session anytime.",
-                parse_mode='Markdown'
+                get_message('support_end_confirm', lang),
+                parse_mode='HTML'
             )
 
         # Notify ALL admins
