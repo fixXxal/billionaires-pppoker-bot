@@ -11,6 +11,7 @@ from typing import Dict
 from datetime import datetime, timedelta
 import pytz
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
+import telegram
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ConversationHandler, ContextTypes, filters
@@ -8805,7 +8806,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif text in [BUTTON_LABELS['en']['free_spins'], BUTTON_LABELS['dv']['free_spins']]:
         return await freespins_command(update, context)
     elif text in [BUTTON_LABELS['en']['cashback'], BUTTON_LABELS['dv']['cashback']]:
-        return await cashback_command(update, context)
+        return await cashback_command(update, context) # type: ignore
     elif text == "🎰 Spin Management":
         if is_admin(user_id):
             return await spin_management_panel(update, context)
