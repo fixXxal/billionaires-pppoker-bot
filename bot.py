@@ -363,6 +363,13 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'support_end_confirm': "✅ <b>Support session ended.</b>\n\nThank you! Feel free to start a new session anytime.",
         'support_already_active': "💬 You're already in a support session!\n\nType your message and it will be sent to our admin.\nClick the button below to end the session.",
 
+        # Inline button labels
+        'btn_cancel': "❌ Cancel",
+        'btn_bml': "🏦 BML",
+        'btn_mib': "🏦 MIB",
+        'btn_usd': "💵 USD",
+        'btn_usdt': "💎 USDT (BEP20)",
+
         # General messages
         'click_button_start': "👉 Click button below to get started!",
         'admin_review': "Admin will review shortly.",
@@ -599,6 +606,13 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         # Support messages
         'support_end_confirm': "✅ <b>ސަޕޯޓް ސެޝަން ނިމުނީ.</b>\n\nޝުކުރިއްޔާ! ކޮންމެ ވަގުތެއްގައިވެސް އާ ސެޝަނެއް ފެށިދާނެ.",
         'support_already_active': "💬 ތިބާ މިހާރުވެސް ސަޕޯޓް ސެޝަނެއްގައި!\n\nމެސެޖް ލިޔުއްވާ، އެޑްމިން އަށް ފޮނުވޭނެ.\nނިންމާލަން ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ.",
+
+        # Inline button labels
+        'btn_cancel': "❌ ކެންސަލް",
+        'btn_bml': "🏦 BML",
+        'btn_mib': "🏦 MIB",
+        'btn_usd': "💵 USD",
+        'btn_usdt': "💎 USDT (BEP20)",
 
         # General messages
         'click_button_start': "👉 ފެށުމަށް ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ!",
@@ -1082,30 +1096,30 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_data = api.get_user(update.effective_user.id)
 
+    # Get user language first for translated buttons
+    lang = get_user_language(update.effective_user.id)
+
     # Get all configured payment accounts
     payment_accounts = api.get_all_payment_accounts()
     logger.info(f"Payment accounts for deposit: {payment_accounts}")
 
-    # Build keyboard with only configured payment methods
+    # Build keyboard with only configured payment methods (using translated labels)
     keyboard = []
     if 'BML' in payment_accounts and payment_accounts['BML'].get('account_number'):
         logger.info(f"Adding BML button: {payment_accounts['BML']}")
-        keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="deposit_bml")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_bml', lang), callback_data="deposit_bml")])
     if 'MIB' in payment_accounts and payment_accounts['MIB'].get('account_number'):
         logger.info(f"Adding MIB button: {payment_accounts['MIB']}")
-        keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="deposit_mib")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_mib', lang), callback_data="deposit_mib")])
     if 'USD' in payment_accounts and payment_accounts['USD'].get('account_number'):
         logger.info(f"Adding USD button: {payment_accounts['USD']}")
-        keyboard.append([InlineKeyboardButton("💵 USD", callback_data="deposit_usd")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_usd', lang), callback_data="deposit_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT'].get('account_number'):
         logger.info(f"Adding USDT button: {payment_accounts['USDT']}")
-        keyboard.append([InlineKeyboardButton("💎 USDT (BEP20)", callback_data="deposit_usdt")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_usdt', lang), callback_data="deposit_usdt")])
 
     # Add cancel button
-    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
-
-    # Check if any payment methods are configured
-    lang = get_user_language(update.effective_user.id)
+    keyboard.append([InlineKeyboardButton(get_message('btn_cancel', lang), callback_data="cancel")])
     if len(keyboard) == 1:  # Only cancel button
         await update.message.reply_text(
             get_message('deposit_no_methods', lang),
@@ -1822,19 +1836,19 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Get all configured payment accounts
     payment_accounts = api.get_all_payment_accounts()
 
-    # Build keyboard with only configured payment methods
+    # Build keyboard with only configured payment methods (using translated labels)
     keyboard = []
     if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
-        keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="withdrawal_bml")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_bml', lang), callback_data="withdrawal_bml")])
     if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
-        keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="withdrawal_mib")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_mib', lang), callback_data="withdrawal_mib")])
     if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
-        keyboard.append([InlineKeyboardButton("💵 USD", callback_data="withdrawal_usd")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_usd', lang), callback_data="withdrawal_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
-        keyboard.append([InlineKeyboardButton("💎 USDT (BEP20)", callback_data="withdrawal_usdt")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_usdt', lang), callback_data="withdrawal_usdt")])
 
     # Add cancel button
-    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
+    keyboard.append([InlineKeyboardButton(get_message('btn_cancel', lang), callback_data="cancel")])
 
     # Check if any payment methods are configured
     if len(keyboard) == 1:  # Only cancel button
@@ -8089,6 +8103,7 @@ async def spin_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         # Send freespins using the chat directly
         user = query.from_user
+        lang = get_user_language(user.id)
 
         try:
             # Get user's spin data
@@ -8096,7 +8111,7 @@ async def spin_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             if not user_data or user_data.get('available_spins', 0) == 0:
                 # Create deposit button
-                keyboard = [[InlineKeyboardButton("💰 Make Deposit", callback_data="deposit_start")]]
+                keyboard = [[InlineKeyboardButton(get_message('spins_make_deposit', lang), callback_data="deposit_start")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
                 await context.bot.send_message(
@@ -9066,19 +9081,19 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
     # Get all configured payment accounts
     payment_accounts = api.get_all_payment_accounts()
 
-    # Build keyboard with only configured payment methods
+    # Build keyboard with only configured payment methods (using translated labels)
     keyboard = []
     if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
-        keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="deposit_bml")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_bml', lang), callback_data="deposit_bml")])
     if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
-        keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="deposit_mib")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_mib', lang), callback_data="deposit_mib")])
     if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
-        keyboard.append([InlineKeyboardButton("💵 USD", callback_data="deposit_usd")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_usd', lang), callback_data="deposit_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
-        keyboard.append([InlineKeyboardButton("💎 USDT (BEP20)", callback_data="deposit_usdt")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_usdt', lang), callback_data="deposit_usdt")])
 
     # Add cancel button
-    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
+    keyboard.append([InlineKeyboardButton(get_message('btn_cancel', lang), callback_data="cancel")])
 
     # Check if any payment methods are configured
     if len(keyboard) == 1:  # Only cancel button
@@ -9117,6 +9132,7 @@ async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_
             logger.warning(f"Could not delete message: {e}")
 
         user = query.from_user
+        lang = get_user_language(user.id)
 
         try:
             # Get user's spin data
@@ -9132,7 +9148,7 @@ async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_
 
             # Add deposit button if no spins
             if available == 0:
-                keyboard.append([InlineKeyboardButton("💰 Make Deposit", callback_data="deposit_start")])
+                keyboard.append([InlineKeyboardButton(get_message('spins_make_deposit', lang), callback_data="deposit_start")])
 
             reply_markup = InlineKeyboardMarkup(keyboard)
 
