@@ -134,14 +134,32 @@ def get_button_text(button_name: str, lang: str = 'en') -> str:
         text = BUTTON_LABELS['en'].get(button_name, '')
     return text
 
+# Local cache for user languages (faster than API calls)
+user_language_cache: Dict[int, str] = {}
+
 def get_user_language(user_id: int) -> str:
     """Get user's language preference. Returns 'en' as default."""
+    # Check local cache first
+    if user_id in user_language_cache:
+        return user_language_cache[user_id]
+
+    # Then check API
     try:
         user_data = api.get_user(user_id)
-        return user_data.get('language', 'en') if user_data else 'en'
+        lang = user_data.get('language', 'en') if user_data else 'en'
+        user_language_cache[user_id] = lang  # Cache it
+        return lang
     except Exception as e:
         logger.error(f"Failed to get language for user {user_id}: {e}")
         return 'en'
+
+def set_user_language(user_id: int, language: str):
+    """Set user's language preference in cache and database."""
+    user_language_cache[user_id] = language
+    try:
+        api.update_user_language(user_id, language)
+    except Exception as e:
+        logger.error(f"Failed to save language to DB for user {user_id}: {e}")
 
 # Message translations for bot responses
 MESSAGES = {
@@ -999,12 +1017,9 @@ async def language_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang_code = query.data.replace('lang_', '')  # 'en' or 'dv'
     user_id = update.effective_user.id
 
-    # Update user's language in database
-    try:
-        api.update_user_language(user_id, lang_code)
-        logger.info(f"User {user_id} changed language to {lang_code}")
-    except Exception as e:
-        logger.error(f"Failed to update language: {e}")
+    # Update user's language in cache and database
+    set_user_language(user_id, lang_code)
+    logger.info(f"User {user_id} changed language to {lang_code}")
 
     # Show confirmation and then menu
     confirmation = get_message('language_changed', lang_code)
@@ -10082,3 +10097,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

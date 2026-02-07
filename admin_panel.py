@@ -285,7 +285,7 @@ async def deposit_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     logger.info(f"ℹ️ [ADMIN PANEL] No spins added (amount {amount_mvr} MVR below minimum threshold)")
             except Exception as e:
                 logger.error(f"❌ [ADMIN PANEL] CRITICAL ERROR adding spins for deposit: {e}")
-                logger.error(f"   User ID: {user_id}, Username: {username}, Amount: {amount}, Method: {method}")
+                logger.error(f"   User ID: {user_id}, Username: {username}, Amount: {amount_mvr}, Method: {method}")
                 import traceback
                 traceback.print_exc()
         else:
