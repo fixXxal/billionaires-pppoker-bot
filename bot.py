@@ -351,10 +351,13 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         # Seat request messages
         'seat_title': "🪑 <b>SEAT REQUEST</b>",
         'seat_enter_amount': "💰 Enter the amount you want to play with:",
+        'seat_invalid_amount': "❌ Please enter a valid amount greater than 0.",
         'seat_no_pppoker': "❌ <b>No PPPoker ID found!</b>\n\nPlease make a deposit first to register your PPPoker ID.\nUse /start and select 💰 Deposit.",
         'seat_confirm': "✅ <b>Seat request submitted!</b>\n\n💰 Amount: {amount} MVR\n🎮 PPPoker ID: {pppoker_id}\n\nPlease wait for admin approval.",
+        'seat_sent': "✅ <b>Seat request sent!</b>\n\n🪑 {amount} chips\n🎮 ID: {pppoker_id}\n\nAdmin will review shortly.",
         'seat_approved': "✅ <b>Seat Request Approved!</b>\n\n💰 Amount: {amount} MVR\n🎮 PPPoker ID: {pppoker_id}\n\nYou can now join the table!",
         'seat_select_payment': "💳 Select payment method to pay for your seat:",
+        'user_not_found': "❌ User not found. Please use /start first.",
 
         # Support messages
         'support_end_confirm': "✅ <b>Support session ended.</b>\n\nThank you! Feel free to start a new session anytime.",
@@ -364,6 +367,20 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'click_button_start': "👉 Click button below to get started!",
         'admin_review': "Admin will review shortly.",
         'processing': "🔍 Processing...",
+        'processing_receipt': "🔍 Processing receipt... Please wait...",
+        'processing_slip': "📸 **Processing your payment slip...**\n\nPlease wait while we verify the details.",
+
+        # Cashback error messages
+        'cashback_error': "❌ <b>Error</b>\n\nSorry, there was an error checking for active promotions.\nPlease try again later or contact support.",
+        'cashback_pending_error': "❌ <b>Error</b>\n\nSorry, there was an error checking your pending requests.\nPlease try again later or contact support.",
+        'cashback_pending_exists': "❌ <b>Pending Cashback Request Exists</b>\n\nYou already have a pending cashback request for this promotion.\n\n🎫 Request ID: <code>{request_id}</code>\n💰 Amount: <b>{amount:.2f} MVR</b>\n\n⏳ Please wait for admin approval before submitting another request.\n\n💡 <i>You can only have one pending request per promotion period.</i>",
+
+        # Support button
+        'end_support_button': "❌ End Support",
+
+        # Spin bonus message
+        'spin_bonus': "🎰 <b>FREE SPINS BONUS!</b>\n+{spins} free spins added!\nClick button below to play!",
+        'click_spin_wheel': "👇 Click button to spin the wheel!",
     },
     'dv': {
         # Counter status
@@ -571,10 +588,13 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         # Seat request messages
         'seat_title': "🪑 <b>ސީޓް ރިކުއެސްޓް</b>",
         'seat_enter_amount': "💰 ކުޅެން ބޭނުންފުޅުވާ އަދަދު ޖައްސަވާ:",
+        'seat_invalid_amount': "❌ 0 އަށް ވުރެ ބޮޑު ރަނގަޅު އަދަދެއް ޖައްސަވާ.",
         'seat_no_pppoker': "❌ <b>PPPoker ID ނެތް!</b>\n\nފުރަތަމަ ޑިޕޮޒިޓެއް ކުރައްވާ PPPoker ID ރެޖިސްޓާ ކުރަން.\n/start ޖައްސަވާ 💰 ޑިޕޮޒިޓް އިޚްތިޔާރު ކުރައްވާ.",
         'seat_confirm': "✅ <b>ސީޓް ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>\n\n💰 އަދަދު: {amount} MVR\n🎮 PPPoker ID: {pppoker_id}\n\nއެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
+        'seat_sent': "✅ <b>ސީޓް ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>\n\n🪑 {amount} ޗިޕްސް\n🎮 އައިޑީ: {pppoker_id}\n\nއެޑްމިން ރިވިއު ކުރާނެ.",
         'seat_approved': "✅ <b>ސީޓް ރިކުއެސްޓް އެޕްރޫވް ވެއްޖެ!</b>\n\n💰 އަދަދު: {amount} MVR\n🎮 PPPoker ID: {pppoker_id}\n\nމޭޒަށް ވަދެވޭނެ!",
         'seat_select_payment': "💳 ސީޓް އަށް ފައިސާ ދައްކަން ޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ:",
+        'user_not_found': "❌ ޔޫޒާ ނުފެނުނީ. ފުރަތަމަ /start ޖައްސަވާ.",
 
         # Support messages
         'support_end_confirm': "✅ <b>ސަޕޯޓް ސެޝަން ނިމުނީ.</b>\n\nޝުކުރިއްޔާ! ކޮންމެ ވަގުތެއްގައިވެސް އާ ސެޝަނެއް ފެށިދާނެ.",
@@ -584,6 +604,20 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'click_button_start': "👉 ފެށުމަށް ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ!",
         'admin_review': "އެޑްމިން ރިވިއު ކުރާނެ.",
         'processing': "🔍 ޕްރޮސެސް ކުރަނީ...",
+        'processing_receipt': "🔍 ރެސީޕްޓް ބަލަނީ... މަޑުކުރައްވާ...",
+        'processing_slip': "📸 **ޕޭމަންޓް ސްލިޕް ޕްރޮސެސް ކުރަނީ...**\n\nތަފްސީލް ވެރިފައި ކުރަންދެން މަޑުކުރައްވާ.",
+
+        # Cashback error messages
+        'cashback_error': "❌ <b>މައްސަލައެއް ދިމާވީ</b>\n\nޕްރޮމޯޝަން ޗެކް ކުރުމުގައި މައްސަލައެއް ދިމާވީ.\nފަހުން އަލުން މަސައްކަތް ކުރައްވާ ނުވަތަ ސަޕޯޓާ ގުޅުއްވާ.",
+        'cashback_pending_error': "❌ <b>މައްސަލައެއް ދިމާވީ</b>\n\nޕެންޑިން ރިކުއެސްޓް ޗެކް ކުރުމުގައި މައްސަލައެއް ދިމާވީ.\nފަހުން އަލުން މަސައްކަތް ކުރައްވާ ނުވަތަ ސަޕޯޓާ ގުޅުއްވާ.",
+        'cashback_pending_exists': "❌ <b>ޕެންޑިން ކޭޝްބެކް ރިކުއެސްޓެއް އެބައޮތް</b>\n\nމި ޕްރޮމޯޝަން އަށް ޕެންޑިން ކޭޝްބެކް ރިކުއެސްޓެއް އެބައޮތް.\n\n🎫 ރިކުއެސްޓް އައިޑީ: <code>{request_id}</code>\n💰 އަދަދު: <b>{amount:.2f} MVR</b>\n\n⏳ އިތުރު ރިކުއެސްޓެއް ފޮނުވުމުގެ ކުރިން އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.\n\n💡 <i>ކޮންމެ ޕްރޮމޯޝަނެއްގައި އެއް ޕެންޑިން ރިކުއެސްޓް ހުށަހެޅޭނީ.</i>",
+
+        # Support button
+        'end_support_button': "❌ ސަޕޯޓް ނިންމާ",
+
+        # Spin bonus message
+        'spin_bonus': "🎰 <b>ފްރީ ސްޕިންސް ބޯނަސް!</b>\n+{spins} ފްރީ ސްޕިންސް އިތުރުވީ!\nކުޅެން ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ!",
+        'click_spin_wheel': "👇 ސްޕިން ވީލް އަށް ފިއްތާލައްވާ!",
     }
 }
 
@@ -675,13 +709,15 @@ async def freespins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = [[InlineKeyboardButton(get_message('spins_make_deposit', lang), callback_data="deposit_start")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
+            # Escape the translated click button message for MarkdownV2
+            click_msg = get_message('click_button_start', lang).replace('!', '\\!')
             await update.message.reply_text(
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"{get_message('spins_title', lang)}\n"
                 f"━━━━━━━━━━━━━━━━━━\n\n"
                 f"{get_message('spins_no_spins', lang)}\n\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"👉 Click button below to get started\\!\n"
+                f"{click_msg}\n"
                 f"━━━━━━━━━━━━━━━━━━",
                 parse_mode='MarkdownV2',
                 reply_markup=reply_markup
@@ -1603,7 +1639,7 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
 
         # Check if it's an image document
         if document.mime_type and document.mime_type.startswith('image/'):
-            processing_msg = await update.message.reply_text("🔍 Processing receipt... Please wait...")
+            processing_msg = await update.message.reply_text(get_message('processing_receipt', lang))
 
             try:
                 # Download document
@@ -2223,9 +2259,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error getting active cashback promotion: {e}")
         await update.message.reply_text(
-            "❌ <b>Error</b>\n\n"
-            "Sorry, there was an error checking for active promotions.\n"
-            "Please try again later or contact support.",
+            get_message('cashback_error', lang),
             parse_mode='HTML'
         )
         return ConversationHandler.END
@@ -2247,21 +2281,16 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error getting pending cashback requests: {e}")
         await update.message.reply_text(
-            "❌ <b>Error</b>\n\n"
-            "Sorry, there was an error checking your pending requests.\n"
-            "Please try again later or contact support.",
+            get_message('cashback_pending_error', lang),
             parse_mode='HTML'
         )
         return ConversationHandler.END
 
     if pending_for_promo:
         await update.message.reply_text(
-            f"❌ <b>Pending Cashback Request Exists</b>\n\n"
-            f"You already have a pending cashback request for this promotion.\n\n"
-            f"🎫 Request ID: <code>{pending_for_promo[0]['request_id']}</code>\n"
-            f"💰 Amount: <b>{pending_for_promo[0]['cashback_amount']:.2f} MVR</b>\n\n"
-            f"⏳ Please wait for admin approval before submitting another request.\n\n"
-            f"💡 <i>You can only have one pending request per promotion period.</i>",
+            get_message('cashback_pending_exists', lang,
+                       request_id=pending_for_promo[0]['request_id'],
+                       amount=pending_for_promo[0]['cashback_amount']),
             parse_mode='HTML'
         )
         return ConversationHandler.END
@@ -2555,13 +2584,14 @@ async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle seat amount input"""
     user = update.effective_user
+    lang = context.user_data.get('lang', get_user_language(user.id))
 
     try:
         amount = float(update.message.text.strip())
 
         if amount <= 0:
             await update.message.reply_text(
-                "❌ Please enter a valid amount greater than 0.",
+                get_message('seat_invalid_amount', lang),
                 parse_mode='Markdown'
             )
             return SEAT_AMOUNT
@@ -2573,7 +2603,7 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
         user_data = api.get_user_by_telegram_id(user.id)
         if not user_data:
             await update.message.reply_text(
-                "❌ User not found. Please use /start first.",
+                get_message('user_not_found', lang),
                 parse_mode='Markdown'
             )
             return ConversationHandler.END
@@ -2596,10 +2626,7 @@ async def seat_amount_received(update: Update, context: ContextTypes.DEFAULT_TYP
 
         # Send confirmation to user
         await update.message.reply_text(
-            f"✅ <b>Seat request sent!</b>\n\n"
-            f"🪑 {amount} chips\n"
-            f"🎮 ID: {pppoker_id}\n\n"
-            f"Admin will review shortly.",
+            get_message('seat_sent', lang, amount=amount, pppoker_id=pppoker_id),
             parse_mode='HTML'
         )
 
@@ -2695,7 +2722,7 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if user.id in support_mode_users:
         # Show End Support button
-        keyboard = [[InlineKeyboardButton("❌ End Support", callback_data="user_end_support")]]
+        keyboard = [[InlineKeyboardButton(get_message('end_support_button', lang), callback_data="user_end_support")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         msg = await update.message.reply_text(
@@ -2715,7 +2742,7 @@ async def live_support_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     live_support_sessions[user.id] = ADMIN_USER_ID
 
     # Show End Support button
-    keyboard = [[InlineKeyboardButton("❌ End Support", callback_data="user_end_support")]]
+    keyboard = [[InlineKeyboardButton(get_message('end_support_button', lang), callback_data="user_end_support")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     msg = await update.message.reply_text(
@@ -3115,8 +3142,11 @@ async def admin_reply_message_received(update: Update, context: ContextTypes.DEF
         return
 
     try:
+        # Get user's language for translated button
+        user_lang = get_user_language(user_id)
+
         # Show End Support button to user with the reply
-        keyboard = [[InlineKeyboardButton("❌ End Support", callback_data="user_end_support")]]
+        keyboard = [[InlineKeyboardButton(get_message('end_support_button', user_lang), callback_data="user_end_support")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Send message to user
@@ -3180,8 +3210,11 @@ async def admin_reply_photo_received(update: Update, context: ContextTypes.DEFAU
         return
 
     try:
+        # Get user's language for translated button
+        user_lang = get_user_language(user_id)
+
         # Show End Support button to user with the reply
-        keyboard = [[InlineKeyboardButton("❌ End Support", callback_data="user_end_support")]]
+        keyboard = [[InlineKeyboardButton(get_message('end_support_button', user_lang), callback_data="user_end_support")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Prepare caption
@@ -6465,7 +6498,9 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
             logger.info(f"✅ SPIN RESULT: {spins_added} spins added to user {user_telegram_id}")
 
             if spins_added > 0:
-                spins_message = f"\n\n🎰 <b>FREE SPINS BONUS!</b>\n+{spins_added} free spins added!\nClick button below to play!"
+                # Get user's language for translated message
+                user_lang = get_user_language(user_telegram_id)
+                spins_message = "\n\n" + get_message('spin_bonus', user_lang, spins=spins_added)
                 logger.info(f"🎉 User will receive spin message: {spins_added} spins")
             else:
                 logger.info(f"ℹ️ No spins added (amount {amount_mvr} MVR below minimum threshold)")
@@ -7585,6 +7620,7 @@ async def upload_seat_slip_button(update: Update, context: ContextTypes.DEFAULT_
 async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle payment slip upload for seat request"""
     user = update.effective_user
+    lang = get_user_language(user.id)
 
     # Check if user has pending seat request
     if user.id not in seat_request_data:
@@ -7605,7 +7641,7 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
 
     # Send processing message
     processing_msg = await update.message.reply_text(
-        "📸 **Processing your payment slip...**\n\nPlease wait while we verify the details.",
+        get_message('processing_slip', lang),
         parse_mode='Markdown'
     )
 
