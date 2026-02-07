@@ -117,6 +117,30 @@ class SheetsCompatAPI(DjangoAPI):
         # This might not be supported in Django API yet
         return True
 
+    def update_user_language(self, telegram_id: int, language: str) -> bool:
+        """Update user's language preference"""
+        try:
+            user = self.get_user_by_telegram_id(telegram_id)
+            if user:
+                user_id = user.get('id')
+                # Call the Django API endpoint with proper user ID
+                import requests
+                response = requests.patch(
+                    f'{self.base_url}/users/{user_id}/',
+                    json={'language': language},
+                    headers=self.headers,
+                    timeout=30
+                )
+                response.raise_for_status()
+                logger.info(f"✅ Updated language for user {telegram_id} (DB ID: {user_id}) to {language}")
+                return True
+            else:
+                logger.warning(f"⚠️ User {telegram_id} not found, cannot update language")
+                return False
+        except Exception as e:
+            logger.error(f"Error updating language: {e}")
+            return False
+
     # ==================== LEGACY DEPOSIT METHODS ====================
 
     def create_deposit_request(self, telegram_id: int, amount: float, method: str,
