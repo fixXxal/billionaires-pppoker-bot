@@ -1118,23 +1118,23 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     payment_accounts = api.get_all_payment_accounts()
     logger.info(f"Payment accounts for deposit: {payment_accounts}")
 
-    # Build keyboard with only configured payment methods (using translated labels)
+    # Build keyboard with only configured payment methods
     keyboard = []
     if 'BML' in payment_accounts and payment_accounts['BML'].get('account_number'):
         logger.info(f"Adding BML button: {payment_accounts['BML']}")
-        keyboard.append([InlineKeyboardButton(get_message('btn_bml', lang), callback_data="deposit_bml")])
+        keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="deposit_bml")])
     if 'MIB' in payment_accounts and payment_accounts['MIB'].get('account_number'):
         logger.info(f"Adding MIB button: {payment_accounts['MIB']}")
-        keyboard.append([InlineKeyboardButton(get_message('btn_mib', lang), callback_data="deposit_mib")])
+        keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="deposit_mib")])
     if 'USD' in payment_accounts and payment_accounts['USD'].get('account_number'):
         logger.info(f"Adding USD button: {payment_accounts['USD']}")
-        keyboard.append([InlineKeyboardButton(get_message('btn_usd', lang), callback_data="deposit_usd")])
+        keyboard.append([InlineKeyboardButton("💵 USD", callback_data="deposit_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT'].get('account_number'):
         logger.info(f"Adding USDT button: {payment_accounts['USDT']}")
-        keyboard.append([InlineKeyboardButton(get_message('btn_usdt', lang), callback_data="deposit_usdt")])
+        keyboard.append([InlineKeyboardButton("💎 USDT (BEP20)", callback_data="deposit_usdt")])
 
     # Add cancel button
-    keyboard.append([InlineKeyboardButton(get_message('btn_cancel', lang), callback_data="cancel")])
+    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
     if len(keyboard) == 1:  # Only cancel button
         await update.message.reply_text(
             get_message('deposit_no_methods', lang),
@@ -1851,19 +1851,19 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Get all configured payment accounts
     payment_accounts = api.get_all_payment_accounts()
 
-    # Build keyboard with only configured payment methods (using translated labels)
+    # Build keyboard with only configured payment methods
     keyboard = []
     if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
-        keyboard.append([InlineKeyboardButton(get_message('btn_bml', lang), callback_data="withdrawal_bml")])
+        keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="withdrawal_bml")])
     if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
-        keyboard.append([InlineKeyboardButton(get_message('btn_mib', lang), callback_data="withdrawal_mib")])
+        keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="withdrawal_mib")])
     if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
-        keyboard.append([InlineKeyboardButton(get_message('btn_usd', lang), callback_data="withdrawal_usd")])
+        keyboard.append([InlineKeyboardButton("💵 USD", callback_data="withdrawal_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
-        keyboard.append([InlineKeyboardButton(get_message('btn_usdt', lang), callback_data="withdrawal_usdt")])
+        keyboard.append([InlineKeyboardButton("💎 USDT (BEP20)", callback_data="withdrawal_usdt")])
 
     # Add cancel button
-    keyboard.append([InlineKeyboardButton(get_message('btn_cancel', lang), callback_data="cancel")])
+    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
 
     # Check if any payment methods are configured
     if len(keyboard) == 1:  # Only cancel button
@@ -9096,19 +9096,19 @@ async def deposit_button_callback(update: Update, context: ContextTypes.DEFAULT_
     # Get all configured payment accounts
     payment_accounts = api.get_all_payment_accounts()
 
-    # Build keyboard with only configured payment methods (using translated labels)
+    # Build keyboard with only configured payment methods
     keyboard = []
     if 'BML' in payment_accounts and payment_accounts['BML']['account_number']:
-        keyboard.append([InlineKeyboardButton(get_message('btn_bml', lang), callback_data="deposit_bml")])
+        keyboard.append([InlineKeyboardButton("🏦 BML", callback_data="deposit_bml")])
     if 'MIB' in payment_accounts and payment_accounts['MIB']['account_number']:
-        keyboard.append([InlineKeyboardButton(get_message('btn_mib', lang), callback_data="deposit_mib")])
+        keyboard.append([InlineKeyboardButton("🏦 MIB", callback_data="deposit_mib")])
     if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
-        keyboard.append([InlineKeyboardButton(get_message('btn_usd', lang), callback_data="deposit_usd")])
+        keyboard.append([InlineKeyboardButton("💵 USD", callback_data="deposit_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
-        keyboard.append([InlineKeyboardButton(get_message('btn_usdt', lang), callback_data="deposit_usdt")])
+        keyboard.append([InlineKeyboardButton("💎 USDT (BEP20)", callback_data="deposit_usdt")])
 
     # Add cancel button
-    keyboard.append([InlineKeyboardButton(get_message('btn_cancel', lang), callback_data="cancel")])
+    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
 
     # Check if any payment methods are configured
     if len(keyboard) == 1:  # Only cancel button
@@ -10097,4 +10097,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
