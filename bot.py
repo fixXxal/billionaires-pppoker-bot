@@ -364,6 +364,16 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'btn_mib': "🏦 MIB",
         'btn_usd': "💵 USD",
         'btn_usdt': "💎 USDT (BEP20)",
+        'btn_open_club': "🎮 Open BILLIONAIRES Club",
+        'btn_play_spins': "🎲 Play Free Spins",
+        'btn_open_spin_wheel': "🎰 OPEN SPIN WHEEL 🎰",
+        'btn_spin_1': "🎯 Spin 1x",
+        'btn_spin_10': "🎰 Spin 10x",
+        'btn_spin_50': "🔥 Spin 50x",
+        'btn_spin_100': "💥 Spin 100x",
+        'btn_spin_all': "⚡ Spin ALL ({count}x)",
+        'btn_end_support': "🔚 End Support",
+        'btn_user_end_support': "🔚 End Chat",
 
         # General messages
         'click_button_start': "👉 Click button below to get started!",
@@ -642,6 +652,16 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'btn_mib': "🏦 MIB",
         'btn_usd': "💵 USD",
         'btn_usdt': "💎 USDT (BEP20)",
+        'btn_open_club': "🎮 ބިލިއަނެއާޒް ކްލަބް ހުޅުވާ",
+        'btn_play_spins': "🎲 ފްރީ ސްޕިންސް ކުޅޭ",
+        'btn_open_spin_wheel': "🎰 ސްޕިން ވީލް ހުޅުވާ 🎰",
+        'btn_spin_1': "🎯 ސްޕިން 1x",
+        'btn_spin_10': "🎰 ސްޕިން 10x",
+        'btn_spin_50': "🔥 ސްޕިން 50x",
+        'btn_spin_100': "💥 ސްޕިން 100x",
+        'btn_spin_all': "⚡ ހުރިހާ ސްޕިން ({count}x)",
+        'btn_end_support': "🔚 ސަޕޯޓް ނިންމާ",
+        'btn_user_end_support': "🔚 ޗެޓް ނިންމާ",
 
         # General messages
         'click_button_start': "👉 ފެށުމަށް ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ!",
@@ -1176,10 +1196,10 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("💵 USD", callback_data="deposit_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT'].get('account_number'):
         logger.info(f"Adding USDT button: {payment_accounts['USDT']}")
-        keyboard.append([InlineKeyboardButton("💎 USDT (BEP20)", callback_data="deposit_usdt")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_usdt', lang), callback_data="deposit_usdt")])
 
     # Add cancel button
-    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
+    keyboard.append([InlineKeyboardButton(get_message('btn_cancel', lang), callback_data="cancel")])
     if len(keyboard) == 1:  # Only cancel button
         await update.message.reply_text(
             get_message('deposit_no_methods', lang),
@@ -1924,10 +1944,10 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'USD' in payment_accounts and payment_accounts['USD']['account_number']:
         keyboard.append([InlineKeyboardButton("💵 USD", callback_data="withdrawal_usd")])
     if 'USDT' in payment_accounts and payment_accounts['USDT']['account_number']:
-        keyboard.append([InlineKeyboardButton("💎 USDT (BEP20)", callback_data="withdrawal_usdt")])
+        keyboard.append([InlineKeyboardButton(get_message('btn_usdt', lang), callback_data="withdrawal_usdt")])
 
     # Add cancel button
-    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel")])
+    keyboard.append([InlineKeyboardButton(get_message('btn_cancel', lang), callback_data="cancel")])
 
     # Check if any payment methods are configured
     if len(keyboard) == 1:  # Only cancel button
@@ -6616,13 +6636,16 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
             # Clean up promotion data
             del context.bot_data[f'promo_{request_id}']
 
+        # Get user language for translated message
+        user_lang = get_user_language(user_telegram_id)
+
         # Notify user with club link button and spins button if applicable
         club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
-        keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
+        keyboard = [[InlineKeyboardButton(get_message('btn_open_club', user_lang), url=club_link)]]
 
         # Add "Play Spins" button if spins were added
         if spins_added > 0:
-            keyboard.append([InlineKeyboardButton("🎲 Play Free Spins", callback_data="play_freespins")])
+            keyboard.append([InlineKeyboardButton(get_message('btn_play_spins', user_lang), callback_data="play_freespins")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -6630,9 +6653,6 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
         amount = float(deposit['amount'])
         # All deposits are stored in MVR (USDT/USD are converted)
         currency = 'MVR'
-
-        # Get user language for translated message
-        user_lang = get_user_language(user_telegram_id)
         full_spins_message = bonus_message + spins_message if bonus_message or spins_message else ""
 
         try:
@@ -6840,21 +6860,21 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
             del processing_requests[request_id]
         return
 
-    # Notify user with club link button
-    club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
-    keyboard = [[InlineKeyboardButton("🎮 Open BILLIONAIRES Club", url=club_link)]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
     # Get user telegram_id from user_details
     user_details = withdrawal.get('user_details', {})
     user_telegram_id = user_details.get('telegram_id') or withdrawal.get('user')
 
+    # Get user language for translated message
+    user_lang = get_user_language(user_telegram_id)
+
+    # Notify user with club link button
+    club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
+    keyboard = [[InlineKeyboardButton(get_message('btn_open_club', user_lang), url=club_link)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     # Format amount nicely
     amount = float(withdrawal['amount'])
     currency = 'MVR' if withdrawal.get('method') != 'USDT' else 'USD'
-
-    # Get user language for translated message
-    user_lang = get_user_language(user_telegram_id)
     try:
         withdraw_msg = get_message('withdrawal_approved_title', user_lang) + "\n\n" + get_message(
             'withdrawal_approved_body', user_lang,
@@ -8188,9 +8208,30 @@ async def spin_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 keyboard = [[InlineKeyboardButton(get_message('spins_make_deposit', lang), callback_data="deposit_start")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
-                await context.bot.send_message(
-                    chat_id=query.message.chat_id,
-                    text="━━━━━━━━━━━━━━━━━━\n"
+                if lang == 'dv':
+                    no_spins_text = ("━━━━━━━━━━━━━━━━━━\n"
+                        "🎰 *ފްރީ ސްޕިންސް* 🎰\n"
+                        "━━━━━━━━━━━━━━━━━━\n\n"
+                        "💫 *މިވަގުތު ސްޕިން ނެތް\\!*\n\n"
+                        "💰 ފްރީ ސްޕިން ހޯދަން ޑިޕޮޒިޓް ކުރައްވާ\\!\n"
+                        "🔥 ގިނައިން ޑިޕޮޒިޓް → ގިނަ ސްޕިން → ގިނަ އިނާމު\\!\n\n"
+                        "🎁 *އިނާމުތައް:*\n"
+                        "🏆 500 ޗިޕްސް\n"
+                        "💰 250 ޗިޕްސް\n"
+                        "💎 100 ޗިޕްސް\n"
+                        "💵 50 ޗިޕްސް\n"
+                        "🪙 20 ޗިޕްސް\n"
+                        "🎯 10 ޗިޕްސް\n"
+                        "📱 iPhone 17 Pro Max\n"
+                        "💻 MacBook Pro\n"
+                        "⌚ Apple Watch Ultra\n"
+                        "🎧 AirPods Pro\n"
+                        "✨ ސަޕްރައިޒް ރިވޯޑްސް\\!\n\n"
+                        "━━━━━━━━━━━━━━━━━━\n"
+                        "👉 ފެށުމަށް ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ\\!\n"
+                        "━━━━━━━━━━━━━━━━━━")
+                else:
+                    no_spins_text = ("━━━━━━━━━━━━━━━━━━\n"
                         "🎰 *FREE SPINS* 🎰\n"
                         "━━━━━━━━━━━━━━━━━━\n\n"
                         "💫 *No spins available right now\\!*\n\n"
@@ -8210,7 +8251,11 @@ async def spin_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                         "✨ Plus Surprise Rewards\\!\n\n"
                         "━━━━━━━━━━━━━━━━━━\n"
                         "👉 Click button below to get started\\!\n"
-                        "━━━━━━━━━━━━━━━━━━",
+                        "━━━━━━━━━━━━━━━━━━")
+
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=no_spins_text,
                     parse_mode='MarkdownV2',
                     reply_markup=reply_markup
                 )
@@ -8224,29 +8269,50 @@ async def spin_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             keyboard = []
 
             # Single spin
-            keyboard.append([InlineKeyboardButton("🎯 Spin 1x", callback_data="spin_1")])
+            keyboard.append([InlineKeyboardButton(get_message('btn_spin_1', lang), callback_data="spin_1")])
 
             # Multi-spin options
             if available >= 10:
-                keyboard.append([InlineKeyboardButton("🎰 Spin 10x", callback_data="spin_10")])
+                keyboard.append([InlineKeyboardButton(get_message('btn_spin_10', lang), callback_data="spin_10")])
 
             if available >= 50:
-                keyboard.append([InlineKeyboardButton("🔥 Spin 50x", callback_data="spin_50")])
+                keyboard.append([InlineKeyboardButton(get_message('btn_spin_50', lang), callback_data="spin_50")])
 
             if available >= 100:
-                keyboard.append([InlineKeyboardButton("💥 Spin 100x", callback_data="spin_100")])
+                keyboard.append([InlineKeyboardButton(get_message('btn_spin_100', lang), callback_data="spin_100")])
 
             if available > 1:
-                keyboard.append([InlineKeyboardButton(f"⚡ Spin ALL ({available}x)", callback_data=f"spin_all")])
+                keyboard.append([InlineKeyboardButton(get_message('btn_spin_all', lang, count=available), callback_data=f"spin_all")])
 
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             # Escape username for MarkdownV2
             username_escaped = user.first_name.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
 
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=f"━━━━━━━━━━━━━━━━━━\n"
+            if lang == 'dv':
+                spin_text = (f"━━━━━━━━━━━━━━━━━━\n"
+                    f"🎰 *ފްރީ ސްޕިންސް* 🎰\n"
+                    f"━━━━━━━━━━━━━━━━━━\n\n"
+                    f"👤 *{username_escaped}*\n\n"
+                    f"🎯 ލިބެން ހުރި ސްޕިން: *{available}*\n"
+                    f"💎 ޖުމްލަ ޗިޕްސް: *{total_chips}*\n\n"
+                    f"🎁 *އިނާމު ވީލް:*\n"
+                    f"🏆 500 ޗިޕްސް\n"
+                    f"💰 250 ޗިޕްސް\n"
+                    f"💎 100 ޗިޕްސް\n"
+                    f"💵 50 ޗިޕްސް\n"
+                    f"🪙 20 ޗިޕްސް\n"
+                    f"🎯 10 ޗިޕްސް\n"
+                    f"📱 iPhone 17 Pro Max\n"
+                    f"💻 MacBook Pro\n"
+                    f"⌚ Apple Watch Ultra\n"
+                    f"🎧 AirPods Pro\n"
+                    f"✨ ސަޕްރައިޒް ރިވޯޑްސް\\!\n\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"⚡ *ސްޕިން އިޚްތިޔާރު ކުރައްވާ:* ⚡\n"
+                    f"━━━━━━━━━━━━━━━━━━")
+            else:
+                spin_text = (f"━━━━━━━━━━━━━━━━━━\n"
                     f"🎰 *FREE SPINS* 🎰\n"
                     f"━━━━━━━━━━━━━━━━━━\n\n"
                     f"👤 *{username_escaped}*\n\n"
@@ -8266,7 +8332,11 @@ async def spin_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                     f"✨ Plus Surprise Rewards\\!\n\n"
                     f"━━━━━━━━━━━━━━━━━━\n"
                     f"⚡ *Choose Your Spins:* ⚡\n"
-                    f"━━━━━━━━━━━━━━━━━━",
+                    f"━━━━━━━━━━━━━━━━━━")
+
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=spin_text,
                 parse_mode='MarkdownV2',
                 reply_markup=reply_markup
             )
@@ -9188,7 +9258,7 @@ async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_
             mini_app_url = "https://billionaires-spins.up.railway.app"
 
             # Create mini app button
-            keyboard = [[InlineKeyboardButton("🎰 OPEN SPIN WHEEL 🎰", web_app=WebAppInfo(url=mini_app_url))]]
+            keyboard = [[InlineKeyboardButton(get_message('btn_open_spin_wheel', lang), web_app=WebAppInfo(url=mini_app_url))]]
 
             # Add deposit button if no spins
             if available == 0:
@@ -9199,9 +9269,29 @@ async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_
             # Escape username for MarkdownV2
             username_escaped = user.first_name.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
 
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=f"━━━━━━━━━━━━━━━━━━\n"
+            if lang == 'dv':
+                wheel_text = (f"━━━━━━━━━━━━━━━━━━\n"
+                    f"🎰 *ފްރީ ސްޕިންސް ވީލް* 🎰\n"
+                    f"━━━━━━━━━━━━━━━━━━\n\n"
+                    f"👤 *{username_escaped}*\n\n"
+                    f"🎯 ލިބެން ހުރި ސްޕިން: *{available}*\n"
+                    f"💎 ޖުމްލަ ޗިޕްސް: *{total_chips}*\n\n"
+                    f"🎁 *އިނާމުތައް:*\n"
+                    f"🏆 500 ޗިޕްސް\n"
+                    f"💰 250 ޗިޕްސް\n"
+                    f"💎 100 ޗިޕްސް\n"
+                    f"💵 50 ޗިޕްސް\n"
+                    f"🪙 20 ޗިޕްސް\n"
+                    f"🎯 10 ޗިޕްސް\n"
+                    f"📱 iPhone 17 Pro Max\n"
+                    f"💻 MacBook Pro\n"
+                    f"⌚ Apple Watch Ultra\n"
+                    f"🎧 AirPods Pro\n\n"
+                    f"━━━━━━━━━━━━━━━━━━\n"
+                    f"👇 ވީލް އެނބުރާލަން ބަޓަން އަށް ފިއްތާލައްވާ\\!\n"
+                    f"━━━━━━━━━━━━━━━━━━")
+            else:
+                wheel_text = (f"━━━━━━━━━━━━━━━━━━\n"
                     f"🎰 *FREE SPINS WHEEL* 🎰\n"
                     f"━━━━━━━━━━━━━━━━━━\n\n"
                     f"👤 *{username_escaped}*\n\n"
@@ -9220,7 +9310,11 @@ async def play_freespins_callback(update: Update, context: ContextTypes.DEFAULT_
                     f"🎧 AirPods Pro\n\n"
                     f"━━━━━━━━━━━━━━━━━━\n"
                     f"👇 Click button to spin the wheel\\!\n"
-                    f"━━━━━━━━━━━━━━━━━━",
+                    f"━━━━━━━━━━━━━━━━━━")
+
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=wheel_text,
                 parse_mode='MarkdownV2',
                 reply_markup=reply_markup
             )
