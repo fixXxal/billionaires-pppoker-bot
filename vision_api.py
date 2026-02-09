@@ -507,22 +507,29 @@ def parse_payment_details(text):
     return details
 
 
-def format_extracted_details(details, show_raw=False):
+def format_extracted_details(details, show_raw=False, lang='en'):
     """
     Format extracted details into a readable message
 
     Args:
         details: Dictionary of parsed payment details
         show_raw: If True, include raw extracted text for debugging
+        lang: Language code ('en' or 'dv')
 
     Returns:
         str: Formatted message for display
     """
     currency = details['currency'] or 'MVR'
-    if details['amount']:
-        message = f"✅ {currency} {details['amount']:,.2f} received — verifying now."
+    if lang == 'dv':
+        if details['amount']:
+            message = f"✅ {currency} {details['amount']:,.2f} ލިބިއްޖެ — ވެރިފައި ކުރަނީ."
+        else:
+            message = "✅ ޕޭމަންޓް ލިބިއްޖެ — ވެރިފައި ކުރަނީ."
     else:
-        message = "✅ Payment received — verifying now."
+        if details['amount']:
+            message = f"✅ {currency} {details['amount']:,.2f} received — verifying now."
+        else:
+            message = "✅ Payment received — verifying now."
 
     # Show raw extracted text for debugging (admin only)
     if show_raw and details['raw_text']:

@@ -302,41 +302,7 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'withdrawal_confirm': "✅ <b>Withdrawal Request Submitted!</b>\n\n💸 Amount: {amount}\n🏦 Method: {method}\n🎮 PPPoker ID: {pppoker_id}\n\nYour request is being processed. You'll be notified once completed.",
 
         # Help text - full content
-        'help_text': """📖 <b>ބިލިއަނެއާޒް ބޮޓް ބޭނުންކުރާނެ ގޮތް</b>
-
-<b>💰 ޑިޕޮޒިޓް</b>
-
-• 💰 ޑިޕޮޒިޓް އަށް ފިއްތާލައްވާ
-• ޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ — BML, MIB, USD, ނުވަތަ USDT
-• ޕޭމަންޓް ސްލިޕް އަޕްލޯޑް ކުރައްވާ
-• PPPoker ID ޖައްސަވާ
-• އެޕްރޫވަލް އަށް މަޑުކުރައްވާ
-• އެޕްރޫވް ވުމުން ކޮންފަމޭޝަން ލިބޭނެ
-
-<b>💸 ވިތްޑްރޯ</b>
-
-• 💸 ވިތްޑްރޯ އަށް ފިއްތާލައްވާ
-• ޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ
-• ނަންގަވާ އަދަދު ޖައްސަވާ
-• PPPoker ID ޖައްސަވާ
-• ބޭންކް އެކައުންޓް ނަންބަރު ޖައްސަވާ
-• ޕްރޮސެސް ވަންދެން މަޑުކުރައްވާ
-• ނިމުމުން ނޮޓިފިކޭޝަން ލިބޭނެ
-
-<b>🎮 ކްލަބާ ގުޅުން</b>
-
-• 🎮 ކްލަބަށް ވަނުން އަށް ފިއްތާލައްވާ
-• PPPoker ID ޖައްސަވާ
-• އެޕްރޫވަލް އަށް މަޑުކުރައްވާ
-• ގުޅުމުން ނޮޓިފިކޭޝަން ލިބޭނެ
-
-<b>💬 ލައިވް ސަޕޯޓް</b>
-
-• 💬 ސަޕޯޓް އަށް ފިއްތާލައްވާ
-• އެޑްމިން އާ ސީދާ ވާހަކަ ދައްކާލެވޭނެ
-• ނިންމާލަން /endsupport ޖައްސަވާ""",
-
-        'help_text_en': """📖 <b>How to Use Billionaires Bot</b>
+        'help_text': """📖 <b>How to Use Billionaires Bot</b>
 
 <b>💰 Deposit</b>
 
@@ -436,6 +402,18 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'cashback_approved_body': "━━━━━━━━━━━━━━━━━━\n🎉 Your cashback has been approved!\n\n💰 <b>Amount:</b> {amount} chips\n🎮 <b>PPPoker ID:</b> <code>{pppoker_id}</code>\n━━━━━━━━━━━━━━━━━━\n\n💎 Chips have been added to your account!",
         'cashback_rejected_title': "❌ <b>CASHBACK REJECTED</b> ❌",
         'cashback_rejected_body': "━━━━━━━━━━━━━━━━━━\nYour cashback request has been rejected.\n\n❓ <b>Reason:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nPlease contact support if you have questions.",
+
+        # Cashback eligibility flow
+        'cashback_not_eligible_msg': "🎯 <b>Cashback Status</b>\n❌ Not Eligible\n",
+        'cashback_last_withdrawal': "📅 Last withdrawal: {amount:.0f} MVR\n",
+        'cashback_last_cashback': "📅 Last cashback: {amount:.0f} MVR\n",
+        'cashback_deposits_info': "📊 Deposits: {deposits:.0f} MVR\n📌 Required: {required:.0f} MVR\n",
+        'cashback_deposit_needed': "⚠️ Deposit {amount:.0f} MVR more to qualify.\n✨ Bigger deposits = bigger cashback!",
+        'cashback_eligible_msg': "✅ <b>Cashback Eligible!</b>\n\n💎 Cashback Rate: <b>{percentage}%</b>\n💰 Cashback Amount: <b>{amount:.2f} MVR</b>\n   (on {loss:.2f} MVR lost)\n\n📝 Enter your <b>PPPoker ID</b> to submit:",
+        'cashback_invalid_pppoker': "❌ Invalid PPPoker ID. Please enter only numbers (at least 3 digits):",
+        'cashback_submitted': "✅ <b>Cashback request sent!</b>\n\n💎 {amount:.2f} MVR ({percentage}%)\n📉 Loss: {loss:.2f} MVR\n\nAwaiting approval.",
+        'cashback_submit_error': "❌ Failed to submit cashback request. Please try again.",
+        'cashback_eligibility_error': "❌ <b>Error</b>\n\nSorry, there was an error checking your eligibility.\nPlease contact admin.",
 
         'join_approved_title': "✅ <b>Welcome to βILLIONAIRES!</b>",
         'join_approved_body': "🎮 You're approved - start playing!",
@@ -702,6 +680,18 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'cashback_approved_body': "━━━━━━━━━━━━━━━━━━\n🎉 ތިބާގެ ކޭޝްބެކް އެޕްރޫވް ވެއްޖެ!\n\n💰 <b>އަދަދު:</b> {amount} ޗިޕްސް\n🎮 <b>PPPoker ID:</b> <code>{pppoker_id}</code>\n━━━━━━━━━━━━━━━━━━\n\n💎 ޗިޕްސް އެކައުންޓަށް އެޅިއްޖެ!",
         'cashback_rejected_title': "❌ <b>ކޭޝްބެކް ރިޖެކްޓް ވެއްޖެ</b> ❌",
         'cashback_rejected_body': "━━━━━━━━━━━━━━━━━━\nތިބާގެ ކޭޝްބެކް ރިކުއެސްޓް ރިޖެކްޓް ވެއްޖެ.\n\n❓ <b>ސަބަބު:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nސުވާލެއް އޮތްނަމަ ސަޕޯޓާ ގުޅުއްވާ.",
+
+        # Cashback eligibility flow
+        'cashback_not_eligible_msg': "🎯 <b>ކޭޝްބެކް ސްޓެޓަސް</b>\n❌ ޝަރުތު ހަމަނުވޭ\n",
+        'cashback_last_withdrawal': "📅 ފަހު ވިތްޑްރޯ: {amount:.0f} MVR\n",
+        'cashback_last_cashback': "📅 ފަހު ކޭޝްބެކް: {amount:.0f} MVR\n",
+        'cashback_deposits_info': "📊 ޑިޕޮޒިޓް: {deposits:.0f} MVR\n📌 ބޭނުންވާ: {required:.0f} MVR\n",
+        'cashback_deposit_needed': "⚠️ ޝަރުތު ހަމަވާން {amount:.0f} MVR އިތުރަށް ޑިޕޮޒިޓް ކުރައްވާ.\n✨ ގިނައިން ޑިޕޮޒިޓް = ގިނަ ކޭޝްބެކް!",
+        'cashback_eligible_msg': "✅ <b>ކޭޝްބެކް ލިބޭ!</b>\n\n💎 ކޭޝްބެކް ރޭޓް: <b>{percentage}%</b>\n💰 ކޭޝްބެކް އަދަދު: <b>{amount:.2f} MVR</b>\n   ({loss:.2f} MVR ގެއްލުން)\n\n📝 ސަބްމިޓް ކުރަން <b>PPPoker ID</b> ޖައްސަވާ:",
+        'cashback_invalid_pppoker': "❌ PPPoker ID ރަނގަޅެއް ނޫން. ނަންބަރު އެކަނި ޖައްސަވާ (މަދުވެގެން 3 ޑިޖިޓް):",
+        'cashback_submitted': "✅ <b>ކޭޝްބެކް ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>\n\n💎 {amount:.2f} MVR ({percentage}%)\n📉 ގެއްލުން: {loss:.2f} MVR\n\nއެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
+        'cashback_submit_error': "❌ ކޭޝްބެކް ރިކުއެސްޓް ފޮނުވުމުގައި މައްސަލައެއް ދިމާވީ. އަލުން މަސައްކަތް ކުރައްވާ.",
+        'cashback_eligibility_error': "❌ <b>މައްސަލައެއް ދިމާވީ</b>\n\nޝަރުތު ޗެކް ކުރުމުގައި މައްސަލައެއް ދިމާވީ.\nއެޑްމިން އާ ގުޅުއްވާ.",
 
         'join_approved_title': "✅ <b>βILLIONAIRES އަށް މަރުޙަބާ!</b>",
         'join_approved_body': "🎮 އެޕްރޫވް ވެއްޖެ - ކުޅެން ފަށާ!",
@@ -1673,7 +1663,7 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
             await processing_msg.delete()
 
             # Show extracted details to user
-            details_msg = vision_api.format_extracted_details(extracted_details)
+            details_msg = vision_api.format_extracted_details(extracted_details, lang=lang)
 
             # Check if any details were actually extracted
             has_details = any([
@@ -1736,7 +1726,7 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
                 await processing_msg.delete()
 
                 # Show extracted details to user
-                details_msg = vision_api.format_extracted_details(extracted_details)
+                details_msg = vision_api.format_extracted_details(extracted_details, lang=lang)
 
                 # Check if any details were actually extracted
                 has_details = any([
@@ -1760,18 +1750,20 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
                         transaction_ref = extracted_details['reference_number']
                         logger.info(f"Using extracted reference: {transaction_ref}")
                 else:
+                    manual_review_msg = "\n⚠️ _ރެސީޕްޓް މެނުއަލީ ރިވިއު ކުރެވޭނެ._" if lang == 'dv' else "\n⚠️ _Your receipt will be reviewed manually._"
                     await update.message.reply_text(
-                        details_msg + "\n⚠️ _Your receipt will be reviewed manually._",
+                        details_msg + manual_review_msg,
                         parse_mode='Markdown'
                     )
                     logger.warning(f"Vision API could not parse details for user {user.id}")
 
             except Exception as e:
                 logger.error(f"Vision API processing failed: {e}")
-                await processing_msg.edit_text(
+                ocr_fail_msg = ("⚠️ ރެސީޕްޓް ތަފްސީލް އޮޓޮމެޓިކް ކޮށް ނެގެން ނެތް.\n"
+                                "ރެސީޕްޓް ސޭވް ވެއްޖެ، މެނުއަލީ ރިވިއު ކުރެވޭނެ.") if lang == 'dv' else (
                     "⚠️ Could not extract receipt details automatically.\n"
-                    "Your receipt has been saved and will be reviewed manually."
-                )
+                    "Your receipt has been saved and will be reviewed manually.")
+                await processing_msg.edit_text(ocr_fail_msg)
                 extracted_details = None
 
         # Store document file ID separately for forwarding to admin
@@ -1786,25 +1778,43 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
 
             # Ask for amount next
             usdt_rate = api.get_exchange_rate('USDT', 'MVR') or 15.42  # Fallback to standard MVR rate
-            rate_msg = f"\n\n💱 Current Rate: 1 USDT = {float(usdt_rate):.2f} MVR"
+            rate_msg = f"\n\n💱 {'މިހާރު ރޭޓް' if lang == 'dv' else 'Current Rate'}: 1 USDT = {float(usdt_rate):.2f} MVR"
 
-            await update.message.reply_text(
-                f"✅ Transaction ID received!\n{rate_msg}\n\n"
-                f"💎 Please enter the **amount you sent** (in USDT):\n\n"
-                f"Example: 100 or 100.5",
-                parse_mode='Markdown'
-            )
+            if lang == 'dv':
+                await update.message.reply_text(
+                    f"✅ ޓްރާންސެކްޝަން ID ލިބިއްޖެ!\n{rate_msg}\n\n"
+                    f"💎 ފޮނުއްވި **USDT އަދަދު** ޖައްސަވާ:\n\n"
+                    f"މިސާލު: 100 ނުވަތަ 100.5",
+                    parse_mode='Markdown'
+                )
+            else:
+                await update.message.reply_text(
+                    f"✅ Transaction ID received!\n{rate_msg}\n\n"
+                    f"💎 Please enter the **amount you sent** (in USDT):\n\n"
+                    f"Example: 100 or 100.5",
+                    parse_mode='Markdown'
+                )
             return DEPOSIT_USDT_AMOUNT
         else:
             # For BML/MIB, reject text and require image
-            await update.message.reply_text(
-                "❌ Please upload an **image** of your payment slip/receipt.\n\n"
-                "📸 Send a photo or screenshot of your bank transfer slip.",
-                parse_mode='Markdown'
-            )
+            if lang == 'dv':
+                await update.message.reply_text(
+                    "❌ ޕޭމަންޓް ސްލިޕް/ރެސީޕްޓް **ފޮޓޯ** އަޕްލޯޑް ކުރައްވާ.\n\n"
+                    "📸 ބޭންކް ޓްރާންސްފާ ސްލިޕްގެ ފޮޓޯ ނުވަތަ ސްކްރީންޝޮޓް ފޮނުއްވާ.",
+                    parse_mode='Markdown'
+                )
+            else:
+                await update.message.reply_text(
+                    "❌ Please upload an **image** of your payment slip/receipt.\n\n"
+                    "📸 Send a photo or screenshot of your bank transfer slip.",
+                    parse_mode='Markdown'
+                )
             return DEPOSIT_PROOF
     else:
-        await update.message.reply_text("❌ Please send a valid payment proof (image).")
+        if lang == 'dv':
+            await update.message.reply_text("❌ ރަނގަޅު ޕޭމަންޓް ޕްރޫފެއް ފޮނުއްވާ (ފޮޓޯ).")
+        else:
+            await update.message.reply_text("❌ Please send a valid payment proof (image).")
         return DEPOSIT_PROOF
 
     # Store transaction reference and extracted details in context
@@ -1813,7 +1823,7 @@ async def deposit_proof_received(update: Update, context: ContextTypes.DEFAULT_T
 
     # Now ask for PPPoker ID
     await update.message.reply_text(
-        "🎮 Please enter your **PPPoker ID**:",
+        get_message('deposit_enter_pppoker_id', lang),
         parse_mode='Markdown'
     )
 
@@ -2386,10 +2396,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error checking cashback eligibility: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         await update.message.reply_text(
-            f"❌ <b>Error</b>\n\n"
-            f"Sorry, there was an error checking your eligibility.\n"
-            f"Error: {str(e)}\n\n"
-            f"Please contact admin.",
+            get_message('cashback_eligibility_error', lang),
             parse_mode='HTML'
         )
         return ConversationHandler.END
@@ -2403,19 +2410,16 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         needed = min_required - deposits_after_withdrawal
 
-        message = f"🎯 <b>Cashback Status</b>\n"
-        message += f"❌ Not Eligible\n"
+        message = get_message('cashback_not_eligible_msg', lang)
 
         # Show which reset happened last
         if reset_type == 'withdrawal':
-            message += f"📅 Last withdrawal: {last_withdrawal_amount:.0f} MVR\n"
+            message += get_message('cashback_last_withdrawal', lang, amount=last_withdrawal_amount)
         elif reset_type == 'cashback':
-            message += f"📅 Last cashback: {last_cashback_amount:.0f} MVR\n"
+            message += get_message('cashback_last_cashback', lang, amount=last_cashback_amount)
 
-        message += f"📊 Deposits: {deposits_after_withdrawal:.0f} MVR\n"
-        message += f"📌 Required: {min_required:.0f} MVR\n"
-        message += f"⚠️ Deposit {abs(needed):.0f} MVR more to qualify.\n"
-        message += f"✨ Bigger deposits = bigger cashback!"
+        message += get_message('cashback_deposits_info', lang, deposits=deposits_after_withdrawal, required=min_required)
+        message += get_message('cashback_deposit_needed', lang, amount=abs(needed))
 
         await update.message.reply_text(message, parse_mode='HTML')
         return ConversationHandler.END
@@ -2424,11 +2428,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     deposits_after_withdrawal = float(eligibility['deposits_after_last_withdrawal'])
     cashback_amount = (deposits_after_withdrawal * cashback_percentage) / 100
 
-    message = f"✅ <b>Cashback Eligible!</b>\n\n"
-    message += f"💎 Cashback Rate: <b>{cashback_percentage}%</b>\n"
-    message += f"💰 Cashback Amount: <b>{cashback_amount:.2f} MVR</b>\n"
-    message += f"   (on {deposits_after_withdrawal:.2f} MVR lost)\n\n"
-    message += f"📝 Enter your <b>PPPoker ID</b> to submit:"
+    message = get_message('cashback_eligible_msg', lang, percentage=cashback_percentage, amount=cashback_amount, loss=deposits_after_withdrawal)
 
     await update.message.reply_text(
         message,
@@ -2453,9 +2453,10 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
     pppoker_id = clean_pppoker_id(raw_input)
 
     # Validate PPPoker ID (basic validation)
+    lang = context.user_data.get('lang', get_user_language(user.id))
     if not pppoker_id or len(pppoker_id) < 3:
         await update.message.reply_text(
-            "❌ Invalid PPPoker ID. Please enter only numbers (at least 3 digits):",
+            get_message('cashback_invalid_pppoker', lang),
             parse_mode='HTML'
         )
         return CASHBACK_PPPOKER_ID
@@ -2481,10 +2482,7 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
         request_id = request_data.get('id')
         # Notify user
         await update.message.reply_text(
-            f"✅ <b>Cashback request sent!</b>\n\n"
-            f"💎 {cashback_amount:.2f} MVR ({cashback_percentage}%)\n"
-            f"📉 Loss: {loss_amount:.2f} MVR\n\n"
-            f"Awaiting approval.",
+            get_message('cashback_submitted', lang, amount=cashback_amount, percentage=cashback_percentage, loss=loss_amount),
             parse_mode='HTML'
         )
 
@@ -2502,7 +2500,7 @@ async def cashback_pppoker_id_received(update: Update, context: ContextTypes.DEF
 
     else:
         await update.message.reply_text(
-            "❌ <b>Error</b>\n\nFailed to submit cashback request. Please try again later.",
+            get_message('cashback_submit_error', lang),
             parse_mode='HTML'
         )
 
@@ -7750,7 +7748,7 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
         extracted_details = await vision_api.process_receipt_image(bytes(file_bytes))
 
         # Format extracted details
-        details_msg = vision_api.format_extracted_details(extracted_details)
+        details_msg = vision_api.format_extracted_details(extracted_details, lang=lang)
 
         # Check if any details were actually extracted
         has_details = any([
