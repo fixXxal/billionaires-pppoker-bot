@@ -406,6 +406,28 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         # Spin bonus message
         'spin_bonus': "🎰 <b>FREE SPINS BONUS!</b>\n+{spins} free spins added!\nClick button below to play!",
         'click_spin_wheel': "👇 Click button to spin the wheel!",
+
+        # Approval/Rejection messages (sent to users)
+        'deposit_approved_title': "🎉 <b>DEPOSIT APPROVED!</b> 🎉",
+        'deposit_approved_body': "━━━━━━━━━━━━━━━━━━\n✅ Your deposit has been successfully approved!\n\n💰 <b>Amount:</b> {amount} {currency}\n🎮 <b>PPPoker ID:</b> <code>{pppoker_id}</code>\n📋 <b>Request ID:</b> <code>{request_id}</code>{spins_message}\n━━━━━━━━━━━━━━━━━━\n\n💎 Your chips have been added to your account!\n🍀 Good luck and happy gaming!",
+        'deposit_rejected_title': "❌ <b>DEPOSIT REJECTED</b> ❌",
+        'deposit_rejected_body': "━━━━━━━━━━━━━━━━━━\nWe're sorry, but your deposit request has been rejected.\n\n📋 <b>Request ID:</b> <code>{request_id}</code>\n❓ <b>Reason:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nPlease contact support if you have questions.",
+
+        'withdrawal_approved_title': "✅ <b>WITHDRAWAL APPROVED!</b> ✅",
+        'withdrawal_approved_body': "━━━━━━━━━━━━━━━━━━\n✅ Your withdrawal has been processed!\n\n💸 <b>Amount:</b> {amount}\n🏦 <b>Method:</b> {method}\n📋 <b>Request ID:</b> <code>{request_id}</code>\n━━━━━━━━━━━━━━━━━━\n\n💰 Your funds have been sent!\nThank you for playing! 🎰",
+        'withdrawal_rejected_title': "❌ <b>WITHDRAWAL REJECTED</b> ❌",
+        'withdrawal_rejected_body': "━━━━━━━━━━━━━━━━━━\nWe're sorry, but your withdrawal request has been rejected.\n\n📋 <b>Request ID:</b> <code>{request_id}</code>\n❓ <b>Reason:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nPlease contact support if you have questions.",
+
+        'rewards_approved_title': "✅ <b>REWARDS APPROVED!</b> ✅",
+        'rewards_approved_body': "━━━━━━━━━━━━━━━━━━\n\n🎊 <b>Congratulations!</b>\n\n💰 <b>Total Chips:</b> {total_chips}\n📦 <b>Rewards:</b> {count}\n🎮 <b>PPPoker ID:</b> {pppoker_id}\n\n✨ <b>Your chips have been added to your account!</b>\n\n━━━━━━━━━━━━━━━━━━\nThank you for playing! 🎰\nGood luck at the tables! 🃏",
+
+        'cashback_approved_title': "✅ <b>CASHBACK APPROVED!</b> ✅",
+        'cashback_approved_body': "━━━━━━━━━━━━━━━━━━\n🎉 Your cashback has been approved!\n\n💰 <b>Amount:</b> {amount} chips\n🎮 <b>PPPoker ID:</b> <code>{pppoker_id}</code>\n━━━━━━━━━━━━━━━━━━\n\n💎 Chips have been added to your account!",
+        'cashback_rejected_title': "❌ <b>CASHBACK REJECTED</b> ❌",
+        'cashback_rejected_body': "━━━━━━━━━━━━━━━━━━\nYour cashback request has been rejected.\n\n❓ <b>Reason:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nPlease contact support if you have questions.",
+
+        'join_approved_title': "✅ <b>Welcome to βILLIONAIRES!</b>",
+        'join_approved_body': "🎮 You're approved - start playing!",
     },
     'dv': {
         # Counter status
@@ -650,6 +672,28 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         # Spin bonus message
         'spin_bonus': "🎰 <b>ފްރީ ސްޕިންސް ބޯނަސް!</b>\n+{spins} ފްރީ ސްޕިންސް އިތުރުވީ!\nކުޅެން ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ!",
         'click_spin_wheel': "👇 ސްޕިން ވީލް އަށް ފިއްތާލައްވާ!",
+
+        # Approval/Rejection messages (sent to users)
+        'deposit_approved_title': "🎉 <b>ޑިޕޮޒިޓް އެޕްރޫވް ވެއްޖެ!</b> 🎉",
+        'deposit_approved_body': "━━━━━━━━━━━━━━━━━━\n✅ ތިބާގެ ޑިޕޮޒިޓް ކާމިޔާބުކަމާއެކު އެޕްރޫވް ވެއްޖެ!\n\n💰 <b>އަދަދު:</b> {amount} {currency}\n🎮 <b>PPPoker ID:</b> <code>{pppoker_id}</code>\n📋 <b>ރިކުއެސްޓް ID:</b> <code>{request_id}</code>{spins_message}\n━━━━━━━━━━━━━━━━━━\n\n💎 ޗިޕްސް އެކައުންޓަށް އެޅިއްޖެ!\n🍀 ގުޑް ލަކް!",
+        'deposit_rejected_title': "❌ <b>ޑިޕޮޒިޓް ރިޖެކްޓް ވެއްޖެ</b> ❌",
+        'deposit_rejected_body': "━━━━━━━━━━━━━━━━━━\nމަޢާފް ކުރައްވާ، ތިބާގެ ޑިޕޮޒިޓް ރިކުއެސްޓް ރިޖެކްޓް ވެއްޖެ.\n\n📋 <b>ރިކުއެސްޓް ID:</b> <code>{request_id}</code>\n❓ <b>ސަބަބު:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nސުވާލެއް އޮތްނަމަ ސަޕޯޓާ ގުޅުއްވާ.",
+
+        'withdrawal_approved_title': "✅ <b>ވިތްޑްރޯ އެޕްރޫވް ވެއްޖެ!</b> ✅",
+        'withdrawal_approved_body': "━━━━━━━━━━━━━━━━━━\n✅ ތިބާގެ ވިތްޑްރޯ ޕްރޮސެސް ވެއްޖެ!\n\n💸 <b>އަދަދު:</b> {amount}\n🏦 <b>މެތަޑް:</b> {method}\n📋 <b>ރިކުއެސްޓް ID:</b> <code>{request_id}</code>\n━━━━━━━━━━━━━━━━━━\n\n💰 ފައިސާ ފޮނުވިއްޖެ!\nކުޅުއްވީތީ ޝުކުރިއްޔާ! 🎰",
+        'withdrawal_rejected_title': "❌ <b>ވިތްޑްރޯ ރިޖެކްޓް ވެއްޖެ</b> ❌",
+        'withdrawal_rejected_body': "━━━━━━━━━━━━━━━━━━\nމަޢާފް ކުރައްވާ، ތިބާގެ ވިތްޑްރޯ ރިކުއެސްޓް ރިޖެކްޓް ވެއްޖެ.\n\n📋 <b>ރިކުއެސްޓް ID:</b> <code>{request_id}</code>\n❓ <b>ސަބަބު:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nސުވާލެއް އޮތްނަމަ ސަޕޯޓާ ގުޅުއްވާ.",
+
+        'rewards_approved_title': "✅ <b>ރިވޯޑްސް އެޕްރޫވް ވެއްޖެ!</b> ✅",
+        'rewards_approved_body': "━━━━━━━━━━━━━━━━━━\n\n🎊 <b>މަރުޙަބާ!</b>\n\n💰 <b>ޖުމްލަ ޗިޕްސް:</b> {total_chips}\n📦 <b>ރިވޯޑްސް:</b> {count}\n🎮 <b>PPPoker ID:</b> {pppoker_id}\n\n✨ <b>ޗިޕްސް އެކައުންޓަށް އެޅިއްޖެ!</b>\n\n━━━━━━━━━━━━━━━━━━\nކުޅުއްވީތީ ޝުކުރިއްޔާ! 🎰\nގުޑް ލަކް! 🃏",
+
+        'cashback_approved_title': "✅ <b>ކޭޝްބެކް އެޕްރޫވް ވެއްޖެ!</b> ✅",
+        'cashback_approved_body': "━━━━━━━━━━━━━━━━━━\n🎉 ތިބާގެ ކޭޝްބެކް އެޕްރޫވް ވެއްޖެ!\n\n💰 <b>އަދަދު:</b> {amount} ޗިޕްސް\n🎮 <b>PPPoker ID:</b> <code>{pppoker_id}</code>\n━━━━━━━━━━━━━━━━━━\n\n💎 ޗިޕްސް އެކައުންޓަށް އެޅިއްޖެ!",
+        'cashback_rejected_title': "❌ <b>ކޭޝްބެކް ރިޖެކްޓް ވެއްޖެ</b> ❌",
+        'cashback_rejected_body': "━━━━━━━━━━━━━━━━━━\nތިބާގެ ކޭޝްބެކް ރިކުއެސްޓް ރިޖެކްޓް ވެއްޖެ.\n\n❓ <b>ސަބަބު:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nސުވާލެއް އޮތްނަމަ ސަޕޯޓާ ގުޅުއްވާ.",
+
+        'join_approved_title': "✅ <b>βILLIONAIRES އަށް މަރުޙަބާ!</b>",
+        'join_approved_body': "🎮 އެޕްރޫވް ވެއްޖެ - ކުޅެން ފަށާ!",
     }
 }
 
@@ -6579,24 +6623,26 @@ async def quick_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
         # All deposits are stored in MVR (USDT/USD are converted)
         currency = 'MVR'
 
+        # Get user language for translated message
+        user_lang = get_user_language(user_telegram_id)
+        full_spins_message = bonus_message + spins_message if bonus_message or spins_message else ""
+
         try:
+            deposit_msg = get_message('deposit_approved_title', user_lang) + "\n\n" + get_message(
+                'deposit_approved_body', user_lang,
+                amount=f"{amount:.2f}",
+                currency=currency,
+                pppoker_id=deposit['pppoker_id'],
+                request_id=request_id,
+                spins_message=full_spins_message
+            )
             await context.bot.send_message(
                 chat_id=user_telegram_id,
-                text=f"🎉 <b>DEPOSIT APPROVED!</b> 🎉\n\n"
-                     f"━━━━━━━━━━━━━━━━━━\n"
-                     f"✅ Your deposit has been successfully approved!\n\n"
-                     f"💰 <b>Amount:</b> {amount:.2f} {currency}\n"
-                     f"🎮 <b>PPPoker ID:</b> <code>{deposit['pppoker_id']}</code>\n"
-                     f"📋 <b>Request ID:</b> <code>{request_id}</code>\n"
-                     f"{bonus_message}{spins_message}\n"
-                     f"━━━━━━━━━━━━━━━━━━\n\n"
-                     f"💎 Your chips have been added to your account!\n"
-                     f"🎲 Ready to play? Click the button below!\n\n"
-                     f"Good luck and happy gaming! 🍀",
+                text=deposit_msg,
                 parse_mode='HTML',
                 reply_markup=reply_markup
             )
-            logger.info(f"User {user_telegram_id} notified of approval")
+            logger.info(f"User {user_telegram_id} notified of approval in {user_lang}")
         except Exception as e:
             logger.error(f"Failed to notify user: {e}")
 
@@ -6799,20 +6845,18 @@ async def quick_approve_withdrawal(update: Update, context: ContextTypes.DEFAULT
     amount = float(withdrawal['amount'])
     currency = 'MVR' if withdrawal.get('method') != 'USDT' else 'USD'
 
+    # Get user language for translated message
+    user_lang = get_user_language(user_telegram_id)
     try:
+        withdraw_msg = get_message('withdrawal_approved_title', user_lang) + "\n\n" + get_message(
+            'withdrawal_approved_body', user_lang,
+            amount=f"{amount:.2f} {currency}",
+            method=withdrawal.get('method'),
+            request_id=request_id
+        )
         await context.bot.send_message(
             chat_id=user_telegram_id,
-            text=f"✅ <b>WITHDRAWAL APPROVED!</b> ✅\n\n"
-                 f"━━━━━━━━━━━━━━━━━━\n"
-                 f"💸 Your withdrawal has been processed!\n\n"
-                 f"💰 <b>Amount:</b> {amount:.2f} {currency}\n"
-                 f"🏦 <b>Method:</b> {withdrawal.get('method')}\n"
-                 f"📱 <b>Account:</b> <code>{withdrawal['account_number']}</code>\n"
-                 f"📋 <b>Request ID:</b> <code>{request_id}</code>\n\n"
-                 f"━━━━━━━━━━━━━━━━━━\n\n"
-                 f"💵 Your funds have been transferred!\n"
-                 f"⏰ Please allow a few minutes for the transaction to complete.\n\n"
-                 f"Thank you for playing with us! 🎮",
+            text=withdraw_msg,
             parse_mode='HTML',
             reply_markup=reply_markup
         )
@@ -6936,12 +6980,14 @@ async def quick_approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_details = join_req.get('user_details', {})
     user_id = user_details.get('telegram_id') or join_req.get('user_id') or join_req.get('user')
     try:
+        user_lang = get_user_language(user_id)
+        join_msg = get_message('join_approved_title', user_lang) + "\n\n" + get_message('join_approved_body', user_lang)
         await context.bot.send_message(
             chat_id=user_id,
-            text=f"✅ <b>Welcome to βILLIONAIRES!</b>\n\n🎮 You're approved - start playing!",
+            text=join_msg,
             parse_mode='HTML'
         )
-        logger.info(f"✅ User {user_id} notified about join request {request_id} approval")
+        logger.info(f"✅ User {user_id} notified about join request {request_id} approval in {user_lang}")
     except Exception as e:
         logger.error(f"❌ Failed to notify user {user_id} about join approval: {e}")
 
@@ -7103,18 +7149,17 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             amount = float(deposit['amount'])
             currency = 'MVR' if deposit.get('method') != 'USDT' else 'USD'
 
+            # Get user language for translated message
+            user_lang = get_user_language(user_telegram_id)
             try:
+                reject_msg = get_message('deposit_rejected_title', user_lang) + "\n\n" + get_message(
+                    'deposit_rejected_body', user_lang,
+                    request_id=request_id,
+                    reason=reason
+                )
                 await context.bot.send_message(
                     chat_id=user_telegram_id,
-                    text=f"❌ <b>DEPOSIT REJECTED</b> ❌\n\n"
-                         f"━━━━━━━━━━━━━━━━━━\n"
-                         f"We're sorry, but your deposit request has been rejected.\n\n"
-                         f"💰 <b>Amount:</b> {amount:.2f} {currency}\n"
-                         f"📋 <b>Request ID:</b> <code>{request_id}</code>\n\n"
-                         f"📝 <b>Reason:</b>\n{reason}\n\n"
-                         f"━━━━━━━━━━━━━━━━━━\n\n"
-                         f"💬 Need help? Contact our support team for assistance.\n"
-                         f"📞 We're here to help you resolve this!",
+                    text=reject_msg,
                     parse_mode='HTML'
                 )
             except Exception as e:
@@ -7160,19 +7205,17 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             amount = float(withdrawal['amount'])
             currency = 'MVR' if withdrawal.get('payment_method') != 'USDT' else 'USD'
 
+            # Get user language for translated message
+            user_lang = get_user_language(user_telegram_id)
             try:
+                reject_msg = get_message('withdrawal_rejected_title', user_lang) + "\n\n" + get_message(
+                    'withdrawal_rejected_body', user_lang,
+                    request_id=request_id,
+                    reason=reason
+                )
                 await context.bot.send_message(
                     chat_id=user_telegram_id,
-                    text=f"❌ <b>WITHDRAWAL REJECTED</b> ❌\n\n"
-                         f"━━━━━━━━━━━━━━━━━━\n"
-                         f"We're sorry, but your withdrawal request has been rejected.\n\n"
-                         f"💰 <b>Amount:</b> {amount:.2f} {currency}\n"
-                         f"🏦 <b>Method:</b> {withdrawal.get('payment_method', withdrawal.get('method'))}\n"
-                         f"📋 <b>Request ID:</b> <code>{request_id}</code>\n\n"
-                         f"📝 <b>Reason:</b>\n{reason}\n\n"
-                         f"━━━━━━━━━━━━━━━━━━\n\n"
-                         f"💬 Need help? Contact our support team for assistance.\n"
-                         f"📞 We're here to help you resolve this!",
+                    text=reject_msg,
                     parse_mode='HTML'
                 )
             except Exception as e:
@@ -8624,28 +8667,15 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
         try:
             # Get PPPoker ID for the message
             pppoker_id = spin_bot.api.get_pppoker_id_from_deposits(target_user_id)
-            if pppoker_id:
-                pppoker_msg = f"🎮 <b>PPPoker ID:</b> {pppoker_id}\n"
-            else:
-                pppoker_msg = ""
+            pppoker_id_str = pppoker_id if pppoker_id else "N/A"
 
-            notification_text = (
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"✅ <b>REWARDS APPROVED!</b> ✅\n"
-                f"━━━━━━━━━━━━━━━━━━\n\n"
-                f"🎊 <b>Congratulations!</b>\n\n"
-                f"💰 <b>Total Chips:</b> {total_chips}\n"
-                f"📦 <b>Rewards:</b> {approved_count}\n"
-            )
-
-            if pppoker_msg:
-                notification_text += pppoker_msg
-
-            notification_text += (
-                f"\n✨ <b>Your chips have been added to your account!</b>\n\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"Thank you for playing! 🎰\n"
-                f"Good luck at the tables! 🃏"
+            # Get user language for translated message
+            user_lang = get_user_language(target_user_id)
+            notification_text = get_message('rewards_approved_title', user_lang) + "\n" + get_message(
+                'rewards_approved_body', user_lang,
+                total_chips=total_chips,
+                count=approved_count,
+                pppoker_id=pppoker_id_str
             )
 
             await context.bot.send_message(
@@ -8653,7 +8683,7 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
                 text=notification_text,
                 parse_mode='HTML'
             )
-            logger.info(f"✅ User {target_user_id} notified of approval from pending rewards: {total_chips} chips")
+            logger.info(f"✅ User {target_user_id} notified of approval from pending rewards: {total_chips} chips in {user_lang}")
         except Exception as e:
             logger.error(f"❌ Failed to notify user {target_user_id}: {e}")
             import traceback
@@ -8873,28 +8903,15 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
         # Notify the user
         try:
             pppoker_id = spin_bot.api.get_pppoker_id_from_deposits(target_user_id)
-            if pppoker_id:
-                pppoker_msg = f"🎮 <b>PPPoker ID:</b> {pppoker_id}\n"
-            else:
-                pppoker_msg = ""
+            pppoker_id_str = pppoker_id if pppoker_id else "N/A"
 
-            notification_text = (
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"✅ <b>REWARDS APPROVED!</b> ✅\n"
-                f"━━━━━━━━━━━━━━━━━━\n\n"
-                f"🎊 <b>Congratulations!</b>\n\n"
-                f"💰 <b>Total Chips:</b> {total_chips}\n"
-                f"📦 <b>Rewards:</b> {approved_count}\n"
-            )
-
-            if pppoker_msg:
-                notification_text += pppoker_msg
-
-            notification_text += (
-                f"\n✨ <b>Your chips have been added to your account!</b>\n\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"Thank you for playing! 🎰\n"
-                f"Good luck at the tables! 🃏"
+            # Get user language for translated message
+            user_lang = get_user_language(target_user_id)
+            notification_text = get_message('rewards_approved_title', user_lang) + "\n" + get_message(
+                'rewards_approved_body', user_lang,
+                total_chips=total_chips,
+                count=approved_count,
+                pppoker_id=pppoker_id_str
             )
 
             await context.bot.send_message(
@@ -8902,7 +8919,7 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
                 text=notification_text,
                 parse_mode='HTML'
             )
-            logger.info(f"✅ User {target_user_id} notified of instant approval: {total_chips} chips")
+            logger.info(f"✅ User {target_user_id} notified of instant approval: {total_chips} chips in {user_lang}")
         except Exception as e:
             logger.error(f"Failed to notify user {target_user_id}: {e}")
             import traceback
@@ -8966,14 +8983,15 @@ async def cashback_approve_callback(update: Update, context: ContextTypes.DEFAUL
 
         # Notify user
         try:
+            user_lang = get_user_language(target_user_id)
+            cashback_msg = get_message('cashback_approved_title', user_lang) + "\n\n" + get_message(
+                'cashback_approved_body', user_lang,
+                amount=f"{cashback_amount:.2f}",
+                pppoker_id=pppoker_id
+            )
             await context.bot.send_message(
                 chat_id=target_user_id,
-                text=(
-                    f"✅ <b>CASHBACK APPROVED!</b> ✅\n\n"
-                    f"💰 Cashback Amount: <b>{cashback_amount:.2f} MVR</b>\n"
-                    f"💎 Your balance has been updated!\n\n"
-                    f"Thank you for playing with us! 🎰"
-                ),
+                text=cashback_msg,
                 parse_mode='HTML'
             )
         except Exception as e:
@@ -9038,15 +9056,14 @@ async def cashback_reject_callback(update: Update, context: ContextTypes.DEFAULT
 
         # Notify user
         try:
+            user_lang = get_user_language(target_user_id)
+            reject_msg = get_message('cashback_rejected_title', user_lang) + "\n\n" + get_message(
+                'cashback_rejected_body', user_lang,
+                reason="Request rejected"
+            )
             await context.bot.send_message(
                 chat_id=target_user_id,
-                text=(
-                    f"❌ <b>CASHBACK REJECTED</b> ❌\n\n"
-                    f"💰 Rejected Amount: <b>{cashback_amount:.2f} MVR</b>\n\n"
-                    f"Your cashback request has been rejected.\n"
-                    f"Please contact support if you have any questions.\n\n"
-                    f"💬 Use /support to reach us!"
-                ),
+                text=reject_msg,
                 parse_mode='HTML'
             )
         except Exception as e:
