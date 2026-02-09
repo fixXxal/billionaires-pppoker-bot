@@ -5,6 +5,7 @@ Version: 2.0 - Django API Migration Complete
 """
 
 import os
+import re
 import logging
 import asyncio
 from typing import Dict
@@ -9270,23 +9271,13 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Language button (same in all languages)
     elif text == "🌐 Language / ބަސް":
         return await language_selection_start(update, context)
-    # Regular user menu buttons (check both languages)
-    elif text in [BUTTON_LABELS['en']['deposit'], BUTTON_LABELS['dv']['deposit']]:
-        return await deposit_start(update, context)
-    elif text in [BUTTON_LABELS['en']['withdrawal'], BUTTON_LABELS['dv']['withdrawal']]:
-        return await withdrawal_start(update, context)
-    elif text in [BUTTON_LABELS['en']['join_club'], BUTTON_LABELS['dv']['join_club']]:
-        return await join_club_start(update, context)
-    elif text in [BUTTON_LABELS['en']['seat'], BUTTON_LABELS['dv']['seat']]:
-        return await seat_request_start(update, context)
-    elif text in [BUTTON_LABELS['en']['live_support'], BUTTON_LABELS['dv']['live_support']]:
-        return await live_support_start(update, context)
+    # Buttons handled by ConversationHandlers are NOT duplicated here.
+    # deposit, withdrawal, join_club, seat, live_support, and cashback
+    # are handled by their respective ConversationHandlers registered earlier.
     elif text in [BUTTON_LABELS['en']['help'], BUTTON_LABELS['dv']['help']]:
         return await help_command(update, context)
     elif text in [BUTTON_LABELS['en']['free_spins'], BUTTON_LABELS['dv']['free_spins']]:
         return await freespins_command(update, context)
-    elif text in [BUTTON_LABELS['en']['cashback'], BUTTON_LABELS['dv']['cashback']]:
-        return await cashback_command(update, context) # type: ignore
     elif text == "🎰 Spin Management":
         if is_admin(user_id):
             return await spin_management_panel(update, context)
@@ -9408,7 +9399,7 @@ def main():
     # Deposit conversation handler
     deposit_conv = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.Regex("^💰 Deposit$"), deposit_start),
+            MessageHandler(filters.Regex(f"^({re.escape(BUTTON_LABELS['en']['deposit'])}|{re.escape(BUTTON_LABELS['dv']['deposit'])})$"), deposit_start),
             CallbackQueryHandler(deposit_button_callback, pattern="^deposit_start$")
         ],
         states={
@@ -9429,7 +9420,7 @@ def main():
     # Withdrawal conversation handler
     withdrawal_conv = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.Regex("^💸 Withdrawal$"), withdrawal_start)
+            MessageHandler(filters.Regex(f"^({re.escape(BUTTON_LABELS['en']['withdrawal'])}|{re.escape(BUTTON_LABELS['dv']['withdrawal'])})$"), withdrawal_start)
         ],
         states={
             WITHDRAWAL_METHOD: [CallbackQueryHandler(withdrawal_method_selected, pattern="^withdrawal_")],
@@ -9446,7 +9437,7 @@ def main():
     # Join club conversation handler
     join_conv = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.Regex("^🎮 Join Club$"), join_club_start)
+            MessageHandler(filters.Regex(f"^({re.escape(BUTTON_LABELS['en']['join_club'])}|{re.escape(BUTTON_LABELS['dv']['join_club'])})$"), join_club_start)
         ],
         states={
             JOIN_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, join_pppoker_id_received)],
@@ -9457,7 +9448,7 @@ def main():
     # Seat request conversation handler
     seat_conv = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.Regex("^🪑 Seat$"), seat_request_start)
+            MessageHandler(filters.Regex(f"^({re.escape(BUTTON_LABELS['en']['seat'])}|{re.escape(BUTTON_LABELS['dv']['seat'])})$"), seat_request_start)
         ],
         states={
             SEAT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, seat_amount_received)],
@@ -9468,7 +9459,7 @@ def main():
     # Cashback conversation handler
     cashback_conv = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.Regex("^💸 Cashback$"), cashback_start)
+            MessageHandler(filters.Regex(f"^({re.escape(BUTTON_LABELS['en']['cashback'])}|{re.escape(BUTTON_LABELS['dv']['cashback'])})$"), cashback_start)
         ],
         states={
             CASHBACK_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, cashback_pppoker_id_received)],
@@ -9479,7 +9470,7 @@ def main():
     # Live support conversation handler
     support_conv = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.Regex("^💬 Live Support$"), live_support_start)
+            MessageHandler(filters.Regex(f"^({re.escape(BUTTON_LABELS['en']['live_support'])}|{re.escape(BUTTON_LABELS['dv']['live_support'])})$"), live_support_start)
         ],
         states={
             SUPPORT_CHAT: [
