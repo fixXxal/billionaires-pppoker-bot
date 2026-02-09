@@ -8643,8 +8643,6 @@ async def approve_spinhistory_callback(update: Update, context: ContextTypes.DEF
 
             notification_text += (
                 f"\n✨ <b>Your chips have been added to your account!</b>\n\n"
-                f"🎮 The chips are now available in your PPPoker account.\n"
-                f"💎 You can use them to play poker right away!\n\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"Thank you for playing! 🎰\n"
                 f"Good luck at the tables! 🃏"
@@ -8894,8 +8892,6 @@ async def approve_instant_callback(update: Update, context: ContextTypes.DEFAULT
 
             notification_text += (
                 f"\n✨ <b>Your chips have been added to your account!</b>\n\n"
-                f"🎮 The chips are now available in your PPPoker account.\n"
-                f"💎 You can use them to play poker right away!\n\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"Thank you for playing! 🎰\n"
                 f"Good luck at the tables! 🃏"
