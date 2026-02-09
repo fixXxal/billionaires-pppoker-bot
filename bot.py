@@ -1368,10 +1368,9 @@ async def deposit_pppoker_id_received(update: Update, context: ContextTypes.DEFA
         confirmation_msg += f"💵 {usd_amount} USD (≈{amount:,.2f} MVR)\n"
         confirmation_msg += f"💱 Rate: 1 USD = {float(usd_rate):.2f} MVR\n"
     else:
-        confirmation_msg += f"💰 {amount} MVR via {method}\n"
+        confirmation_msg += f"💰 {amount} MVR\n"
 
-    confirmation_msg += f"🎮 ID: {pppoker_id}\n\n"
-    confirmation_msg += get_message('deposit_awaiting_approval', lang)
+    confirmation_msg += f"🎮 ID: {pppoker_id}"
 
     await update.message.reply_text(confirmation_msg, parse_mode='HTML')
 
