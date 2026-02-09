@@ -135,6 +135,16 @@ def get_button_text(button_name: str, lang: str = 'en') -> str:
         text = BUTTON_LABELS['en'].get(button_name, '')
     return text
 
+# Build a set of all menu button texts (both languages) for use as conversation fallbacks
+ALL_MENU_BUTTON_TEXTS = set()
+for lang_buttons in BUTTON_LABELS.values():
+    for btn_text in lang_buttons.values():
+        ALL_MENU_BUTTON_TEXTS.add(btn_text)
+# Also add admin panel button texts
+ALL_MENU_BUTTON_TEXTS.update(["📋 Admin Panel", "📊 View Deposits", "💸 View Withdrawals", "🎮 View Join Requests", "💳 Payment Accounts", "🎰 Spin Management"])
+
+MENU_BUTTON_FILTER = filters.Regex(f"^({'|'.join(re.escape(t) for t in ALL_MENU_BUTTON_TEXTS)})$")
+
 # Local cache for user languages (faster than API calls)
 user_language_cache: Dict[int, str] = {}
 
@@ -7091,6 +7101,14 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def menu_button_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Fallback handler: when a menu button is pressed mid-conversation, end the conversation and re-route."""
+    context.user_data.clear()
+    # Re-process this message through the normal text handler
+    await handle_text_message(update, context)
+    return ConversationHandler.END
+
+
 async def cancel_keyword_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle cancel keywords like 'cancel', 'exit', 'stop'"""
     text = update.message.text.lower().strip()
@@ -9404,13 +9422,14 @@ def main():
         states={
             DEPOSIT_METHOD: [CallbackQueryHandler(deposit_method_selected, pattern="^deposit_")],
             DEPOSIT_PROOF: [MessageHandler(
-                (filters.PHOTO | filters.Document.ALL | filters.TEXT) & ~filters.COMMAND,
+                (filters.PHOTO | filters.Document.ALL | filters.TEXT) & ~filters.COMMAND & ~MENU_BUTTON_FILTER,
                 deposit_proof_received
             )],
-            DEPOSIT_USDT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_usdt_amount_received)],
-            DEPOSIT_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_pppoker_id_received)],
+            DEPOSIT_USDT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, deposit_usdt_amount_received)],
+            DEPOSIT_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, deposit_pppoker_id_received)],
         },
         fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
             CallbackQueryHandler(cancel, pattern="^cancel$"),
             CommandHandler("cancel", cancel)
         ],
@@ -9423,11 +9442,12 @@ def main():
         ],
         states={
             WITHDRAWAL_METHOD: [CallbackQueryHandler(withdrawal_method_selected, pattern="^withdrawal_")],
-            WITHDRAWAL_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, withdrawal_amount_received)],
-            WITHDRAWAL_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, withdrawal_pppoker_id_received)],
-            WITHDRAWAL_ACCOUNT_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, withdrawal_account_number_received)],
+            WITHDRAWAL_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, withdrawal_amount_received)],
+            WITHDRAWAL_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, withdrawal_pppoker_id_received)],
+            WITHDRAWAL_ACCOUNT_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, withdrawal_account_number_received)],
         },
         fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
             CallbackQueryHandler(cancel, pattern="^cancel$"),
             CommandHandler("cancel", cancel)
         ],
@@ -9439,9 +9459,12 @@ def main():
             MessageHandler(filters.Regex(f"^({re.escape(BUTTON_LABELS['en']['join_club'])}|{re.escape(BUTTON_LABELS['dv']['join_club'])})$"), join_club_start)
         ],
         states={
-            JOIN_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, join_pppoker_id_received)],
+            JOIN_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, join_pppoker_id_received)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
+            CommandHandler("cancel", cancel)
+        ],
     )
 
     # Seat request conversation handler
@@ -9450,9 +9473,12 @@ def main():
             MessageHandler(filters.Regex(f"^({re.escape(BUTTON_LABELS['en']['seat'])}|{re.escape(BUTTON_LABELS['dv']['seat'])})$"), seat_request_start)
         ],
         states={
-            SEAT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, seat_amount_received)],
+            SEAT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, seat_amount_received)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
+            CommandHandler("cancel", cancel)
+        ],
     )
 
     # Cashback conversation handler
@@ -9461,9 +9487,12 @@ def main():
             MessageHandler(filters.Regex(f"^({re.escape(BUTTON_LABELS['en']['cashback'])}|{re.escape(BUTTON_LABELS['dv']['cashback'])})$"), cashback_start)
         ],
         states={
-            CASHBACK_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, cashback_pppoker_id_received)],
+            CASHBACK_PPPOKER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, cashback_pppoker_id_received)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
+            CommandHandler("cancel", cancel)
+        ],
     )
 
     # Live support conversation handler
@@ -9473,11 +9502,14 @@ def main():
         ],
         states={
             SUPPORT_CHAT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, live_support_message),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, live_support_message),
                 MessageHandler(filters.PHOTO, live_support_photo),
             ],
         },
-        fallbacks=[CommandHandler("endsupport", end_support)],
+        fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
+            CommandHandler("endsupport", end_support)
+        ],
     )
 
     # Admin update payment account conversation handler
@@ -9490,15 +9522,16 @@ def main():
         ],
         states={
             UPDATE_ACCOUNT_NUMBER: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, update_account_number_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, update_account_number_received),
                 CallbackQueryHandler(update_account_cancel, pattern="^update_account_cancel$"),
             ],
             UPDATE_ACCOUNT_METHOD: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, update_account_holder_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, update_account_holder_received),
                 CallbackQueryHandler(update_account_cancel, pattern="^update_account_cancel$"),
             ],
         },
         fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
             CommandHandler("cancel", cancel),
             CallbackQueryHandler(update_account_cancel, pattern="^update_account_cancel$"),
         ],
@@ -9512,12 +9545,13 @@ def main():
         ],
         states={
             BROADCAST_MESSAGE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, broadcast_message_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, broadcast_message_received),
                 MessageHandler(filters.PHOTO, broadcast_message_received),
                 CallbackQueryHandler(broadcast_cancel, pattern="^broadcast_cancel$"),
             ],
         },
         fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
             CommandHandler("cancel", cancel),
             CallbackQueryHandler(broadcast_cancel, pattern="^broadcast_cancel$"),
         ],
@@ -9533,16 +9567,17 @@ def main():
         ],
         states={
             PROMO_PERCENTAGE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, promo_percentage_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, promo_percentage_received),
             ],
             PROMO_START_DATE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, promo_start_date_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, promo_start_date_received),
             ],
             PROMO_END_DATE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, promo_end_date_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, promo_end_date_received),
             ],
         },
         fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
             CommandHandler("cancel", promo_cancel),
         ],
     )
@@ -9554,16 +9589,17 @@ def main():
         ],
         states={
             CASHBACK_PROMO_PERCENTAGE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cashback_promo_percentage_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, cashback_promo_percentage_received),
             ],
             CASHBACK_PROMO_START_DATE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cashback_promo_start_date_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, cashback_promo_start_date_received),
             ],
             CASHBACK_PROMO_END_DATE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cashback_promo_end_date_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, cashback_promo_end_date_received),
             ],
         },
         fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
             CommandHandler("cancel", cashback_promo_cancel),
         ],
     )
@@ -9587,16 +9623,19 @@ def main():
         ],
         states={
             INVESTMENT_PPPOKER_ID: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, investment_pppoker_id_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, investment_pppoker_id_received),
             ],
             INVESTMENT_NOTE: [
-                MessageHandler(filters.TEXT, investment_note_received),
+                MessageHandler(filters.TEXT & ~MENU_BUTTON_FILTER, investment_note_received),
             ],
             INVESTMENT_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, investment_amount_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, investment_amount_received),
             ],
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
+            CommandHandler('cancel', cancel)
+        ],
         per_user=True,
         per_chat=True,
         name="investment_add_conv"
@@ -9608,13 +9647,16 @@ def main():
         ],
         states={
             RETURN_SELECT_ID: [
-                MessageHandler(filters.TEXT, return_id_selected),
+                MessageHandler(filters.TEXT & ~MENU_BUTTON_FILTER, return_id_selected),
             ],
             RETURN_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, return_amount_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, return_amount_received),
             ],
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
+            CommandHandler('cancel', cancel)
+        ],
         per_user=True,
         per_chat=True,
         name="investment_return_conv"
@@ -9630,22 +9672,25 @@ def main():
         ],
         states={
             BALANCE_SETUP_CHIPS: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_setup_chips_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, balance_setup_chips_received),
             ],
             BALANCE_SETUP_COST: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_setup_cost_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, balance_setup_cost_received),
             ],
             BALANCE_SETUP_MVR: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_setup_mvr_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, balance_setup_mvr_received),
             ],
             BALANCE_SETUP_USD: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_setup_usd_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, balance_setup_usd_received),
             ],
             BALANCE_SETUP_USDT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_setup_usdt_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, balance_setup_usdt_received),
             ],
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
+            CommandHandler('cancel', cancel)
+        ],
         per_user=True,
         per_chat=True,
         name="balance_setup_conv"
@@ -9657,13 +9702,16 @@ def main():
         ],
         states={
             BALANCE_BUY_CHIPS: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_buy_chips_amount_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, balance_buy_chips_amount_received),
             ],
             BALANCE_BUY_COST: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_buy_cost_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, balance_buy_cost_received),
             ],
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
+            CommandHandler('cancel', cancel)
+        ],
         per_user=True,
         per_chat=True,
         name="balance_buy_conv"
@@ -9678,13 +9726,16 @@ def main():
                 CallbackQueryHandler(balance_add_currency_selected, pattern="^add_cash_(mvr|usd|usdt)$"),
             ],
             BALANCE_ADD_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, balance_add_amount_received),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~MENU_BUTTON_FILTER, balance_add_amount_received),
             ],
             BALANCE_ADD_NOTE: [
-                MessageHandler(filters.TEXT, balance_add_note_received),
+                MessageHandler(filters.TEXT & ~MENU_BUTTON_FILTER, balance_add_note_received),
             ],
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[
+            MessageHandler(MENU_BUTTON_FILTER, menu_button_fallback),
+            CommandHandler('cancel', cancel)
+        ],
         per_user=True,
         per_chat=True,
         name="balance_add_cash_conv"
