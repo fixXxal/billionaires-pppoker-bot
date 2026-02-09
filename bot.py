@@ -10022,12 +10022,22 @@ def main():
                 logger.info(f"📝 Using spin record - Username: {username}, PPPoker ID: {pppoker_id}")
 
             # Notify user
-            user_message = (
-                f"🎰 <b>SPIN REWARDS!</b> 🎰\n\n"
-                f"🎁 You won <b>{total_chips} chips</b> from {spin_count} spin{'s' if spin_count > 1 else ''}!\n\n"
-                f"⏳ Your rewards are pending admin approval.\n"
-                f"You'll be notified once approved!"
-            )
+            user_lang = get_user_language(user_id)
+            if user_lang == 'dv':
+                spin_word = 'ސްޕިން' if spin_count == 1 else 'ސްޕިން'
+                user_message = (
+                    f"🎰 <b>ސްޕިން ރިވޯޑްސް!</b> 🎰\n\n"
+                    f"🎁 {spin_count} {spin_word} އިން <b>{total_chips} ޗިޕްސް</b> ލިބިއްޖެ!\n\n"
+                    f"⏳ ރިވޯޑްސް އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރަނީ.\n"
+                    f"އެޕްރޫވް ވުމުން ނޮޓިފިކޭޝަން ލިބޭނެ!"
+                )
+            else:
+                user_message = (
+                    f"🎰 <b>SPIN REWARDS!</b> 🎰\n\n"
+                    f"🎁 You won <b>{total_chips} chips</b> from {spin_count} spin{'s' if spin_count > 1 else ''}!\n\n"
+                    f"⏳ Your rewards are pending admin approval.\n"
+                    f"You'll be notified once approved!"
+                )
 
             try:
                 await app.bot.send_message(chat_id=user_id, text=user_message, parse_mode='HTML')

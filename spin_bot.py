@@ -614,6 +614,10 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
     user = query.from_user
     data = query.data
 
+    # Get user language
+    from bot import get_user_language
+    lang = get_user_language(user.id)
+
     try:
         # Parse spin count
         if data == "spin_all":
@@ -624,12 +628,12 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
 
         if spin_count == 0:
             await rate_limiter.wait_for_edit()
-            await query.edit_message_text("❌ No spins available!")
+            await query.edit_message_text("❌ ސްޕިން ނެތް!" if lang == 'dv' else "❌ No spins available!")
             return
 
         # Show processing message
         await rate_limiter.wait_for_edit()
-        await query.edit_message_text(f"🎰 Spinning {spin_count}x... Please wait! 🎲")
+        await query.edit_message_text(f"🎰 ސްޕިން ކުރަނީ {spin_count}x... މަޑުކުރައްވާ! 🎲" if lang == 'dv' else f"🎰 Spinning {spin_count}x... Please wait! 🎲")
 
         # Process spins
         result = await spin_bot.process_spin(user.id, user.username or user.first_name, spin_count)
@@ -651,54 +655,89 @@ async def spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, spin
             # WON A MILESTONE PRIZE - Big celebration!
             prize = result['milestone_prize']
             message = f"━━━━━━━━━━━━━━━━━━\n"
-            message += f"🎊 *JACKPOT WINNER* 🎊\n"
-            message += f"━━━━━━━━━━━━━━━━━━\n\n"
-            message += f"🔥 *{prize['name']}* 🔥\n\n"
-            message += f"💰 *{prize['chips']} CHIPS WON* 💰\n\n"
-            message += f"⏳ *Pending Admin Approval*\n"
-            message += f"✅ Your chips will be added to your PPPoker account once approved\\.\n"
-            message += f"You'll be notified immediately\\! 🎉\n\n"
-
-            # Add surprise reward if any
-            if result.get('got_surprise'):
-                message += f"✨ *BONUS SURPRISE\\!* ✨\n"
-                message += f"🎁 Surprise Reward: *{result['surprise_chips']} chips*\\!\n"
-                message += f"⏳ Pending admin approval\n\n"
-
-            message += f"━━━━━━━━━━━━━━━━━━\n"
-            message += f"👤 {username_escaped}\n"
-            message += f"🎲 Spins Used: {spin_count}\n"
-            message += f"💎 Total Chips: *{result['total_chips_earned']} chips*\n"
-            message += f"🎯 Spins Left: *{result['available_spins']}*\n"
-            message += f"━━━━━━━━━━━━━━━━━━\n\n"
-            message += f"🎰 Keep spinning for more prizes\\!"
-        else:
-            # No milestone prize
-            message = f"━━━━━━━━━━━━━━━━━━\n"
-            message += f"🎰 *SPIN COMPLETE* 🎰\n"
-            message += f"━━━━━━━━━━━━━━━━━━\n\n"
-
-            # Check if got surprise reward
-            if result.get('got_surprise'):
-                message += f"✨ *SURPRISE REWARD\\!* ✨\n"
-                message += f"🎁 You won *{result['surprise_chips']} chips*\\!\n\n"
+            if lang == 'dv':
+                message += f"🎊 *ޖެކްޕޮޓް ވިނާ* 🎊\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n\n"
+                message += f"🔥 *{prize['name']}* 🔥\n\n"
+                message += f"💰 *{prize['chips']} ޗިޕްސް ލިބިއްޖެ* 💰\n\n"
+                message += f"⏳ *އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރަނީ*\n"
+                message += f"✅ އެޕްރޫވް ވުމުން ޗިޕްސް PPPoker އެކައުންޓަށް އެޅޭނެ\\.\n"
+                message += f"ވަގުތުން ނޮޓިފިކޭޝަން ލިބޭނެ\\! 🎉\n\n"
+                if result.get('got_surprise'):
+                    message += f"✨ *ބޯނަސް ސަޕްރައިޒް\\!* ✨\n"
+                    message += f"🎁 ސަޕްރައިޒް ރިވޯޑް: *{result['surprise_chips']} ޗިޕްސް*\\!\n"
+                    message += f"⏳ އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރަނީ\n\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n"
+                message += f"👤 {username_escaped}\n"
+                message += f"🎲 ބޭނުންކުރި ސްޕިން: {spin_count}\n"
+                message += f"💎 ޖުމްލަ ޗިޕްސް: *{result['total_chips_earned']} ޗިޕްސް*\n"
+                message += f"🎯 ބާކީ ސްޕިން: *{result['available_spins']}*\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n\n"
+                message += f"🎰 އިތުރު އިނާމު ހޯދަން ސްޕިން ކުރައްވާ\\!"
+            else:
+                message += f"🎊 *JACKPOT WINNER* 🎊\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n\n"
+                message += f"🔥 *{prize['name']}* 🔥\n\n"
+                message += f"💰 *{prize['chips']} CHIPS WON* 💰\n\n"
                 message += f"⏳ *Pending Admin Approval*\n"
                 message += f"✅ Your chips will be added to your PPPoker account once approved\\.\n"
                 message += f"You'll be notified immediately\\! 🎉\n\n"
+                if result.get('got_surprise'):
+                    message += f"✨ *BONUS SURPRISE\\!* ✨\n"
+                    message += f"🎁 Surprise Reward: *{result['surprise_chips']} chips*\\!\n"
+                    message += f"⏳ Pending admin approval\n\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n"
+                message += f"👤 {username_escaped}\n"
+                message += f"🎲 Spins Used: {spin_count}\n"
+                message += f"💎 Total Chips: *{result['total_chips_earned']} chips*\n"
+                message += f"🎯 Spins Left: *{result['available_spins']}*\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n\n"
+                message += f"🎰 Keep spinning for more prizes\\!"
+        else:
+            # No milestone prize
+            message = f"━━━━━━━━━━━━━━━━━━\n"
+            if lang == 'dv':
+                message += f"🎰 *ސްޕިން ނިމިއްޖެ* 🎰\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n\n"
+                if result.get('got_surprise'):
+                    message += f"✨ *ސަޕްރައިޒް ރިވޯޑް\\!* ✨\n"
+                    message += f"🎁 *{result['surprise_chips']} ޗިޕްސް* ލިބިއްޖެ\\!\n\n"
+                    message += f"⏳ *އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރަނީ*\n"
+                    message += f"✅ އެޕްރޫވް ވުމުން ޗިޕްސް PPPoker އެކައުންޓަށް އެޅޭނެ\\.\n"
+                    message += f"ވަގުތުން ނޮޓިފިކޭޝަން ލިބޭނެ\\! 🎉\n\n"
+                else:
+                    message += f"😎 *ކޮންމެ ސްޕިނެއް ވެސް ފުރުސަތެއް…*\n"
+                    message += f"💫 *ދެން ޖެހޭ ސްޕިން ވެދާނެ ބޮޑު އިނާމު\\!*\n\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n"
+                message += f"👤 {username_escaped}\n"
+                message += f"🎲 ބޭނުންކުރި ސްޕިން: {spin_count}\n"
+                message += f"💎 ޖުމްލަ ޗިޕްސް: *{result['total_chips_earned']} ޗިޕްސް*\n"
+                message += f"🎯 ބާކީ ސްޕިން: *{result['available_spins']}*\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n\n"
+                message += f"🔥 އަލުން ސްޕިން ކުރައްވާ\\!"
             else:
-                message += f"😎 *Every spin is a new chance…*\n"
-                message += f"💫 *Your next one could be legendary\\!*\n\n"
-
-            message += f"━━━━━━━━━━━━━━━━━━\n"
-            message += f"👤 {username_escaped}\n"
-            message += f"🎲 Spins Used: {spin_count}\n"
-            message += f"💎 Total Chips: *{result['total_chips_earned']} chips*\n"
-            message += f"🎯 Spins Left: *{result['available_spins']}*\n"
-            message += f"━━━━━━━━━━━━━━━━━━\n\n"
-            message += f"🔥 Try again\\! Fortune favors the bold\\!"
+                message += f"🎰 *SPIN COMPLETE* 🎰\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n\n"
+                if result.get('got_surprise'):
+                    message += f"✨ *SURPRISE REWARD\\!* ✨\n"
+                    message += f"🎁 You won *{result['surprise_chips']} chips*\\!\n\n"
+                    message += f"⏳ *Pending Admin Approval*\n"
+                    message += f"✅ Your chips will be added to your PPPoker account once approved\\.\n"
+                    message += f"You'll be notified immediately\\! 🎉\n\n"
+                else:
+                    message += f"😎 *Every spin is a new chance…*\n"
+                    message += f"💫 *Your next one could be legendary\\!*\n\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n"
+                message += f"👤 {username_escaped}\n"
+                message += f"🎲 Spins Used: {spin_count}\n"
+                message += f"💎 Total Chips: *{result['total_chips_earned']} chips*\n"
+                message += f"🎯 Spins Left: *{result['available_spins']}*\n"
+                message += f"━━━━━━━━━━━━━━━━━━\n\n"
+                message += f"🔥 Try again\\! Fortune favors the bold\\!"
 
         # Create keyboard for more spins
-        keyboard = [[InlineKeyboardButton("🎰 Spin Again", callback_data="spin_again")]]
+        spin_again_text = "🎰 އަލުން ސްޕިން" if lang == 'dv' else "🎰 Spin Again"
+        keyboard = [[InlineKeyboardButton(spin_again_text, callback_data="spin_again")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await rate_limiter.wait_for_edit()
