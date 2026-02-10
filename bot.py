@@ -352,6 +352,23 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'seat_sent': "✅ <b>Seat request sent!</b>\n\n🪑 {amount} chips\n🎮 ID: {pppoker_id}\n\nAdmin will review shortly.",
         'seat_approved': "✅ <b>Seat Request Approved!</b>\n\n💰 Amount: {amount} MVR\n🎮 PPPoker ID: {pppoker_id}\n\nYou can now join the table!",
         'seat_select_payment': "💳 Select payment method to pay for your seat:",
+        'seat_approved_payment': "✅ <b>Seat approved!</b>\n\n🪑 {amount} chips ready\n\n💳 <b>Choose payment method below:</b>\nClick on an account to see details, then upload your payment slip.",
+        'seat_approved_detail': "✅ <b>Seat approved!</b>",
+        'seat_pay_via': "💰 <b>Pay via {method}</b>",
+        'seat_account_number': "<b>Account Number:</b> <a href='#'>(tap to copy)</a>",
+        'seat_wallet_address': "<b>Wallet Address:</b> <a href='#'>(tap to copy)</a>",
+        'seat_account_holder': "<b>Account Holder:</b>",
+        'seat_current_rate': "💱 <b>Current Rate:</b> 1 USDT = {rate} MVR",
+        'seat_send_txid': "📝 Please send your <b>Transaction ID (TXID)</b> from the blockchain:",
+        'seat_send_slip': "📸 Please send your payment slip photo showing the transfer to this account.",
+        'seat_timeout': "⏰ <b>Seat Request Timeout</b>\n\nYour seat request has been automatically closed.\n\n💰 Amount: {amount} chips/MVR\n📋 Request ID: <code>{request_id}</code>\n\nSorry for the inconvenience. Please try again.",
+        'seat_slip_reminder1': "⏰ **Payment Slip Reminder**\n\nYou have a credit of **{amount} chips/MVR**.\n\n📸 Please upload your payment slip or contact Live Support.\n\n_You have 1 more minute before you must contact Live Support._",
+        'seat_slip_reminder2': "🚨 **Final Reminder**\n\nYou have a credit of **{amount} chips/MVR**.\n\n❗ Please upload your payment slip NOW or contact Live Support immediately.\n\n_Your credit must be settled to continue using the service._",
+        'seat_no_active': "❌ No active seat request found.\n\nPlease request a seat first using /seat command.",
+        'seat_upload_prompt': "📸 <b>Please send your payment slip photo now.</b>\n\nMake sure the slip clearly shows:\n• Transaction amount\n• Account name\n• Date and time",
+        'seat_rejected': "❌ <b>Seat request rejected</b>\n\nReason: {reason}",
+        'seat_payment_verified': "✅ **Payment Verified!**\n\n**Request ID:** `{request_id}`\n**Amount:** {amount} chips/MVR\n\nYour seat request has been settled. Thank you!",
+        'seat_slip_rejected': "**Request ID:** `{request_id}`\n\nWe were unable to verify your payment slip.\n\nPlease contact Live Support for assistance.",
         'user_not_found': "❌ User not found. Please use /start first.",
 
         # Support messages
@@ -640,6 +657,23 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'seat_sent': "✅ <b>ސީޓް ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>\n\n🪑 {amount} ޗިޕްސް\n🎮 އައިޑީ: {pppoker_id}\n\nއެޑްމިން ރިވިއު ކުރާނެ.",
         'seat_approved': "✅ <b>ސީޓް ރިކުއެސްޓް އެޕްރޫވް ވެއްޖެ!</b>\n\n💰 އަދަދު: {amount} MVR\n🎮 PPPoker ID: {pppoker_id}\n\nމޭޒަށް ވަދެވޭނެ!",
         'seat_select_payment': "💳 ސީޓް އަށް ފައިސާ ދައްކަން ޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ:",
+        'seat_approved_payment': "✅ <b>ސީޓް އެޕްރޫވް ވެއްޖެ!</b>\n\n🪑 {amount} ޗިޕްސް ތައްޔާރު\n\n💳 <b>ތިރީން ޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ:</b>\nއެކައުންޓް އަށް ފިއްތާ ތަފްސީލް ބައްލަވާ، ދެން ޕޭމަންޓް ސްލިޕް އަޕްލޯޑް ކުރައްވާ.",
+        'seat_approved_detail': "✅ <b>ސީޓް އެޕްރޫވް ވެއްޖެ!</b>",
+        'seat_pay_via': "💰 <b>{method} މެދުވެރިކޮށް ފައިސާ ދައްކާ</b>",
+        'seat_account_number': "<b>އެކައުންޓް ނަންބަރު:</b> <a href='#'>(ކޮޕީ ކުރަން ފިއްތާލައްވާ)</a>",
+        'seat_wallet_address': "<b>ވޮލެޓް އެޑްރެސް:</b> <a href='#'>(ކޮޕީ ކުރަން ފިއްތާލައްވާ)</a>",
+        'seat_account_holder': "<b>އެކައުންޓް ހޯލްޑާ:</b>",
+        'seat_current_rate': "💱 <b>މިހާރުގެ ރޭޓް:</b> 1 USDT = {rate} MVR",
+        'seat_send_txid': "📝 ބްލޮކްޗެއިން އިން <b>ޓްރާންސެކްޝަން އައިޑީ (TXID)</b> ފޮނުއްވާ:",
+        'seat_send_slip': "📸 މި އެކައުންޓަށް ޓްރާންސްފާ ކުރި ޕޭމަންޓް ސްލިޕް ފޮޓޯ ފޮނުއްވާ.",
+        'seat_timeout': "⏰ <b>ސީޓް ރިކުއެސްޓް ޓައިމްއައުޓް</b>\n\nސީޓް ރިކުއެސްޓް އޮޓޯއިން ބަންދު ވެއްޖެ.\n\n💰 އަދަދު: {amount} ޗިޕްސް/MVR\n📋 ރިކުއެސްޓް އައިޑީ: <code>{request_id}</code>\n\nދެރަވަން. އަލުން މަސައްކަތް ކުރައްވާ.",
+        'seat_slip_reminder1': "⏰ **ޕޭމަންޓް ސްލިޕް ރިމައިންޑާ**\n\nތިބާގެ ކްރެޑިޓް **{amount} ޗިޕްސް/MVR** އެބަހުރި.\n\n📸 ޕޭމަންޓް ސްލިޕް އަޕްލޯޑް ކުރައްވާ ނޫނީ ލައިވް ސަޕޯޓް އަށް ގުޅުއްވާ.\n\n_ލައިވް ސަޕޯޓް އަށް ގުޅެން އިތުރު 1 މިނެޓް އެބައޮތް._",
+        'seat_slip_reminder2': "🚨 **ފައިނަލް ރިމައިންޑާ**\n\nތިބާގެ ކްރެޑިޓް **{amount} ޗިޕްސް/MVR** އެބަހުރި.\n\n❗ މިހާރުން މިހާރަށް ޕޭމަންޓް ސްލިޕް އަޕްލޯޑް ކުރައްވާ ނޫނީ ލައިވް ސަޕޯޓް އަށް ގުޅުއްވާ.\n\n_ޚިދުމަތް ކުރިއަށް ގެންދިއުމަށް ކްރެޑިޓް ސެޓްލް ކުރަން ޖެހޭ._",
+        'seat_no_active': "❌ އެކްޓިވް ސީޓް ރިކުއެސްޓެއް ނެތް.\n\nފުރަތަމަ /seat ކޮމާންޑް ބޭނުންކޮށް ސީޓް ރިކުއެސްޓް ކުރައްވާ.",
+        'seat_upload_prompt': "📸 <b>މިހާރު ޕޭމަންޓް ސްލިޕް ފޮޓޯ ފޮނުއްވާ.</b>\n\nސްލިޕް ގައި ސާފުކޮށް ފެންނަން ޖެހޭ:\n• ޓްރާންސެކްޝަން އަދަދު\n• އެކައުންޓް ނަން\n• ތާރީޚް އާއި ގަޑި",
+        'seat_rejected': "❌ <b>ސީޓް ރިކުއެސްޓް ރިޖެކްޓް ވެއްޖެ</b>\n\nސަބަބު: {reason}",
+        'seat_payment_verified': "✅ **ޕޭމަންޓް ވެރިފައި ވެއްޖެ!**\n\n**ރިކުއެސްޓް އައިޑީ:** `{request_id}`\n**އަދަދު:** {amount} ޗިޕްސް/MVR\n\nސީޓް ރިކުއެސްޓް ސެޓްލް ވެއްޖެ. ޝުކުރިއްޔާ!",
+        'seat_slip_rejected': "**ރިކުއެސްޓް އައިޑީ:** `{request_id}`\n\nޕޭމަންޓް ސްލިޕް ވެރިފައި ނުކުރެވުނީ.\n\nލައިވް ސަޕޯޓް އަށް ގުޅުއްވާ.",
         'user_not_found': "❌ ޔޫޒާ ނުފެނުނީ. ފުރަތަމަ /start ޖައްސަވާ.",
 
         # Support messages
@@ -7311,11 +7345,11 @@ async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
             if not user_telegram_id:
                 user_telegram_id = seat_req.get('user_id')  # fallback
 
+            lang = get_user_language(user_telegram_id)
             try:
                 await context.bot.send_message(
                     chat_id=user_telegram_id,
-                    text=f"❌ <b>Seat request rejected</b>\n\n"
-                         f"Reason: {reason}",
+                    text=get_message('seat_rejected', lang, reason=reason),
                     parse_mode='HTML'
                 )
             except:
@@ -7418,13 +7452,11 @@ async def approve_seat_request(update: Update, context: ContextTypes.DEFAULT_TYP
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Notify user with payment details
+        lang = get_user_language(user_telegram_id)
         try:
             await context.bot.send_message(
                 chat_id=user_telegram_id,
-                text=f"✅ <b>Seat approved!</b>\n\n"
-                     f"🪑 {seat_req['amount']} chips ready\n\n"
-                     f"💳 <b>Choose payment method below:</b>\n"
-                     f"Click on an account to see details, then upload your payment slip.",
+                text=get_message('seat_approved_payment', lang, amount=seat_req['amount']),
                 parse_mode='HTML',
                 reply_markup=reply_markup
             )
@@ -7547,14 +7579,11 @@ async def auto_reject_seat_request(context: ContextTypes.DEFAULT_TYPE):
             del notification_messages[request_id]
 
         # Notify user with a nice message
+        lang = get_user_language(user_id)
         try:
             await context.bot.send_message(
                 chat_id=user_id,
-                text=f"⏰ <b>Seat Request Timeout</b>\n\n"
-                     f"Your seat request has been automatically closed.\n\n"
-                     f"💰 Amount: {amount} chips/MVR\n"
-                     f"📋 Request ID: <code>{request_id}</code>\n\n"
-                     f"Sorry for the inconvenience. Please try again.",
+                text=get_message('seat_timeout', lang, amount=amount, request_id=request_id),
                 parse_mode='HTML'
             )
         except Exception as e:
@@ -7586,13 +7615,11 @@ async def first_slip_reminder(context: ContextTypes.DEFAULT_TYPE):
     api.increment_credit_reminder(user_id)
 
     # Send reminder
+    lang = get_user_language(user_id)
     try:
         await context.bot.send_message(
             chat_id=user_id,
-            text=f"⏰ **Payment Slip Reminder**\n\n"
-                 f"You have a credit of **{credit['amount']} chips/MVR**.\n\n"
-                 f"📸 Please upload your payment slip or contact Live Support.\n\n"
-                 f"_You have 1 more minute before you must contact Live Support._",
+            text=get_message('seat_slip_reminder1', lang, amount=credit['amount']),
             parse_mode='Markdown'
         )
     except Exception as e:
@@ -7624,13 +7651,11 @@ async def final_slip_reminder(context: ContextTypes.DEFAULT_TYPE):
     api.increment_credit_reminder(user_id)
 
     # Send final reminder
+    lang = get_user_language(user_id)
     try:
         await context.bot.send_message(
             chat_id=user_id,
-            text=f"🚨 **Final Reminder**\n\n"
-                 f"You have a credit of **{credit['amount']} chips/MVR**.\n\n"
-                 f"❗ Please upload your payment slip NOW or contact Live Support immediately.\n\n"
-                 f"_Your credit must be settled to continue using the service._",
+            text=get_message('seat_slip_reminder2', lang, amount=credit['amount']),
             parse_mode='Markdown'
         )
     except Exception as e:
@@ -7659,38 +7684,39 @@ async def show_seat_account_details(update: Update, context: ContextTypes.DEFAUL
         account = payment_accounts[account_type]
         account_number = account.get('account_number', 'N/A')
         account_holder = account.get('account_name', '')
+        lang = get_user_language(query.from_user.id)
 
         # Method names
         method_names = {'BML': 'Bank of Maldives', 'MIB': 'Maldives Islamic Bank', 'USD': 'USD Bank Transfer', 'USDT': 'USDT (BEP20)'}
         method_name = method_names.get(account_type, account_type)
 
         # Build message matching deposit format
-        message = f"✅ <b>Seat approved!</b>\n\n"
+        message = get_message('seat_approved_detail', lang) + "\n\n"
 
         # USDT shows exchange rate and TXID request
         if account_type == 'USDT':
-            message += f"💰 <b>Pay via {method_name}</b>\n\n"
+            message += get_message('seat_pay_via', lang, method=method_name) + "\n\n"
 
             # Show exchange rate for USDT
             usdt_rate = api.get_exchange_rate('USDT', 'MVR')
             if usdt_rate:
-                message += f"💱 <b>Current Rate:</b> 1 USDT = {float(usdt_rate):.2f} MVR\n\n"
+                message += get_message('seat_current_rate', lang, rate=f"{float(usdt_rate):.2f}") + "\n\n"
 
-            message += f"<b>Wallet Address:</b> <a href='#'>(tap to copy)</a>\n"
+            message += get_message('seat_wallet_address', lang) + "\n"
             message += f"<code>{account_number}</code>\n\n"
-            message += f"📝 Please send your <b>Transaction ID (TXID)</b> from the blockchain:"
+            message += get_message('seat_send_txid', lang)
         else:
             # Bank accounts show account number and holder
-            message += f"💰 <b>Pay via {method_name}</b>\n\n"
-            message += f"<b>Account Number:</b> <a href='#'>(tap to copy)</a>\n"
+            message += get_message('seat_pay_via', lang, method=method_name) + "\n\n"
+            message += get_message('seat_account_number', lang) + "\n"
             message += f"<code>{account_number}</code>\n\n"
 
             # Show account holder for bank accounts
             if account_holder and account_holder.strip():
-                message += f"<b>Account Holder:</b>\n{account_holder}\n\n"
+                message += get_message('seat_account_holder', lang) + f"\n{account_holder}\n\n"
 
             message += f"━━━━━━━━━━━━━━━━━━\n\n"
-            message += f"📸 Please send your payment slip photo showing the transfer to this account."
+            message += get_message('seat_send_slip', lang)
 
         # Show account details
         await query.edit_message_text(message, parse_mode='HTML')
@@ -7704,10 +7730,10 @@ async def upload_seat_slip_button(update: Update, context: ContextTypes.DEFAULT_
     await query.answer()
 
     # Check if user has active seat request
+    lang = get_user_language(query.from_user.id)
     if query.from_user.id not in seat_request_data:
         await query.edit_message_text(
-            "❌ No active seat request found.\n\n"
-            "Please request a seat first using /seat command.",
+            get_message('seat_no_active', lang),
             parse_mode='HTML'
         )
         return
@@ -7716,11 +7742,7 @@ async def upload_seat_slip_button(update: Update, context: ContextTypes.DEFAULT_
     await query.edit_message_text(
         f"{query.message.text}\n\n"
         f"━━━━━━━━━━━━━━━━━━\n\n"
-        f"📸 <b>Please send your payment slip photo now.</b>\n\n"
-        f"Make sure the slip clearly shows:\n"
-        f"• Transaction amount\n"
-        f"• Account name\n"
-        f"• Date and time",
+        f"{get_message('seat_upload_prompt', lang)}",
         parse_mode='HTML'
     )
 
@@ -7767,8 +7789,9 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
         # Process with Vision API
         extracted_details = await vision_api.process_receipt_image(bytes(file_bytes))
 
-        # Format extracted details
+        # Format extracted details - user gets their language, admin always gets English
         details_msg = vision_api.format_extracted_details(extracted_details, lang=lang)
+        details_msg_en = vision_api.format_extracted_details(extracted_details, lang='en')
 
         # Check if any details were actually extracted
         has_details = any([
@@ -7781,7 +7804,7 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
         ])
 
         if has_details:
-            ocr_details = details_msg
+            ocr_details = details_msg_en
             logger.info(f"Vision API extracted slip details for user {user.id}")
             await processing_msg.edit_text(
                 "✅ **Slip details extracted successfully!**\n\n"
@@ -8018,13 +8041,11 @@ async def settle_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
             del notification_messages[f"slip_{request_id}"]
 
         # Notify user
+        lang = get_user_language(user_telegram_id)
         try:
             await context.bot.send_message(
                 chat_id=user_telegram_id,
-                text=f"✅ **Payment Verified!**\n\n"
-                     f"**Request ID:** `{request_id}`\n"
-                     f"**Amount:** {seat_req['amount']} chips/MVR\n\n"
-                     f"Your seat request has been settled. Thank you!",
+                text=get_message('seat_payment_verified', lang, request_id=request_id, amount=seat_req['amount']),
                 parse_mode='Markdown'
             )
         except Exception as e:
@@ -8090,12 +8111,11 @@ async def reject_seat_slip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         del notification_messages[f"slip_{request_id}"]
 
     # Notify user to reupload or contact support
+    lang = get_user_language(user_telegram_id)
     try:
         await context.bot.send_message(
             chat_id=user_telegram_id,
-            text=f"**Request ID:** `{request_id}`\n\n"
-                 f"We were unable to verify your payment slip.\n\n"
-                 f"Please contact Live Support for assistance.",
+            text=get_message('seat_slip_rejected', lang, request_id=request_id),
             parse_mode='Markdown'
         )
     except Exception as e:
