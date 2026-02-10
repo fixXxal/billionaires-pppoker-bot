@@ -143,8 +143,22 @@ class DjangoAPI:
             raise
 
     def get_all_users(self) -> List[Dict]:
-        """Get all users"""
-        return self._get('users/')
+        """Get all users (handles pagination to fetch ALL pages)"""
+        all_users = []
+        page = 1
+        while True:
+            response = self._get('users/', params={'page': page, 'page_size': 1000})
+            if isinstance(response, dict) and 'results' in response:
+                all_users.extend(response['results'])
+                if not response.get('next'):
+                    break
+                page += 1
+            elif isinstance(response, list):
+                all_users.extend(response)
+                break
+            else:
+                break
+        return all_users
 
     # ==================== DEPOSIT METHODS ====================
 
