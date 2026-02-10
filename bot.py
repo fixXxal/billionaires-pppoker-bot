@@ -369,6 +369,10 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'seat_rejected': "❌ <b>Seat request rejected</b>\n\nReason: {reason}",
         'seat_payment_verified': "✅ **Payment Verified!**\n\n**Request ID:** `{request_id}`\n**Amount:** {amount} chips/MVR\n\nYour seat request has been settled. Thank you!",
         'seat_slip_rejected': "**Request ID:** `{request_id}`\n\nWe were unable to verify your payment slip.\n\nPlease contact Live Support for assistance.",
+        'seat_slip_extracted': "✅ **Slip details extracted successfully!**\n\n{details}\n\nSending to admin for verification...",
+        'seat_slip_no_extract': "⚠️ **Could not extract details automatically.**\n\nYour slip will be reviewed manually by admin.",
+        'seat_slip_ocr_fail': "⚠️ **Could not extract slip details automatically.**\n\nYour slip has been saved and will be reviewed manually.",
+        'seat_slip_uploaded': "✅ **Slip uploaded successfully!**\n\nYour payment is being verified by the admin. You'll be notified soon.",
         'user_not_found': "❌ User not found. Please use /start first.",
 
         # Support messages
@@ -674,6 +678,10 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'seat_rejected': "❌ <b>ސީޓް ރިކުއެސްޓް ރިޖެކްޓް ވެއްޖެ</b>\n\nސަބަބު: {reason}",
         'seat_payment_verified': "✅ **ޕޭމަންޓް ވެރިފައި ވެއްޖެ!**\n\n**ރިކުއެސްޓް އައިޑީ:** `{request_id}`\n**އަދަދު:** {amount} ޗިޕްސް/MVR\n\nސީޓް ރިކުއެސްޓް ސެޓްލް ވެއްޖެ. ޝުކުރިއްޔާ!",
         'seat_slip_rejected': "**ރިކުއެސްޓް އައިޑީ:** `{request_id}`\n\nޕޭމަންޓް ސްލިޕް ވެރިފައި ނުކުރެވުނީ.\n\nލައިވް ސަޕޯޓް އަށް ގުޅުއްވާ.",
+        'seat_slip_extracted': "✅ **ސްލިޕް ތަފްސީލް ނެގިއްޖެ!**\n\n{details}\n\nއެޑްމިން ވެރިފައި ކުރަން ފޮނުވަނީ...",
+        'seat_slip_no_extract': "⚠️ **ތަފްސީލް އޮޓޮމެޓިކް ކޮށް ނެގެން ނެތް.**\n\nއެޑްމިން މެނުއަލީ ރިވިއު ކުރާނެ.",
+        'seat_slip_ocr_fail': "⚠️ **ސްލިޕް ތަފްސީލް އޮޓޮމެޓިކް ކޮށް ނެގެން ނެތް.**\n\nސްލިޕް ސޭވް ވެއްޖެ، މެނުއަލީ ރިވިއު ކުރެވޭނެ.",
+        'seat_slip_uploaded': "✅ **ސްލިޕް އަޕްލޯޑް ވެއްޖެ!**\n\nއެޑްމިން ޕޭމަންޓް ވެރިފައި ކުރަނީ. އަވަހަށް އެންގޭނެ.",
         'user_not_found': "❌ ޔޫޒާ ނުފެނުނީ. ފުރަތަމަ /start ޖައްސަވާ.",
 
         # Support messages
@@ -7807,25 +7815,21 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
             ocr_details = details_msg_en
             logger.info(f"Vision API extracted slip details for user {user.id}")
             await processing_msg.edit_text(
-                "✅ **Slip details extracted successfully!**\n\n"
-                f"{details_msg}\n\n"
-                "Sending to admin for verification...",
+                get_message('seat_slip_extracted', lang, details=details_msg),
                 parse_mode='Markdown'
             )
         else:
             ocr_details = "Could not extract details - Manual verification required"
             logger.warning(f"Vision API could not parse slip details for user {user.id}")
             await processing_msg.edit_text(
-                "⚠️ **Could not extract details automatically.**\n\n"
-                "Your slip will be reviewed manually by admin.",
+                get_message('seat_slip_no_extract', lang),
                 parse_mode='Markdown'
             )
     except Exception as e:
         logger.error(f"Vision API processing failed: {e}")
         ocr_details = "OCR failed - Manual verification required"
         await processing_msg.edit_text(
-            "⚠️ **Could not extract slip details automatically.**\n\n"
-            "Your slip has been saved and will be reviewed manually.",
+            get_message('seat_slip_ocr_fail', lang),
             parse_mode='Markdown'
         )
 
@@ -7957,15 +7961,13 @@ async def handle_seat_slip_upload(update: Update, context: ContextTypes.DEFAULT_
     # Send final confirmation if processing message still exists
     try:
         await processing_msg.edit_text(
-            "✅ **Slip uploaded successfully!**\n\n"
-            "Your payment is being verified by the admin. You'll be notified soon.",
+            get_message('seat_slip_uploaded', lang),
             parse_mode='Markdown'
         )
     except:
         # If processing message was already edited, send new message
         await update.message.reply_text(
-            "✅ **Slip uploaded successfully!**\n\n"
-            "Your payment is being verified by the admin. You'll be notified soon.",
+            get_message('seat_slip_uploaded', lang),
             parse_mode='Markdown'
         )
 
