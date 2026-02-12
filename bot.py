@@ -6049,11 +6049,6 @@ async def admin_restart_broadcast(update: Update, context: ContextTypes.DEFAULT_
 
     broadcast_text = (
         "🔄 <b>Bot Updated! / ބޮޓް އަޕްޑޭޓް ވެއްޖެ!</b>\n\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
-        + MESSAGES['en']['help_text'] + "\n\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
-        + MESSAGES['dv']['help_text'] + "\n\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
         "👇 <b>Tap the button below to restart the bot</b>\n"
         "👇 <b>ބޮޓް ރީސްޓާޓް ކުރަން ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ</b>"
     )
