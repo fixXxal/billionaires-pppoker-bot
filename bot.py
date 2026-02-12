@@ -110,7 +110,7 @@ BUTTON_LABELS = {
         'seat': '🪑 Seat',
         'join_club': '🎮 Join Club',
         'free_spins': '🎲 Free Spins',
-        'cashback': '💸 Cashback',
+        'cashback': '💸 Recovery',
         'live_support': '💬 Live Support',
         'help': '❓ Help',
         'language': '🌐 Language / ބަސް'  # Always bilingual
@@ -121,7 +121,7 @@ BUTTON_LABELS = {
         'seat': '🪑 ސީޓް',  # PLACEHOLDER
         'join_club': '🎮 ކްލަބަށް ވަނުން',  # PLACEHOLDER
         'free_spins': '🎲 ފްރީ ސްޕިންސް',  # PLACEHOLDER
-        'cashback': '💸 ކޭޝްބޭކް',  # PLACEHOLDER
+        'cashback': '💸 ރިކަވަރީ',  # PLACEHOLDER
         'live_support': '💬 ސަޕޯޓް',  # PLACEHOLDER
         'help': '❓ އެހީ',  # PLACEHOLDER
         'language': '🌐 Language / ބަސް'  # Same in both languages
@@ -268,9 +268,9 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'spins_make_deposit': "💰 Make Deposit",
         'spins_open_wheel': "🎰 Open Spin Wheel 🎰",
 
-        # Cashback messages
-        'cashback_title': "💸 <b>CASHBACK</b>",
-        'cashback_no_promo': "❌ No active cashback promotion at this time.\n\nCheck back later for cashback offers!",
+        # Recovery messages
+        'cashback_title': "💸 <b>RECOVERY</b>",
+        'cashback_no_promo': "❌ No active recovery promotion at this time.\n\nCheck back later for recovery offers!",
 
         # Help messages
         'help_title': "📖 **How to Use Billionaires Bot**",
@@ -347,26 +347,26 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
 • Win chips and prizes!
 • More deposits = More spins = More prizes!
 
-<b>💸 Cashback</b>
+<b>💸 Recovery</b>
 
-• Tap 💸 Cashback
+• Tap 💸 Recovery
 • Check your eligibility based on deposits
 • If eligible, enter your PPPoker ID to claim
 • Wait for admin approval
-• Cashback chips will be added to your account!
+• Recovery chips will be added to your account!
 
 <b>💬 Live Support</b>
 
 • Tap 💬 Live Support to chat directly with an admin
 • Type /endsupport anytime to end the conversation""",
 
-        # Cashback messages
-        'cashback_status': "🎯 <b>Cashback Status</b>\n{status}\n📊 Deposits: {deposits} MVR\n📌 Required: {required} MVR\n{message}",
+        # Recovery messages
+        'cashback_status': "🎯 <b>Recovery Status</b>\n{status}\n📊 Deposits: {deposits} MVR\n📌 Required: {required} MVR\n{message}",
         'cashback_eligible': "✅ Eligible",
         'cashback_not_eligible': "❌ Not Eligible",
-        'cashback_deposit_more': "⚠️ Deposit {amount} MVR more to qualify.\n✨ Bigger deposits = bigger cashback!",
-        'cashback_claim': "🎉 You're eligible for cashback!\nTap below to claim.",
-        'cashback_no_active': "❌ No active cashback promotion at this time.\n\nCheck back later for cashback offers!",
+        'cashback_deposit_more': "⚠️ Deposit {amount} MVR more to qualify.\n✨ Bigger deposits = bigger recovery!",
+        'cashback_claim': "🎉 You're eligible for recovery!\nTap below to claim.",
+        'cashback_no_active': "❌ No active recovery promotion at this time.\n\nCheck back later for recovery offers!",
 
         # Seat request messages
         'seat_title': "🪑 <b>SEAT REQUEST</b>",
@@ -428,10 +428,10 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'processing_receipt': "🔍 Processing receipt... Please wait...",
         'processing_slip': "📸 **Processing your payment slip...**\n\nPlease wait while we verify the details.",
 
-        # Cashback error messages
+        # Recovery error messages
         'cashback_error': "❌ <b>Error</b>\n\nSorry, there was an error checking for active promotions.\nPlease try again later or contact support.",
         'cashback_pending_error': "❌ <b>Error</b>\n\nSorry, there was an error checking your pending requests.\nPlease try again later or contact support.",
-        'cashback_pending_exists': "❌ <b>Pending Cashback Request Exists</b>\n\nYou already have a pending cashback request for this promotion.\n\n🎫 Request ID: <code>{request_id}</code>\n💰 Amount: <b>{amount:.2f} MVR</b>\n\n⏳ Please wait for admin approval before submitting another request.\n\n💡 <i>You can only have one pending request per promotion period.</i>",
+        'cashback_pending_exists': "❌ <b>Pending Recovery Request Exists</b>\n\nYou already have a pending recovery request for this promotion.\n\n🎫 Request ID: <code>{request_id}</code>\n💰 Amount: <b>{amount:.2f} MVR</b>\n\n⏳ Please wait for admin approval before submitting another request.\n\n💡 <i>You can only have one pending request per promotion period.</i>",
 
         # Support button
         'end_support_button': "❌ End Support",
@@ -454,21 +454,21 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'rewards_approved_title': "✅ <b>REWARDS APPROVED!</b> ✅",
         'rewards_approved_body': "━━━━━━━━━━━━━━━━━━\n\n🎊 <b>Congratulations!</b>\n\n💰 <b>Total Chips:</b> {total_chips}\n📦 <b>Rewards:</b> {count}\n🎮 <b>PPPoker ID:</b> {pppoker_id}\n\n✨ <b>Your chips have been added to your account!</b>\n\n━━━━━━━━━━━━━━━━━━\nThank you for playing! 🎰\nGood luck at the tables! 🃏",
 
-        'cashback_approved_title': "✅ <b>CASHBACK APPROVED!</b> ✅",
-        'cashback_approved_body': "━━━━━━━━━━━━━━━━━━\n🎉 Your cashback has been approved!\n\n💰 <b>Amount:</b> {amount} chips\n🎮 <b>PPPoker ID:</b> <code>{pppoker_id}</code>\n━━━━━━━━━━━━━━━━━━\n\n💎 Chips have been added to your account!",
-        'cashback_rejected_title': "❌ <b>CASHBACK REJECTED</b> ❌",
-        'cashback_rejected_body': "━━━━━━━━━━━━━━━━━━\nYour cashback request has been rejected.\n\n❓ <b>Reason:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nPlease contact support if you have questions.",
+        'cashback_approved_title': "✅ <b>RECOVERY APPROVED!</b> ✅",
+        'cashback_approved_body': "━━━━━━━━━━━━━━━━━━\n🎉 Your recovery has been approved!\n\n💰 <b>Amount:</b> {amount} chips\n🎮 <b>PPPoker ID:</b> <code>{pppoker_id}</code>\n━━━━━━━━━━━━━━━━━━\n\n💎 Chips have been added to your account!",
+        'cashback_rejected_title': "❌ <b>RECOVERY REJECTED</b> ❌",
+        'cashback_rejected_body': "━━━━━━━━━━━━━━━━━━\nYour recovery request has been rejected.\n\n❓ <b>Reason:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nPlease contact support if you have questions.",
 
-        # Cashback eligibility flow
-        'cashback_not_eligible_msg': "🎯 <b>Cashback Status</b>\n❌ Not Eligible\n",
+        # Recovery eligibility flow
+        'cashback_not_eligible_msg': "🎯 <b>Recovery Status</b>\n❌ Not Eligible\n",
         'cashback_last_withdrawal': "📅 Last withdrawal: {amount:.0f} MVR\n",
-        'cashback_last_cashback': "📅 Last cashback: {amount:.0f} MVR\n",
+        'cashback_last_cashback': "📅 Last recovery: {amount:.0f} MVR\n",
         'cashback_deposits_info': "📊 Deposits: {deposits:.0f} MVR\n📌 Required: {required:.0f} MVR\n",
-        'cashback_deposit_needed': "⚠️ Deposit {amount:.0f} MVR more to qualify.\n✨ Bigger deposits = bigger cashback!",
-        'cashback_eligible_msg': "✅ <b>Cashback Eligible!</b>\n\n💎 Cashback Rate: <b>{percentage}%</b>\n💰 Cashback Amount: <b>{amount:.2f} MVR</b>\n   (on {loss:.2f} MVR lost)\n\n📝 Enter your <b>PPPoker ID</b> to submit:",
+        'cashback_deposit_needed': "⚠️ Deposit {amount:.0f} MVR more to qualify.\n✨ Bigger deposits = bigger recovery!",
+        'cashback_eligible_msg': "✅ <b>Recovery Eligible!</b>\n\n💎 Recovery Rate: <b>{percentage}%</b>\n💰 Recovery Amount: <b>{amount:.2f} MVR</b>\n   (on {loss:.2f} MVR lost)\n\n📝 Enter your <b>PPPoker ID</b> to submit:",
         'cashback_invalid_pppoker': "❌ Invalid PPPoker ID. Please enter only numbers (at least 3 digits):",
-        'cashback_submitted': "✅ <b>Cashback request sent!</b>\n\n💎 {amount:.2f} MVR ({percentage}%)\n📉 Loss: {loss:.2f} MVR\n\nAwaiting approval.",
-        'cashback_submit_error': "❌ Failed to submit cashback request. Please try again.",
+        'cashback_submitted': "✅ <b>Recovery request sent!</b>\n\n💎 {amount:.2f} MVR ({percentage}%)\n📉 Loss: {loss:.2f} MVR\n\nAwaiting approval.",
+        'cashback_submit_error': "❌ Failed to submit recovery request. Please try again.",
         'cashback_eligibility_error': "❌ <b>Error</b>\n\nSorry, there was an error checking your eligibility.\nPlease contact admin.",
 
         'join_approved_title': "✅ <b>Welcome to βILLIONAIRES!</b>",
@@ -568,9 +568,9 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'spins_make_deposit': "💰 ޑިޕޮޒިޓް ކުރައްވާ",
         'spins_open_wheel': "🎰 ސްޕިން ވީލް ހުޅުވާ 🎰",
 
-        # Cashback messages
-        'cashback_title': "💸 <b>ކޭޝްބެކް</b>",
-        'cashback_no_promo': "❌ މިވަގުތު ކޭޝްބެކް ޕްރޮމޯޝަން ނެތެވެ.\n\nފަހުން ޗެކް ކުރައްވާ!",
+        # Recovery messages
+        'cashback_title': "💸 <b>ރިކަވަރީ</b>",
+        'cashback_no_promo': "❌ މިވަގުތު ރިކަވަރީ ޕްރޮމޯޝަން ނެތެވެ.\n\nފަހުން ޗެކް ކުރައްވާ!",
 
         # Help messages
         'help_title': "📖 **ބިލިއަނެއާޒް ބޮޓް ބޭނުންކުރާނެ ގޮތް**",
@@ -647,13 +647,13 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
 • ޗިޕްސް އާއި އިނާމު ހޯދާ!
 • ގިނައިން ޑިޕޮޒިޓް = ގިނަ ސްޕިން = ގިނަ އިނާމު!
 
-<b>💸 ކޭޝްބެކް</b>
+<b>💸 ރިކަވަރީ</b>
 
-• 💸 ކޭޝްބެކް އަށް ފިއްތާލައްވާ
+• 💸 ރިކަވަރީ އަށް ފިއްތާލައްވާ
 • ޑިޕޮޒިޓް އަށް ބިނާކޮށް ޝަރުތު ހަމަވޭތޯ ޗެކް ކުރައްވާ
 • ޝަރުތު ހަމަވާނަމަ PPPoker ID ޖައްސަވާ ކްލެއިމް ކުރައްވާ
 • އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ
-• ކޭޝްބެކް ޗިޕްސް އެކައުންޓަށް އެޅޭނެ!
+• ރިކަވަރީ ޗިޕްސް އެކައުންޓަށް އެޅޭނެ!
 
 <b>💬 ލައިވް ސަޕޯޓް</b>
 
@@ -706,26 +706,26 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
 • Win chips and prizes!
 • More deposits = More spins = More prizes!
 
-<b>💸 Cashback</b>
+<b>💸 Recovery</b>
 
-• Tap 💸 Cashback
+• Tap 💸 Recovery
 • Check your eligibility based on deposits
 • If eligible, enter your PPPoker ID to claim
 • Wait for admin approval
-• Cashback chips will be added to your account!
+• Recovery chips will be added to your account!
 
 <b>💬 Live Support</b>
 
 • Tap 💬 Live Support to chat directly with an admin
 • Type /endsupport anytime to end the conversation""",
 
-        # Cashback messages
-        'cashback_status': "🎯 <b>ކޭޝްބެކް ސްޓެޓަސް</b>\n{status}\n📊 ޑިޕޮޒިޓް: {deposits} MVR\n📌 ބޭނުންވާ: {required} MVR\n{message}",
+        # Recovery messages
+        'cashback_status': "🎯 <b>ރިކަވަރީ ސްޓެޓަސް</b>\n{status}\n📊 ޑިޕޮޒިޓް: {deposits} MVR\n📌 ބޭނުންވާ: {required} MVR\n{message}",
         'cashback_eligible': "✅ ޝަރުތު ހަމަވޭ",
         'cashback_not_eligible': "❌ ޝަރުތު ހަމަނުވޭ",
-        'cashback_deposit_more': "⚠️ ޝަރުތު ހަމަވާން {amount} MVR އިތުރަށް ޑިޕޮޒިޓް ކުރައްވާ.\n✨ ގިނައިން ޑިޕޮޒިޓް = ގިނަ ކޭޝްބެކް!",
-        'cashback_claim': "🎉 ކޭޝްބެކް ލިބޭ!\nކްލެއިމް ކުރަން ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ.",
-        'cashback_no_active': "❌ މިވަގުތު ކޭޝްބެކް ޕްރޮމޯޝަން ނެތެވެ.\n\nފަހުން ޗެކް ކުރައްވާ!",
+        'cashback_deposit_more': "⚠️ ޝަރުތު ހަމަވާން {amount} MVR އިތުރަށް ޑިޕޮޒިޓް ކުރައްވާ.\n✨ ގިނައިން ޑިޕޮޒިޓް = ގިނަ ރިކަވަރީ!",
+        'cashback_claim': "🎉 ރިކަވަރީ ލިބޭ!\nކްލެއިމް ކުރަން ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ.",
+        'cashback_no_active': "❌ މިވަގުތު ރިކަވަރީ ޕްރޮމޯޝަން ނެތެވެ.\n\nފަހުން ޗެކް ކުރައްވާ!",
 
         # Seat request messages
         'seat_title': "🪑 <b>ސީޓް ރިކުއެސްޓް</b>",
@@ -787,10 +787,10 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'processing_receipt': "🔍 ރެސީޕްޓް ބަލަނީ... މަޑުކުރައްވާ...",
         'processing_slip': "📸 **ޕޭމަންޓް ސްލިޕް ޕްރޮސެސް ކުރަނީ...**\n\nތަފްސީލް ވެރިފައި ކުރަންދެން މަޑުކުރައްވާ.",
 
-        # Cashback error messages
+        # Recovery error messages
         'cashback_error': "❌ <b>މައްސަލައެއް ދިމާވީ</b>\n\nޕްރޮމޯޝަން ޗެކް ކުރުމުގައި މައްސަލައެއް ދިމާވީ.\nފަހުން އަލުން މަސައްކަތް ކުރައްވާ ނުވަތަ ސަޕޯޓާ ގުޅުއްވާ.",
         'cashback_pending_error': "❌ <b>މައްސަލައެއް ދިމާވީ</b>\n\nޕެންޑިން ރިކުއެސްޓް ޗެކް ކުރުމުގައި މައްސަލައެއް ދިމާވީ.\nފަހުން އަލުން މަސައްކަތް ކުރައްވާ ނުވަތަ ސަޕޯޓާ ގުޅުއްވާ.",
-        'cashback_pending_exists': "❌ <b>ޕެންޑިން ކޭޝްބެކް ރިކުއެސްޓެއް އެބައޮތް</b>\n\nމި ޕްރޮމޯޝަން އަށް ޕެންޑިން ކޭޝްބެކް ރިކުއެސްޓެއް އެބައޮތް.\n\n🎫 ރިކުއެސްޓް އައިޑީ: <code>{request_id}</code>\n💰 އަދަދު: <b>{amount:.2f} MVR</b>\n\n⏳ އިތުރު ރިކުއެސްޓެއް ފޮނުވުމުގެ ކުރިން އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.\n\n💡 <i>ކޮންމެ ޕްރޮމޯޝަނެއްގައި އެއް ޕެންޑިން ރިކުއެސްޓް ހުށަހެޅޭނީ.</i>",
+        'cashback_pending_exists': "❌ <b>ޕެންޑިން ރިކަވަރީ ރިކުއެސްޓެއް އެބައޮތް</b>\n\nމި ޕްރޮމޯޝަން އަށް ޕެންޑިން ރިކަވަރީ ރިކުއެސްޓެއް އެބައޮތް.\n\n🎫 ރިކުއެސްޓް އައިޑީ: <code>{request_id}</code>\n💰 އަދަދު: <b>{amount:.2f} MVR</b>\n\n⏳ އިތުރު ރިކުއެސްޓެއް ފޮނުވުމުގެ ކުރިން އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.\n\n💡 <i>ކޮންމެ ޕްރޮމޯޝަނެއްގައި އެއް ޕެންޑިން ރިކުއެސްޓް ހުށަހެޅޭނީ.</i>",
 
         # Support button
         'end_support_button': "❌ ސަޕޯޓް ނިންމާ",
@@ -813,21 +813,21 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'rewards_approved_title': "✅ <b>ރިވޯޑްސް އެޕްރޫވް ވެއްޖެ!</b> ✅",
         'rewards_approved_body': "━━━━━━━━━━━━━━━━━━\n\n🎊 <b>މަރުޙަބާ!</b>\n\n💰 <b>ޖުމްލަ ޗިޕްސް:</b> {total_chips}\n📦 <b>ރިވޯޑްސް:</b> {count}\n🎮 <b>PPPoker ID:</b> {pppoker_id}\n\n✨ <b>ޗިޕްސް އެކައުންޓަށް އެޅިއްޖެ!</b>\n\n━━━━━━━━━━━━━━━━━━\nކުޅުއްވީތީ ޝުކުރިއްޔާ! 🎰\nގުޑް ލަކް! 🃏",
 
-        'cashback_approved_title': "✅ <b>ކޭޝްބެކް އެޕްރޫވް ވެއްޖެ!</b> ✅",
-        'cashback_approved_body': "━━━━━━━━━━━━━━━━━━\n🎉 ތިބާގެ ކޭޝްބެކް އެޕްރޫވް ވެއްޖެ!\n\n💰 <b>އަދަދު:</b> {amount} ޗިޕްސް\n🎮 <b>PPPoker ID:</b> <code>{pppoker_id}</code>\n━━━━━━━━━━━━━━━━━━\n\n💎 ޗިޕްސް އެކައުންޓަށް އެޅިއްޖެ!",
-        'cashback_rejected_title': "❌ <b>ކޭޝްބެކް ރިޖެކްޓް ވެއްޖެ</b> ❌",
-        'cashback_rejected_body': "━━━━━━━━━━━━━━━━━━\nތިބާގެ ކޭޝްބެކް ރިކުއެސްޓް ރިޖެކްޓް ވެއްޖެ.\n\n❓ <b>ސަބަބު:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nސުވާލެއް އޮތްނަމަ ސަޕޯޓާ ގުޅުއްވާ.",
+        'cashback_approved_title': "✅ <b>ރިކަވަރީ އެޕްރޫވް ވެއްޖެ!</b> ✅",
+        'cashback_approved_body': "━━━━━━━━━━━━━━━━━━\n🎉 ތިބާގެ ރިކަވަރީ އެޕްރޫވް ވެއްޖެ!\n\n💰 <b>އަދަދު:</b> {amount} ޗިޕްސް\n🎮 <b>PPPoker ID:</b> <code>{pppoker_id}</code>\n━━━━━━━━━━━━━━━━━━\n\n💎 ޗިޕްސް އެކައުންޓަށް އެޅިއްޖެ!",
+        'cashback_rejected_title': "❌ <b>ރިކަވަރީ ރިޖެކްޓް ވެއްޖެ</b> ❌",
+        'cashback_rejected_body': "━━━━━━━━━━━━━━━━━━\nތިބާގެ ރިކަވަރީ ރިކުއެސްޓް ރިޖެކްޓް ވެއްޖެ.\n\n❓ <b>ސަބަބު:</b> {reason}\n━━━━━━━━━━━━━━━━━━\n\nސުވާލެއް އޮތްނަމަ ސަޕޯޓާ ގުޅުއްވާ.",
 
-        # Cashback eligibility flow
-        'cashback_not_eligible_msg': "🎯 <b>ކޭޝްބެކް ސްޓެޓަސް</b>\n❌ ޝަރުތު ހަމަނުވޭ\n",
+        # Recovery eligibility flow
+        'cashback_not_eligible_msg': "🎯 <b>ރިކަވަރީ ސްޓެޓަސް</b>\n❌ ޝަރުތު ހަމަނުވޭ\n",
         'cashback_last_withdrawal': "📅 ފަހު ވިތްޑްރޯ: {amount:.0f} MVR\n",
-        'cashback_last_cashback': "📅 ފަހު ކޭޝްބެކް: {amount:.0f} MVR\n",
+        'cashback_last_cashback': "📅 ފަހު ރިކަވަރީ: {amount:.0f} MVR\n",
         'cashback_deposits_info': "📊 ޑިޕޮޒިޓް: {deposits:.0f} MVR\n📌 ބޭނުންވާ: {required:.0f} MVR\n",
-        'cashback_deposit_needed': "⚠️ ޝަރުތު ހަމަވާން {amount:.0f} MVR އިތުރަށް ޑިޕޮޒިޓް ކުރައްވާ.\n✨ ގިނައިން ޑިޕޮޒިޓް = ގިނަ ކޭޝްބެކް!",
-        'cashback_eligible_msg': "✅ <b>ކޭޝްބެކް ލިބޭ!</b>\n\n💎 ކޭޝްބެކް ރޭޓް: <b>{percentage}%</b>\n💰 ކޭޝްބެކް އަދަދު: <b>{amount:.2f} MVR</b>\n   ({loss:.2f} MVR ގެއްލުން)\n\n📝 ސަބްމިޓް ކުރަން <b>PPPoker ID</b> ޖައްސަވާ:",
+        'cashback_deposit_needed': "⚠️ ޝަރުތު ހަމަވާން {amount:.0f} MVR އިތުރަށް ޑިޕޮޒިޓް ކުރައްވާ.\n✨ ގިނައިން ޑިޕޮޒިޓް = ގިނަ ރިކަވަރީ!",
+        'cashback_eligible_msg': "✅ <b>ރިކަވަރީ ލިބޭ!</b>\n\n💎 ރިކަވަރީ ރޭޓް: <b>{percentage}%</b>\n💰 ރިކަވަރީ އަދަދު: <b>{amount:.2f} MVR</b>\n   ({loss:.2f} MVR ގެއްލުން)\n\n📝 ސަބްމިޓް ކުރަން <b>PPPoker ID</b> ޖައްސަވާ:",
         'cashback_invalid_pppoker': "❌ PPPoker ID ރަނގަޅެއް ނޫން. ނަންބަރު އެކަނި ޖައްސަވާ (މަދުވެގެން 3 ޑިޖިޓް):",
-        'cashback_submitted': "✅ <b>ކޭޝްބެކް ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>\n\n💎 {amount:.2f} MVR ({percentage}%)\n📉 ގެއްލުން: {loss:.2f} MVR\n\nއެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
-        'cashback_submit_error': "❌ ކޭޝްބެކް ރިކުއެސްޓް ފޮނުވުމުގައި މައްސަލައެއް ދިމާވީ. އަލުން މަސައްކަތް ކުރައްވާ.",
+        'cashback_submitted': "✅ <b>ރިކަވަރީ ރިކުއެސްޓް ފޮނުވިއްޖެ!</b>\n\n💎 {amount:.2f} MVR ({percentage}%)\n📉 ގެއްލުން: {loss:.2f} MVR\n\nއެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
+        'cashback_submit_error': "❌ ރިކަވަރީ ރިކުއެސްޓް ފޮނުވުމުގައި މައްސަލައެއް ދިމާވީ. އަލުން މަސައްކަތް ކުރައްވާ.",
         'cashback_eligibility_error': "❌ <b>މައްސަލައެއް ދިމާވީ</b>\n\nޝަރުތު ޗެކް ކުރުމުގައި މައްސަލައެއް ދިމާވީ.\nއެޑްމިން އާ ގުޅުއްވާ.",
 
         'join_approved_title': "✅ <b>βILLIONAIRES އަށް މަރުޙަބާ!</b>",

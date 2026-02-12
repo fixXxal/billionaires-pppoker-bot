@@ -72,7 +72,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("💰 Pending Deposits", callback_data="admin_view_deposits")],
         [InlineKeyboardButton("💸 Pending Withdrawals", callback_data="admin_view_withdrawals")],
-        [InlineKeyboardButton("💵 Pending Cashback", callback_data="admin_view_cashback")],
+        [InlineKeyboardButton("💵 Pending Recovery", callback_data="admin_view_cashback")],
         [InlineKeyboardButton("💳 Active Credits", callback_data="admin_view_credits")],
         [InlineKeyboardButton("🎮 Pending Join Requests", callback_data="admin_view_joins")],
         [InlineKeyboardButton("🎁 Promotions", callback_data="admin_view_promotions")],
@@ -848,7 +848,7 @@ async def admin_view_cashback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if not pending_cashback:
         await edit_func(
-            "✅ No pending cashback requests.",
+            "✅ No pending recovery requests.",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("« Back", callback_data="admin_back")
             ]])
@@ -882,13 +882,13 @@ async def show_cashback_details(query, context, cashback_request):
     total = len(context.user_data.get('pending_cashback', []))
 
     message_text = (
-        f"💵 <b>CASHBACK REQUEST {current_index + 1}/{total}</b>\n\n"
+        f"💵 <b>RECOVERY REQUEST {current_index + 1}/{total}</b>\n\n"
         f"🎫 Request ID: <code>{request_id}</code>\n"
         f"👤 User: {username} (ID: {user_id})\n"
         f"🎮 PPPoker ID: <b>{pppoker_id}</b>\n\n"
         f"📊 Loss Amount: <b>{loss_amount:.2f} MVR</b>\n"
-        f"💰 Cashback Rate: <b>{cashback_percentage}%</b>\n"
-        f"💎 Cashback Amount: <b>{cashback_amount:.2f} MVR</b>\n\n"
+        f"💰 Recovery Rate: <b>{cashback_percentage}%</b>\n"
+        f"💎 Recovery Amount: <b>{cashback_amount:.2f} MVR</b>\n\n"
         f"📅 Requested: {requested_at}\n\n"
         f"─────────────────────"
     )
@@ -963,7 +963,7 @@ async def cashback_admin_approve(update: Update, context: ContextTypes.DEFAULT_T
             cashback_amount = float(result['cashback_amount'])
 
             await query.edit_message_text(
-                f"✅ <b>Cashback Approved!</b>\n\n"
+                f"✅ <b>Recovery Approved!</b>\n\n"
                 f"User: {username}\n"
                 f"Amount: {cashback_amount:.2f} MVR\n"
                 f"Approved by: {approver_name}",
@@ -977,7 +977,7 @@ async def cashback_admin_approve(update: Update, context: ContextTypes.DEFAULT_T
             try:
                 await context.bot.send_message(
                     chat_id=target_user_id,
-                    text=f"✅ <b>Cashback Approved!</b>\n\n"
+                    text=f"✅ <b>Recovery Approved!</b>\n\n"
                          f"💰 Amount: <b>{cashback_amount:.2f} MVR</b>\n\n"
                          f"Your balance has been updated!",
                     parse_mode='HTML'
@@ -1038,7 +1038,7 @@ async def cashback_admin_reject(update: Update, context: ContextTypes.DEFAULT_TY
             cashback_amount = float(result['cashback_amount'])
 
             await query.edit_message_text(
-                f"❌ <b>Cashback Rejected</b>\n\n"
+                f"❌ <b>Recovery Rejected</b>\n\n"
                 f"User: {username}\n"
                 f"Amount: {cashback_amount:.2f} MVR\n"
                 f"Rejected by: {rejector_name}",
@@ -1052,8 +1052,8 @@ async def cashback_admin_reject(update: Update, context: ContextTypes.DEFAULT_TY
             try:
                 await context.bot.send_message(
                     chat_id=target_user_id,
-                    text=f"❌ <b>Cashback Rejected</b>\n\n"
-                         f"Your cashback request has been rejected.\n"
+                    text=f"❌ <b>Recovery Rejected</b>\n\n"
+                         f"Your recovery request has been rejected.\n"
                          f"Please contact support if you have questions.",
                     parse_mode='HTML'
                 )
@@ -1664,31 +1664,31 @@ async def admin_view_promotions(update: Update, context: ContextTypes.DEFAULT_TY
     else:
         message += "No active bonus promotion\n\n"
 
-    # Cashback Promotion Section
-    message += "<b>💸 Cashback Promotion (Losses):</b>\n"
+    # Recovery Promotion Section
+    message += "<b>💸 Recovery Promotion (Losses):</b>\n"
     if active_cashback_promo:
         message += f"🆔 ID: {active_cashback_promo.get('id', 'N/A')}\n"
         message += f"📝 Code: {active_cashback_promo.get('code', 'N/A')}\n"
-        message += f"💸 Cashback: {active_cashback_promo.get('percentage', 0)}%\n"
+        message += f"💸 Recovery: {active_cashback_promo.get('percentage', 0)}%\n"
         message += f"📅 Period: {active_cashback_promo.get('start_date', 'N/A')} to {active_cashback_promo.get('end_date', 'N/A')}\n\n"
     else:
-        message += "No active cashback promotion\n\n"
+        message += "No active recovery promotion\n\n"
 
     message += f"Total bonus promotions: {len(all_promos)}\n"
-    message += f"Total cashback promotions: {len(all_cashback_promos)}\n"
+    message += f"Total recovery promotions: {len(all_cashback_promos)}\n"
 
     keyboard = [
         [InlineKeyboardButton("➕ Create Bonus Promotion", callback_data="promo_create")],
-        [InlineKeyboardButton("💸 Create Cashback Promotion", callback_data="cashback_promo_create")],
+        [InlineKeyboardButton("💸 Create Recovery Promotion", callback_data="cashback_promo_create")],
         [InlineKeyboardButton("📋 View All Bonus", callback_data="promo_view_all")],
-        [InlineKeyboardButton("📋 View All Cashback", callback_data="cashback_promo_view_all")],
+        [InlineKeyboardButton("📋 View All Recovery", callback_data="cashback_promo_view_all")],
     ]
 
     if active_promo:
         keyboard.append([InlineKeyboardButton("🔴 Deactivate Bonus", callback_data=f"promo_deactivate_{active_promo.get('id')}")])
 
     if active_cashback_promo:
-        keyboard.append([InlineKeyboardButton("🔴 Deactivate Cashback", callback_data=f"cashback_promo_deactivate_{active_cashback_promo.get('id')}")])
+        keyboard.append([InlineKeyboardButton("🔴 Deactivate Recovery", callback_data=f"cashback_promo_deactivate_{active_cashback_promo.get('id')}")])
 
     keyboard.append([InlineKeyboardButton("« Back", callback_data="admin_back")])
 
@@ -1733,17 +1733,17 @@ async def admin_view_all_cashback_promotions(update: Update, context: ContextTyp
 
     if not all_cashback_promos:
         await query.edit_message_text(
-            "No cashback promotions found.\n\nUse 'Create Cashback Promotion' to add one.",
+            "No recovery promotions found.\n\nUse 'Create Recovery Promotion' to add one.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
         )
         return
 
-    message = "💸 <b>All Cashback Promotions</b>\n\n"
+    message = "💸 <b>All Recovery Promotions</b>\n\n"
     for promo in all_cashback_promos[-10:]:  # Show last 10
         is_active = promo.get('is_active', False)
         status_emoji = "🟢" if is_active else "⚪"
         message += f"{status_emoji} <b>{promo.get('code', 'N/A')}</b> (ID: {promo.get('id', 'N/A')})\n"
-        message += f"   Cashback: {promo.get('percentage', 0)}%\n"
+        message += f"   Recovery: {promo.get('percentage', 0)}%\n"
         message += f"   Period: {promo.get('start_date', 'N/A')} to {promo.get('end_date', 'N/A')}\n"
         message += f"   Status: {'Active' if is_active else 'Inactive'}\n\n"
 
@@ -1780,12 +1780,12 @@ async def cashback_promo_deactivate(update: Update, context: ContextTypes.DEFAUL
 
     if api.deactivate_cashback_promotion(promotion_id):
         await query.edit_message_text(
-            f"✅ Cashback promotion {promotion_id} has been deactivated.",
+            f"✅ Recovery promotion {promotion_id} has been deactivated.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
         )
     else:
         await query.edit_message_text(
-            f"❌ Failed to deactivate cashback promotion.",
+            f"❌ Failed to deactivate recovery promotion.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="admin_view_promotions")]])
         )
 
