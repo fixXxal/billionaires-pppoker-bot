@@ -280,6 +280,12 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'error_service_unavailable': "⚠️ <b>Service Temporarily Unavailable</b>\n\nWe're experiencing technical difficulties. Please try again in a few moments.",
         'error_admin_only': "❌ Admin only command.",
 
+        # Pending request messages
+        'pending_deposit': "⚠️ <b>Pending Deposit Exists</b>\n\nYou already have a pending deposit request.\nPlease wait for admin approval before submitting a new one.",
+        'pending_withdrawal': "⚠️ <b>Pending Withdrawal Exists</b>\n\nYou already have a pending withdrawal request.\nPlease wait for admin approval before submitting a new one.",
+        'pending_seat': "⚠️ <b>Pending Seat Request Exists</b>\n\nYou already have a pending seat request.\nPlease wait for admin approval before submitting a new one.",
+        'pending_join': "⚠️ <b>Pending Join Request Exists</b>\n\nYou already have a pending join request.\nPlease wait for admin approval before submitting a new one.",
+
         # Confirmations
         'cancel_operation': "❌ Operation cancelled.",
         'please_use_menu': "Please use the menu buttons or /help for available commands.",
@@ -579,6 +585,12 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
         'error_generic': "❌ މައްސަލައެއް ދިމާވީ. އަލުން މަސައްކަތް ކުރައްވާ.",
         'error_service_unavailable': "⚠️ <b>ސާވިސް ވަގުތީ ގޮތުން ލިބެން ނެތް</b>\n\nޓެކްނިކަލް މައްސަލައެއް ދިމާވެއްޖެ. އިރުކޮޅަކުން އަލުން މަސައްކަތް ކުރައްވާ.",
         'error_admin_only': "❌ އެޑްމިން އެކަނި ކޮމާންޑް.",
+
+        # Pending request messages
+        'pending_deposit': "⚠️ <b>ޕެންޑިން ޑިޕޮޒިޓް ރިކުއެސްޓެއް އެބައޮތް</b>\n\nތިބާގެ ޕެންޑިން ޑިޕޮޒިޓް ރިކުއެސްޓެއް އެބައޮތް.\nއާ ރިކުއެސްޓެއް ފޮނުވުމުގެ ކުރިން އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
+        'pending_withdrawal': "⚠️ <b>ޕެންޑިން ވިތްޑްރޯ ރިކުއެސްޓެއް އެބައޮތް</b>\n\nތިބާގެ ޕެންޑިން ވިތްޑްރޯ ރިކުއެސްޓެއް އެބައޮތް.\nއާ ރިކުއެސްޓެއް ފޮނުވުމުގެ ކުރިން އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
+        'pending_seat': "⚠️ <b>ޕެންޑިން ސީޓް ރިކުއެސްޓެއް އެބައޮތް</b>\n\nތިބާގެ ޕެންޑިން ސީޓް ރިކުއެސްޓެއް އެބައޮތް.\nއާ ރިކުއެސްޓެއް ފޮނުވުމުގެ ކުރިން އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
+        'pending_join': "⚠️ <b>ޕެންޑިން ޖޮއިން ރިކުއެސްޓެއް އެބައޮތް</b>\n\nތިބާގެ ޕެންޑިން ޖޮއިން ރިކުއެސްޓެއް އެބައޮތް.\nއާ ރިކުއެސްޓެއް ފޮނުވުމުގެ ކުރިން އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ.",
 
         # Confirmations
         'cancel_operation': "❌ ކެންސަލް ކުރެވިއްޖެ.",
@@ -1291,10 +1303,23 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await send_counter_closed_message(update):
         return ConversationHandler.END
 
-    user_data = api.get_user(update.effective_user.id)
+    user_id = update.effective_user.id
+    lang = get_user_language(user_id)
 
-    # Get user language first for translated buttons
-    lang = get_user_language(update.effective_user.id)
+    # Check for pending deposit
+    try:
+        pending = api.get_pending_deposits()
+        user_pending = [d for d in pending if d.get('user_details', {}).get('telegram_id') == user_id]
+        if user_pending:
+            await update.message.reply_text(
+                get_message('pending_deposit', lang),
+                parse_mode='HTML'
+            )
+            return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error checking pending deposits: {e}")
+
+    user_data = api.get_user(user_id)
 
     # Get all configured payment accounts
     payment_accounts = api.get_all_payment_accounts()
@@ -2012,6 +2037,19 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     lang = get_user_language(user_id)
 
+    # Check for pending withdrawal
+    try:
+        pending = api.get_pending_withdrawals()
+        user_pending = [w for w in pending if w.get('user_details', {}).get('telegram_id') == user_id]
+        if user_pending:
+            await update.message.reply_text(
+                get_message('pending_withdrawal', lang),
+                parse_mode='HTML'
+            )
+            return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error checking pending withdrawals: {e}")
+
     # Check if user has outstanding credit
     user_credit = api.get_user_credit(user_id)
     if user_credit and float(user_credit.get('amount', 0)) > 0:
@@ -2332,8 +2370,22 @@ async def join_club_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await send_counter_closed_message(update):
         return ConversationHandler.END
 
-    lang = get_user_language(update.effective_user.id)
+    user_id = update.effective_user.id
+    lang = get_user_language(user_id)
     context.user_data['lang'] = lang
+
+    # Check for pending join request
+    try:
+        pending = api.get_pending_join_requests()
+        user_pending = [j for j in pending if j.get('user_details', {}).get('telegram_id') == user_id]
+        if user_pending:
+            await update.message.reply_text(
+                get_message('pending_join', lang),
+                parse_mode='HTML'
+            )
+            return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error checking pending join requests: {e}")
 
     club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
 
@@ -2507,7 +2559,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         # Check if user already has a pending cashback request for this promotion
         pending_requests = api.get_user_pending_cashback(user.id)
-        pending_for_promo = [r for r in pending_requests if r.get('promotion_id') == promotion_id]
+        pending_for_promo = [r for r in pending_requests if r.get('promotion') == promotion_id or r.get('promotion_id') == promotion_id]
     except Exception as e:
         logger.error(f"Error getting pending cashback requests: {e}")
         await update.message.reply_text(
@@ -2519,7 +2571,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if pending_for_promo:
         await update.message.reply_text(
             get_message('cashback_pending_exists', lang,
-                       request_id=pending_for_promo[0]['request_id'],
+                       request_id=pending_for_promo[0].get('request_id') or pending_for_promo[0].get('id'),
                        amount=pending_for_promo[0]['cashback_amount']),
             parse_mode='HTML'
         )
@@ -2753,6 +2805,19 @@ async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user = update.effective_user
     lang = get_user_language(user.id)
     context.user_data['lang'] = lang
+
+    # Check for pending seat request
+    try:
+        pending = api.get_pending_seat_requests()
+        user_pending = [s for s in pending if s.get('user_details', {}).get('telegram_id') == user.id]
+        if user_pending:
+            await update.message.reply_text(
+                get_message('pending_seat', lang),
+                parse_mode='HTML'
+            )
+            return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error checking pending seat requests: {e}")
 
     # Check if user has active credit
     existing_credit = api.get_user_credit(user.id)
