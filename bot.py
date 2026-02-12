@@ -323,12 +323,37 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
 • Wait while your request is processed
 • Get an instant notification when completed
 
+<b>🪑 Seat Request</b>
+
+• Tap 🪑 Seat
+• Enter the amount you want to play with
+• Wait for admin approval
+• Once approved, choose a payment method
+• Upload your payment slip
+• Your seat will be confirmed!
+
 <b>🎮 Join Club</b>
 
 • Tap 🎮 Join Club
 • Enter your PPPoker ID
 • Wait for approval
 • You'll receive an instant notification once you're in!
+
+<b>🎲 Free Spins</b>
+
+• Tap 🎲 Free Spins
+• Make a deposit to unlock free spins
+• Tap the Spin Wheel button to spin
+• Win chips and prizes!
+• More deposits = More spins = More prizes!
+
+<b>💸 Cashback</b>
+
+• Tap 💸 Cashback
+• Check your eligibility based on deposits
+• If eligible, enter your PPPoker ID to claim
+• Wait for admin approval
+• Cashback chips will be added to your account!
 
 <b>💬 Live Support</b>
 
@@ -598,12 +623,37 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
 • ޕްރޮސެސް ވަންދެން މަޑުކުރައްވާ
 • ނިމުމުން ނޮޓިފިކޭޝަން ލިބޭނެ
 
+<b>🪑 ސީޓް ރިކުއެސްޓް</b>
+
+• 🪑 ސީޓް އަށް ފިއްތާލައްވާ
+• ކުޅެން ބޭނުންފުޅުވާ އަދަދު ޖައްސަވާ
+• އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ
+• އެޕްރޫވް ވުމުން ޕޭމަންޓް މެތަޑް އިޚްތިޔާރު ކުރައްވާ
+• ޕޭމަންޓް ސްލިޕް އަޕްލޯޑް ކުރައްވާ
+• ސީޓް ކޮންފާމް ވާނެ!
+
 <b>🎮 ކްލަބާ ގުޅުން</b>
 
 • 🎮 ކްލަބަށް ވަނުން އަށް ފިއްތާލައްވާ
 • PPPoker ID ޖައްސަވާ
 • އެޕްރޫވަލް އަށް މަޑުކުރައްވާ
 • ގުޅުމުން ނޮޓިފިކޭޝަން ލިބޭނެ
+
+<b>🎲 ފްރީ ސްޕިންސް</b>
+
+• 🎲 ފްރީ ސްޕިންސް އަށް ފިއްތާލައްވާ
+• ފްރީ ސްޕިން ހޯދަން ޑިޕޮޒިޓް ކުރައްވާ
+• ސްޕިން ވީލް ބަޓަން އަށް ފިއްތާ ސްޕިން ކުރައްވާ
+• ޗިޕްސް އާއި އިނާމު ހޯދާ!
+• ގިނައިން ޑިޕޮޒިޓް = ގިނަ ސްޕިން = ގިނަ އިނާމު!
+
+<b>💸 ކޭޝްބެކް</b>
+
+• 💸 ކޭޝްބެކް އަށް ފިއްތާލައްވާ
+• ޑިޕޮޒިޓް އަށް ބިނާކޮށް ޝަރުތު ހަމަވޭތޯ ޗެކް ކުރައްވާ
+• ޝަރުތު ހަމަވާނަމަ PPPoker ID ޖައްސަވާ ކްލެއިމް ކުރައްވާ
+• އެޑްމިން އެޕްރޫވަލް އަށް މަޑުކުރައްވާ
+• ކޭޝްބެކް ޗިޕްސް އެކައުންޓަށް އެޅޭނެ!
 
 <b>💬 ލައިވް ސަޕޯޓް</b>
 
@@ -632,12 +682,37 @@ Please enter your <b>PPPoker ID</b> to complete your join request:""",
 • Wait while your request is processed
 • Get an instant notification when completed
 
+<b>🪑 Seat Request</b>
+
+• Tap 🪑 Seat
+• Enter the amount you want to play with
+• Wait for admin approval
+• Once approved, choose a payment method
+• Upload your payment slip
+• Your seat will be confirmed!
+
 <b>🎮 Join Club</b>
 
 • Tap 🎮 Join Club
 • Enter your PPPoker ID
 • Wait for approval
 • You'll receive an instant notification once you're in!
+
+<b>🎲 Free Spins</b>
+
+• Tap 🎲 Free Spins
+• Make a deposit to unlock free spins
+• Tap the Spin Wheel button to spin
+• Win chips and prizes!
+• More deposits = More spins = More prizes!
+
+<b>💸 Cashback</b>
+
+• Tap 💸 Cashback
+• Check your eligibility based on deposits
+• If eligible, enter your PPPoker ID to claim
+• Wait for admin approval
+• Cashback chips will be added to your account!
 
 <b>💬 Live Support</b>
 
