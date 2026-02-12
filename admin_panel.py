@@ -1857,7 +1857,7 @@ async def admin_counter_status(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def admin_close_counter(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Initiate counter closing process"""
+    """Close counter silently"""
     query = update.callback_query
     await query.answer()
 
@@ -1872,26 +1872,12 @@ async def admin_close_counter(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
             return
 
-        # Ask if admin wants to send announcement
-        keyboard = [
-            [InlineKeyboardButton("📸 Send with Poster", callback_data="counter_close_with_poster")],
-            [InlineKeyboardButton("💬 Send Text Only", callback_data="counter_close_text_only")],
-            [InlineKeyboardButton("🚫 No Announcement", callback_data="counter_close_silent")],
-            [InlineKeyboardButton("« Cancel", callback_data="admin_back")]
-        ]
+        api.set_counter_status('CLOSED', query.from_user.id, announcement_sent=False)
 
         await query.edit_message_text(
-            "🔴 <b>CLOSE COUNTER</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━\n\n"
-            "You are about to close the counter.\n\n"
-            "When closed:\n"
-            "• Users cannot deposit\n"
-            "• Users cannot withdraw\n"
-            "• Users cannot join club\n"
-            "• Users cannot request seats\n\n"
-            "Do you want to send a closing announcement to all users?",
+            "✅ <b>Counter CLOSED</b>",
             parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
         )
 
     except Exception as e:
@@ -1904,7 +1890,7 @@ async def admin_close_counter(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def admin_open_counter(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Initiate counter opening process"""
+    """Open counter silently"""
     query = update.callback_query
     await query.answer()
 
@@ -1919,26 +1905,12 @@ async def admin_open_counter(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             return
 
-        # Ask if admin wants to send announcement
-        keyboard = [
-            [InlineKeyboardButton("📸 Send with Poster", callback_data="counter_open_with_poster")],
-            [InlineKeyboardButton("💬 Send Text Only", callback_data="counter_open_text_only")],
-            [InlineKeyboardButton("🚫 No Announcement", callback_data="counter_open_silent")],
-            [InlineKeyboardButton("« Cancel", callback_data="admin_back")]
-        ]
+        api.set_counter_status('OPEN', query.from_user.id, announcement_sent=False)
 
         await query.edit_message_text(
-            "🟢 <b>OPEN COUNTER</b>\n\n"
-            "━━━━━━━━━━━━━━━━━━\n\n"
-            "You are about to open the counter.\n\n"
-            "When open:\n"
-            "• Users can deposit\n"
-            "• Users can withdraw\n"
-            "• Users can join club\n"
-            "• Users can request seats\n\n"
-            "Do you want to send an opening announcement to all users?",
+            "✅ <b>Counter OPEN</b>",
             parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
         )
 
     except Exception as e:
