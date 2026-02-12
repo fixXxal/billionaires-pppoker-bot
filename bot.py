@@ -5056,7 +5056,8 @@ async def safe_broadcast(context: ContextTypes.DEFAULT_TYPE, user_ids: list,
                     await context.bot.send_message(
                         chat_id=user_id,
                         text=content['text'],
-                        parse_mode=content.get('parse_mode', 'HTML')
+                        parse_mode=content.get('parse_mode', 'HTML'),
+                        reply_markup=content.get('reply_markup')
                     )
                 else:
                     failed_count += 1
@@ -5949,8 +5950,77 @@ async def balance_add_note_received(update: Update, context: ContextTypes.DEFAUL
     return ConversationHandler.END
 
 
-# ========== COUNTER CONTROL HANDLERS ==========
+# ========== RESTART BROADCAST HANDLER ==========
 
+async def admin_restart_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send restart broadcast to all users"""
+    query = update.callback_query
+    await query.answer()
+
+    if not is_admin(query.from_user.id):
+        await query.edit_message_text("❌ Admin access required.")
+        return
+
+    await query.edit_message_text(
+        "📤 <b>Broadcasting restart message to all users...</b>",
+        parse_mode='HTML'
+    )
+
+    user_ids = api.get_all_user_ids()
+
+    restart_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 Restart Bot", callback_data="restart_bot")]
+    ])
+
+    content = {
+        'text': (
+            "🔄 <b>Bot Updated!</b>\n\n"
+            "We've made improvements to the bot.\n\n"
+            "Please tap the button below to restart:"
+        ),
+        'parse_mode': 'HTML',
+        'reply_markup': restart_keyboard
+    }
+
+    results = await safe_broadcast(context, user_ids, 'text', content)
+
+    await query.edit_message_text(
+        f"✅ <b>Restart broadcast sent!</b>\n\n"
+        f"📤 Sent to: {results['success']} users\n"
+        f"🚫 Blocked bot: {results['blocked']}\n"
+        f"❌ Failed: {results['failed']}",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back to Panel", callback_data="admin_back")]])
+    )
+
+
+async def restart_bot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle restart button press from users"""
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user
+
+    # Create or update user in database
+    try:
+        api.create_or_update_user(
+            user.id,
+            user.username,
+            user.first_name,
+            user.last_name
+        )
+    except Exception as e:
+        logger.error(f"Error during restart for user {user.id}: {e}")
+
+    await query.edit_message_text(
+        "✅ <b>Bot restarted successfully!</b>",
+        parse_mode='HTML'
+    )
+
+    # Show main menu
+    user_data = api.get_user(user.id)
+    lang = user_data.get('language', 'en') if user_data else 'en'
+    await show_main_menu(user, context, lang)
 
 
 # Promotion Management Handlers
@@ -9508,6 +9578,10 @@ def main():
     application.add_handler(balance_buy_conv)
     application.add_handler(balance_add_cash_conv)
 
+
+    # Restart broadcast handlers
+    application.add_handler(CallbackQueryHandler(admin_restart_broadcast, pattern="^admin_restart_broadcast$"))
+    application.add_handler(CallbackQueryHandler(restart_bot_callback, pattern="^restart_bot$"))
 
     # Register admin handlers and share notification_messages dict and spin_bot instance
     logger.info(f"🔧 Registering admin handlers with spin_bot: {spin_bot is not None}")

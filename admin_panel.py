@@ -80,6 +80,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("💱 Exchange Rates", callback_data="admin_exchange_rates")],
         [InlineKeyboardButton("💎 50/50 Investments", callback_data="admin_investments")],
         [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast")],
+        [InlineKeyboardButton("🔄 Restart Broadcast", callback_data="admin_restart_broadcast")],
         [InlineKeyboardButton(counter_button_text, callback_data=counter_callback)],
         [InlineKeyboardButton("📊 Counter Status", callback_data="admin_counter_status")],
         [InlineKeyboardButton("❌ Close", callback_data="admin_close")]
