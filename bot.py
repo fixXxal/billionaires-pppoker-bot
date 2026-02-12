@@ -5953,7 +5953,7 @@ async def balance_add_note_received(update: Update, context: ContextTypes.DEFAUL
 # ========== RESTART BROADCAST HANDLER ==========
 
 async def admin_restart_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Send restart broadcast to all users"""
+    """Send restart broadcast to all users with help guide in EN and DV"""
     query = update.callback_query
     await query.answer()
 
@@ -5969,15 +5969,22 @@ async def admin_restart_broadcast(update: Update, context: ContextTypes.DEFAULT_
     user_ids = api.get_all_user_ids()
 
     restart_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Restart Bot", callback_data="restart_bot")]
+        [InlineKeyboardButton("🔄 Restart Bot / ބޮޓް ރީސްޓާޓް ކުރައްވާ", callback_data="restart_bot")]
     ])
 
+    broadcast_text = (
+        "🔄 <b>Bot Updated! / ބޮޓް އަޕްޑޭޓް ވެއްޖެ!</b>\n\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        + MESSAGES['en']['help_text'] + "\n\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        + MESSAGES['dv']['help_text'] + "\n\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "👇 <b>Tap the button below to restart the bot</b>\n"
+        "👇 <b>ބޮޓް ރީސްޓާޓް ކުރަން ތިރީ ބަޓަން އަށް ފިއްތާލައްވާ</b>"
+    )
+
     content = {
-        'text': (
-            "🔄 <b>Bot Updated!</b>\n\n"
-            "We've made improvements to the bot.\n\n"
-            "Please tap the button below to restart:"
-        ),
+        'text': broadcast_text,
         'parse_mode': 'HTML',
         'reply_markup': restart_keyboard
     }
