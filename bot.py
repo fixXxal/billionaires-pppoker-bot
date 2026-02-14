@@ -1026,13 +1026,16 @@ async def handle_mini_app_data(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def send_admin_notification(context: ContextTypes.DEFAULT_TYPE, message: str):
     """Send notification to all admins"""
+    notified_ids = set()
+
     # Send to super admin
     try:
         await context.bot.send_message(chat_id=ADMIN_USER_ID, text=message, parse_mode='HTML')
+        notified_ids.add(ADMIN_USER_ID)
     except Exception as e:
         logger.error(f"Failed to send notification to super admin: {e}")
 
-    # Send to all regular admins
+    # Send to all regular admins (skip already notified)
     try:
         admins_response = api.get_all_admins()
 
@@ -1043,8 +1046,11 @@ async def send_admin_notification(context: ContextTypes.DEFAULT_TYPE, message: s
             admins = admins_response
 
         for admin in admins:
+            if admin['telegram_id'] in notified_ids:
+                continue
             try:
                 await context.bot.send_message(chat_id=admin['telegram_id'], text=message, parse_mode='HTML')
+                notified_ids.add(admin['telegram_id'])
             except Exception as e:
                 logger.error(f"Failed to send notification to admin {admin['telegram_id']}: {e}")
     except Exception as e:
@@ -1318,6 +1324,11 @@ async def deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return ConversationHandler.END
     except Exception as e:
         logger.error(f"Error checking pending deposits: {e}")
+        await update.message.reply_text(
+            "❌ Unable to verify your request status. Please try again later.",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
 
     user_data = api.get_user(user_id)
 
@@ -2049,6 +2060,11 @@ async def withdrawal_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return ConversationHandler.END
     except Exception as e:
         logger.error(f"Error checking pending withdrawals: {e}")
+        await update.message.reply_text(
+            "❌ Unable to verify your request status. Please try again later.",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
 
     # Check if user has outstanding credit
     user_credit = api.get_user_credit(user_id)
@@ -2386,6 +2402,11 @@ async def join_club_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return ConversationHandler.END
     except Exception as e:
         logger.error(f"Error checking pending join requests: {e}")
+        await update.message.reply_text(
+            "❌ Unable to verify your request status. Please try again later.",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
 
     club_link = "https://pppoker.club/poker/api/share.php?share_type=club&uid=9630705&lang=en&lan=en&time=1762635634&club_id=370625&club_name=%CE%B2ILLIONAIRES&type=1&id=370625_0"
 
@@ -2572,7 +2593,7 @@ async def cashback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             get_message('cashback_pending_exists', lang,
                        request_id=pending_for_promo[0].get('request_id') or pending_for_promo[0].get('id'),
-                       amount=pending_for_promo[0]['cashback_amount']),
+                       amount=float(pending_for_promo[0]['cashback_amount'])),
             parse_mode='HTML'
         )
         return ConversationHandler.END
@@ -2706,12 +2727,12 @@ async def notify_admins_cashback_request(context, user_id: int, username: str, r
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
         message = (
-            f"💸 <b>CASHBACK REQUEST</b> 💸\n\n"
+            f"💸 <b>RECOVERY REQUEST</b> 💸\n\n"
             f"👤 User: {username} (ID: {user_id})\n"
             f"🎫 Request ID: <code>{request_id}</code>\n\n"
             f"📊 Loss Amount: <b>{loss_amount:.2f} MVR</b>\n"
-            f"💰 Cashback Rate: <b>{cashback_percentage}%</b>\n"
-            f"💎 Cashback Amount: <b>{cashback_amount:.2f} MVR</b>\n"
+            f"💰 Recovery Rate: <b>{cashback_percentage}%</b>\n"
+            f"💎 Recovery Amount: <b>{cashback_amount:.2f} MVR</b>\n"
             f"🎮 PPPoker ID: <b>{pppoker_id}</b>"
         )
 
@@ -2740,7 +2761,7 @@ async def notify_admins_cashback_request(context, user_id: int, username: str, r
         except Exception as e:
             logger.error(f"❌ Failed to notify super admin: {e}")
 
-        # Send to all regular admins
+        # Send to all regular admins (skip super admin to avoid duplicate)
         try:
             admins_response = api.get_all_admins()
 
@@ -2751,6 +2772,8 @@ async def notify_admins_cashback_request(context, user_id: int, username: str, r
                 admins = admins_response
 
             for admin in admins:
+                if admin['telegram_id'] == ADMIN_USER_ID:
+                    continue  # Already notified above
                 try:
                     msg = await context.bot.send_message(
                         chat_id=admin['telegram_id'],
@@ -2760,7 +2783,7 @@ async def notify_admins_cashback_request(context, user_id: int, username: str, r
                     )
                     # Store message ID
                     notification_messages[request_id].append((admin['telegram_id'], msg.message_id))
-                    logger.info(f"✅ Admin {admin['telegram_id']} notified about cashback request {request_id}")
+                    logger.info(f"✅ Admin {admin['telegram_id']} notified about recovery request {request_id}")
                 except Exception as e:
                     logger.error(f"❌ Failed to notify admin {admin['telegram_id']}: {e}")
         except Exception as e:
@@ -2818,6 +2841,11 @@ async def seat_request_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return ConversationHandler.END
     except Exception as e:
         logger.error(f"Error checking pending seat requests: {e}")
+        await update.message.reply_text(
+            "❌ Unable to verify your request status. Please try again later.",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
 
     # Check if user has active credit
     existing_credit = api.get_user_credit(user.id)
@@ -4952,33 +4980,36 @@ async def send_daily_report(application):
         except Exception as e:
             logger.error(f"Failed to save reports to Google Sheets: {e}")
 
-        # Send to super admin
+        # Send to all admins (avoid duplicates)
+        notified_ids = set()
         try:
             await application.bot.send_message(
                 chat_id=ADMIN_USER_ID,
                 text=report,
                 parse_mode='HTML'
             )
+            notified_ids.add(ADMIN_USER_ID)
         except Exception as e:
             logger.error(f"Failed to send daily report to super admin: {e}")
 
-        # Send to all regular admins
         try:
             admins_response = api.get_all_admins()
 
-            # Handle paginated response from Django API
             if isinstance(admins_response, dict) and 'results' in admins_response:
                 admins = admins_response['results']
             else:
                 admins = admins_response
 
             for admin in admins:
+                if admin['telegram_id'] in notified_ids:
+                    continue
                 try:
                     await application.bot.send_message(
                         chat_id=admin['telegram_id'],
                         text=report,
                         parse_mode='HTML'
                     )
+                    notified_ids.add(admin['telegram_id'])
                 except Exception as e:
                     logger.error(f"Failed to send daily report to admin {admin['telegram_id']}: {e}")
         except Exception as e:
@@ -8941,9 +8972,9 @@ async def cashback_approve_callback(update: Update, context: ContextTypes.DEFAUL
 
         # Edit the notification message
         await query.edit_message_text(
-            f"✅ <b>CASHBACK APPROVED!</b> ✅\n\n"
+            f"✅ <b>RECOVERY APPROVED!</b> ✅\n\n"
             f"👤 User: {username}\n"
-            f"💰 Cashback Amount: <b>{cashback_amount:.2f} MVR</b>\n"
+            f"💰 Recovery Amount: <b>{cashback_amount:.2f} MVR</b>\n"
             f"🎮 PPPoker ID: <b>{pppoker_id}</b>\n\n"
             f"✨ User has been notified!\n"
             f"👤 Approved by: {approver_name}",
@@ -9016,7 +9047,7 @@ async def cashback_reject_callback(update: Update, context: ContextTypes.DEFAULT
 
         # Edit the notification message
         await query.edit_message_text(
-            f"❌ <b>CASHBACK REJECTED</b> ❌\n\n"
+            f"❌ <b>RECOVERY REJECTED</b> ❌\n\n"
             f"👤 User: {username}\n"
             f"💰 Rejected Amount: <b>{cashback_amount:.2f} MVR</b>\n\n"
             f"👤 Rejected by: {rejector_name}",
